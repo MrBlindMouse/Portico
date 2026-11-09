@@ -129,6 +129,7 @@ func TestAllPackagesCompile(t *testing.T) {
 		"github.com/MrBlindMouse/Portico/scaffold",
 		"github.com/MrBlindMouse/Portico/asset",
 		"github.com/MrBlindMouse/Portico/config",
+		"github.com/MrBlindMouse/Portico/testkit",
 	}
 	for _, p := range pkgs {
 		if _, err := build.Import(p, root, 0); err != nil {

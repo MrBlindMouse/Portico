@@ -4,8 +4,7 @@ import (
 	"testing"
 
 	"github.com/MrBlindMouse/Portico/experience"
-	"github.com/MrBlindMouse/Portico/identity"
-	"github.com/MrBlindMouse/Portico/runtime"
+	"github.com/MrBlindMouse/Portico/testkit"
 )
 
 func TestApplyTransitionAndLocal(t *testing.T) {
@@ -17,9 +16,9 @@ func TestApplyTransitionAndLocal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	eng := runtime.NewEngine(exp, runtime.NewApplier(nil, identity.NewMemoryStore()))
-	ap := eng.Applier()
-	sess := runtime.NewSessionForTest("1", identity.Anonymous(), "a")
+	h := testkit.New(exp)
+	ap := h.Applier()
+	sess := h.Session("1", "a")
 	res, err := ap.Apply(sess, exp, []experience.Effect{
 		experience.SetLocalEffect("x", 1),
 		experience.TransitionEffect("b"),
@@ -44,8 +43,9 @@ func TestApplySpaceOnJoin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ap := runtime.NewApplier(nil, identity.NewMemoryStore())
-	sess := runtime.NewSessionForTest("1", identity.Anonymous(), "home")
+	h := testkit.New(exp)
+	ap := h.Applier()
+	sess := h.Session("1", "home")
 	_, err = ap.Apply(sess, exp, []experience.Effect{experience.JoinSpaceEffect(sp)})
 	if err != nil {
 		t.Fatal(err)

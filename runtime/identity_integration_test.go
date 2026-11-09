@@ -8,6 +8,7 @@ import (
 	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
 	"github.com/MrBlindMouse/Portico/runtime"
+	"github.com/MrBlindMouse/Portico/testkit"
 	gossh "golang.org/x/crypto/ssh"
 )
 
@@ -40,15 +41,15 @@ func TestReconnectPersist(t *testing.T) {
 	pub, _ := gossh.NewPublicKey(&key.PublicKey)
 	idn := identity.FromPublicKey(pub)
 
-	eng := runtime.NewEngine(exp, runtime.NewApplier(nil, store))
-	s1 := runtime.NewSessionForTest("1", idn, "home")
+	h := testkit.NewWithStore(exp, store)
+	s1 := h.SessionWithIdentity("1", idn, "home")
 	act, _ := exp.Action("prime")
-	ctx := runtime.NewActionContextForTest(s1, exp, eng)
-	if _, err := eng.Applier().Apply(s1, exp, act.Run(ctx)); err != nil {
+	ctx := runtime.NewActionContextForTest(s1, exp, h.Engine)
+	if _, err := h.Applier().Apply(s1, exp, act.Run(ctx)); err != nil {
 		t.Fatal(err)
 	}
-	s2 := runtime.NewSessionForTest("2", idn, "home")
-	out, err := eng.RenderText(s2)
+	s2 := h.SessionWithIdentity("2", idn, "home")
+	out, err := h.Engine.RenderText(s2)
 	if err != nil {
 		t.Fatal(err)
 	}

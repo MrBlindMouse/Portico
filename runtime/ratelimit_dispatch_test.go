@@ -5,8 +5,7 @@ import (
 	"testing"
 
 	"github.com/MrBlindMouse/Portico/experience"
-	"github.com/MrBlindMouse/Portico/identity"
-	"github.com/MrBlindMouse/Portico/runtime"
+	"github.com/MrBlindMouse/Portico/testkit"
 )
 
 func TestRateLimitAppliesOnlyAfterResolve(t *testing.T) {
@@ -23,14 +22,14 @@ func TestRateLimitAppliesOnlyAfterResolve(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	eng := runtime.NewEngine(exp, runtime.NewApplier(nil, identity.NewMemoryStore()))
-	eng.EnableRateLimit(1, 1)
-	sess := runtime.NewSessionForTest("t", identity.Anonymous(), "home")
+	h := testkit.New(exp)
+	h.Engine.EnableRateLimit(1, 1)
+	sess := h.Session("t", "home")
 
 	for i := 0; i < 20; i++ {
-		_ = eng.HandleInput(sess, "not-a-command")
+		_ = h.Engine.HandleInput(sess, "not-a-command")
 	}
-	if err := eng.HandleInput(sess, "go"); err != nil {
+	if err := h.Engine.HandleInput(sess, "go"); err != nil {
 		if strings.Contains(err.Error(), "rate limit") {
 			t.Fatal("unknown input should not consume rate limit tokens")
 		}

@@ -3,10 +3,9 @@ package scaffold_test
 import (
 	"testing"
 
-	"github.com/MrBlindMouse/Portico/identity"
 	"github.com/MrBlindMouse/Portico/internal/faketerm"
-	"github.com/MrBlindMouse/Portico/runtime"
 	"github.com/MrBlindMouse/Portico/scaffold"
+	"github.com/MrBlindMouse/Portico/testkit"
 )
 
 func TestChatSendPostsMessage(t *testing.T) {
@@ -14,23 +13,23 @@ func TestChatSendPostsMessage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	eng := runtime.NewEngine(exp, runtime.NewApplier(nil, identity.NewMemoryStore()))
-	sess := runtime.NewSessionForTest("s", identity.Anonymous(), exp.Root())
+	h := testkit.New(exp)
+	sess := h.Session("s", exp.Root())
 	term := faketerm.New()
-	eng.RegisterSession(sess)
-	if err := eng.HandleInput(sess, "send"); err != nil {
+	h.Engine.RegisterSession(sess)
+	if err := h.Engine.HandleInput(sess, "send"); err != nil {
 		t.Fatal(err)
 	}
-	if err := eng.Render(sess, term); err != nil {
+	if err := h.Engine.Render(sess, term); err != nil {
 		t.Fatal(err)
 	}
 	if term.Contains("guest:") {
 		t.Fatal("bare send should not post")
 	}
-	if err := eng.HandleInput(sess, "send hello there"); err != nil {
+	if err := h.Engine.HandleInput(sess, "send hello there"); err != nil {
 		t.Fatal(err)
 	}
-	if err := eng.Render(sess, term); err != nil {
+	if err := h.Engine.Render(sess, term); err != nil {
 		t.Fatal(err)
 	}
 	if !term.Contains("guest: hello there") {
@@ -43,14 +42,14 @@ func TestGuestbookSignPostsMessage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	eng := runtime.NewEngine(exp, runtime.NewApplier(nil, identity.NewMemoryStore()))
-	sess := runtime.NewSessionForTest("s", identity.Anonymous(), exp.Root())
+	h := testkit.New(exp)
+	sess := h.Session("s", exp.Root())
 	term := faketerm.New()
-	eng.RegisterSession(sess)
-	if err := eng.HandleInput(sess, "sign ships ahoy"); err != nil {
+	h.Engine.RegisterSession(sess)
+	if err := h.Engine.HandleInput(sess, "sign ships ahoy"); err != nil {
 		t.Fatal(err)
 	}
-	if err := eng.Render(sess, term); err != nil {
+	if err := h.Engine.Render(sess, term); err != nil {
 		t.Fatal(err)
 	}
 	if !term.Contains("guest: ships ahoy") {

@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/MrBlindMouse/Portico/experience"
-	"github.com/MrBlindMouse/Portico/identity"
 	"github.com/MrBlindMouse/Portico/internal/faketerm"
 	"github.com/MrBlindMouse/Portico/runtime"
+	"github.com/MrBlindMouse/Portico/testkit"
 )
 
 func TestSpaceBroadcast(t *testing.T) {
@@ -37,21 +37,21 @@ func TestSpaceBroadcast(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	eng := runtime.NewEngine(exp, runtime.NewApplier(nil, identity.NewMemoryStore()))
-	s1 := runtime.NewSessionForTest("1", identity.Anonymous(), "chat")
-	s2 := runtime.NewSessionForTest("2", identity.Anonymous(), "chat")
+	h := testkit.New(exp)
+	s1 := h.Session("1", "chat")
+	s2 := h.Session("2", "chat")
 	t1 := faketerm.New()
 	t2 := faketerm.New()
-	eng.RegisterSession(s1)
-	eng.RegisterSession(s2)
+	h.Engine.RegisterSession(s1)
+	h.Engine.RegisterSession(s2)
 	runtime.SetSessionTerminalForTest(s1, t1)
 	runtime.SetSessionTerminalForTest(s2, t2)
-	_, _ = eng.Applier().Apply(s2, exp, []experience.Effect{experience.JoinSpaceEffect(sp)})
-	_ = eng.Render(s2, t2)
-	if err := eng.HandleInput(s1, "send"); err != nil {
+	_, _ = h.Engine.Applier().Apply(s2, exp, []experience.Effect{experience.JoinSpaceEffect(sp)})
+	_ = h.Engine.Render(s2, t2)
+	if err := h.Engine.HandleInput(s1, "send"); err != nil {
 		t.Fatal(err)
 	}
-	_ = eng.Render(s1, t1)
+	_ = h.Engine.Render(s1, t1)
 	if t2.LastFrame() != "msgs" {
 		t.Fatalf("s2=%q want msgs", t2.LastFrame())
 	}

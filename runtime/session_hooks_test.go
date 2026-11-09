@@ -4,8 +4,7 @@ import (
 	"testing"
 
 	"github.com/MrBlindMouse/Portico/experience"
-	"github.com/MrBlindMouse/Portico/identity"
-	"github.com/MrBlindMouse/Portico/runtime"
+	"github.com/MrBlindMouse/Portico/testkit"
 )
 
 func TestSessionStartEffect(t *testing.T) {
@@ -17,8 +16,9 @@ func TestSessionStartEffect(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ap := runtime.NewApplier(nil, identity.NewMemoryStore())
-	sess := runtime.NewSessionForTest("t", identity.Anonymous(), "home")
+	h := testkit.New(exp)
+	ap := h.Applier()
+	sess := h.Session("t", "home")
 	_, err = ap.Apply(sess, exp, exp.OnSessionStart())
 	if err != nil {
 		t.Fatal(err)

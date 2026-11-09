@@ -8,6 +8,7 @@ import (
 	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
 	"github.com/MrBlindMouse/Portico/runtime"
+	"github.com/MrBlindMouse/Portico/testkit"
 	gossh "golang.org/x/crypto/ssh"
 )
 
@@ -22,7 +23,7 @@ func TestPersistEffect(t *testing.T) {
 			},
 		}).
 		Build()
-	eng := runtime.NewEngine(exp, runtime.NewApplier(nil, store))
+	h := testkit.NewWithStore(exp, store)
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		t.Fatal(err)
@@ -32,11 +33,11 @@ func TestPersistEffect(t *testing.T) {
 		t.Fatal(err)
 	}
 	idn := identity.FromPublicKey(pub)
-	sess := runtime.NewSessionForTest("s", idn, "home")
+	sess := h.SessionWithIdentity("s", idn, "home")
 	sess.SetIdentityForTest(idn)
 	act, _ := exp.Action("save")
-	ctx := runtime.NewActionContextForTest(sess, exp, eng)
-	_, err = eng.Applier().Apply(sess, exp, act.Run(ctx))
+	ctx := runtime.NewActionContextForTest(sess, exp, h.Engine)
+	_, err = h.Applier().Apply(sess, exp, act.Run(ctx))
 	if err != nil {
 		t.Fatal(err)
 	}

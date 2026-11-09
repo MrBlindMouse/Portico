@@ -100,7 +100,7 @@ Hints: `portico scaffold <name>` prints merge snippets. See `scaffold/AGENTS.md`
 
 ## Testing
 
-Shipped **testkit** is not guaranteed; site tests should call `Build()` and test pure helpers. Framework integration tests are not your default template.
+Site integration tests can use **`testkit`** (`testkit.New(exp)`) for an in-memory engine and store. Prefer testing pure helpers and `Build()` validation when that is enough; full SSH e2e is optional.
 
 ## Production notes
 

@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/MrBlindMouse/Portico/experience"
-	"github.com/MrBlindMouse/Portico/identity"
 	"github.com/MrBlindMouse/Portico/runtime"
+	"github.com/MrBlindMouse/Portico/testkit"
 	gossh "golang.org/x/crypto/ssh"
 )
 
@@ -24,7 +24,7 @@ func TestEmbeddedSSH(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	eng := runtime.NewEngine(exp, runtime.NewApplier(nil, identity.NewMemoryStore()))
+	eng := testkit.New(exp).Engine
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)

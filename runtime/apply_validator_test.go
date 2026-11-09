@@ -5,8 +5,7 @@ import (
 	"testing"
 
 	"github.com/MrBlindMouse/Portico/experience"
-	"github.com/MrBlindMouse/Portico/identity"
-	"github.com/MrBlindMouse/Portico/runtime"
+	"github.com/MrBlindMouse/Portico/testkit"
 )
 
 func TestSpaceValidator(t *testing.T) {
@@ -25,8 +24,9 @@ func TestSpaceValidator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ap := runtime.NewApplier(nil, identity.NewMemoryStore())
-	sess := runtime.NewSessionForTest("t", identity.Anonymous(), "home")
+	h := testkit.New(exp)
+	ap := h.Applier()
+	sess := h.Session("t", "home")
 	_, err = ap.Apply(sess, exp, []experience.Effect{
 		experience.JoinSpaceEffect("s"),
 		experience.SpaceSetEffect("s", "n", 1),

@@ -5,9 +5,8 @@ import (
 	"testing"
 
 	"github.com/MrBlindMouse/Portico/experience"
-	"github.com/MrBlindMouse/Portico/identity"
 	"github.com/MrBlindMouse/Portico/internal/faketerm"
-	"github.com/MrBlindMouse/Portico/runtime"
+	"github.com/MrBlindMouse/Portico/testkit"
 )
 
 func TestLoopTransition(t *testing.T) {
@@ -29,10 +28,10 @@ func TestLoopTransition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	eng := runtime.NewEngine(exp, runtime.NewApplier(nil, identity.NewMemoryStore()))
-	sess := runtime.NewSessionForTest("t", identity.Anonymous(), "home")
+	h := testkit.New(exp)
+	sess := h.Session("t", "home")
 	term := faketerm.New("go")
-	if err := eng.RunLoop(sess, term, nil); err == nil || !strings.Contains(err.Error(), "no more inputs") {
+	if err := h.Engine.RunLoop(sess, term, nil); err == nil || !strings.Contains(err.Error(), "no more inputs") {
 		// RunLoop reads until error after last input
 	}
 	if !term.Contains("other") {
@@ -59,10 +58,10 @@ func TestLoopIgnoresIneligibleAndProtocol(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	eng := runtime.NewEngine(exp, runtime.NewApplier(nil, identity.NewMemoryStore()))
-	sess := runtime.NewSessionForTest("t", identity.Anonymous(), "home")
+	h := testkit.New(exp)
+	sess := h.Session("t", "home")
 	term := faketerm.New("OK", "KITTY_DATA_START", "go")
-	if err := eng.RunLoop(sess, term, nil); err == nil || !strings.Contains(err.Error(), "no more inputs") {
+	if err := h.Engine.RunLoop(sess, term, nil); err == nil || !strings.Contains(err.Error(), "no more inputs") {
 		t.Logf("RunLoop err=%v", err)
 	}
 	if !term.Contains("other") {
@@ -94,9 +93,9 @@ func TestLoopIgnoresTerminalProtocolLines(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	eng := runtime.NewEngine(exp, runtime.NewApplier(nil, identity.NewMemoryStore()))
-	eng.EnableRateLimit(1, 2) // burst 2: protocol spam would exceed without filter
-	sess := runtime.NewSessionForTest("t", identity.Anonymous(), "home")
+	h := testkit.New(exp)
+	h.Engine.EnableRateLimit(1, 2) // burst 2: protocol spam would exceed without filter
+	sess := h.Session("t", "home")
 	noise := []string{
 		"KITTY_DATA_END",
 		"KITTY_DATA_END",
@@ -111,7 +110,7 @@ func TestLoopIgnoresTerminalProtocolLines(t *testing.T) {
 		"go",
 	}
 	term := faketerm.New(noise...)
-	if err := eng.RunLoop(sess, term, nil); err == nil || !strings.Contains(err.Error(), "no more inputs") {
+	if err := h.Engine.RunLoop(sess, term, nil); err == nil || !strings.Contains(err.Error(), "no more inputs") {
 		t.Logf("RunLoop err=%v", err)
 	}
 	if !term.Contains("other") {

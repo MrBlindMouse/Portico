@@ -48,6 +48,7 @@ CI runs `go test`, `go vet`, and `internal/archtest` on every push.
 | `inspect`     | Read-only JSON snapshots for agents |
 | `scaffold`    | Composable starter definitions (optional for sites) |
 | `asset`       | Named filesystem assets and poll watcher |
+| `testkit`     | In-memory engine/store fixtures for tests (`runtime_test` and sites; not from `package runtime` tests) |
 | `cmd/portico` | CLI: `init`, `docs`, `inspect`, `scaffold`, `wire`, `identity-export`, `account-export`, `serve -demo` |
 | `internal/*`  | archtest, faketerm, fakessh — not importable by sites |
 

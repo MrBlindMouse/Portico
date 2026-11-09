@@ -3,9 +3,8 @@ package main
 import (
 	"testing"
 
-	"github.com/MrBlindMouse/Portico/identity"
 	"github.com/MrBlindMouse/Portico/internal/faketerm"
-	"github.com/MrBlindMouse/Portico/runtime"
+	"github.com/MrBlindMouse/Portico/testkit"
 )
 
 func TestCommunityChatAndGuestbook(t *testing.T) {
@@ -13,33 +12,33 @@ func TestCommunityChatAndGuestbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	eng := runtime.NewEngine(exp, runtime.NewApplier(nil, identity.NewMemoryStore()))
-	sess := runtime.NewSessionForTest("s", identity.Anonymous(), exp.Root())
+	h := testkit.New(exp)
+	sess := h.Session("s", exp.Root())
 	term := faketerm.New()
-	eng.RegisterSession(sess)
+	h.Engine.RegisterSession(sess)
 
-	if err := eng.HandleInput(sess, "chat"); err != nil {
+	if err := h.Engine.HandleInput(sess, "chat"); err != nil {
 		t.Fatal(err)
 	}
-	if err := eng.HandleInput(sess, "send hello there"); err != nil {
+	if err := h.Engine.HandleInput(sess, "send hello there"); err != nil {
 		t.Fatal(err)
 	}
-	if err := eng.Render(sess, term); err != nil {
+	if err := h.Engine.Render(sess, term); err != nil {
 		t.Fatal(err)
 	}
 	if !term.Contains("guest: hello there") {
 		t.Fatalf("chat frame=%q", term.LastFrame())
 	}
 
-	sess2 := runtime.NewSessionForTest("g", identity.Anonymous(), exp.Root())
-	eng.RegisterSession(sess2)
-	if err := eng.HandleInput(sess2, "guestbook"); err != nil {
+	sess2 := h.Session("g", exp.Root())
+	h.Engine.RegisterSession(sess2)
+	if err := h.Engine.HandleInput(sess2, "guestbook"); err != nil {
 		t.Fatal(err)
 	}
-	if err := eng.HandleInput(sess2, "sign ships ahoy"); err != nil {
+	if err := h.Engine.HandleInput(sess2, "sign ships ahoy"); err != nil {
 		t.Fatal(err)
 	}
-	if err := eng.Render(sess2, term); err != nil {
+	if err := h.Engine.Render(sess2, term); err != nil {
 		t.Fatal(err)
 	}
 	if !term.Contains("guest: ships ahoy") {
