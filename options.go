@@ -52,6 +52,12 @@ type Options struct {
 	// Theme is the session theme. Nil uses render.Default, or render.Plain when
 	// NO_COLOR is set to a non-empty value.
 	Theme *render.Theme
+	// ScrollbackEcho reprints "> command" under the frame after a successful line.
+	// The default paints a bare "> ".
+	ScrollbackEcho bool
+	// Transcript is RecentCommands across a scene change.
+	// The zero value clears the list. TranscriptKeep retains it. TranscriptOff records nothing.
+	Transcript runtime.TranscriptMode
 }
 
 // MergeConfig overlays non-zero fields from a config file onto opts.

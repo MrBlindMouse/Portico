@@ -28,6 +28,7 @@ func (m listMem) SpaceList(experience.SpaceID, string) []any        { return nil
 func (m listMem) Size() (int, int)                                  { return 80, 24 }
 func (m listMem) Theme() render.Theme                               { return m.th }
 func (m listMem) PlaceInput(render.Input)                           {}
+func (m listMem) RecentCommands(int) []string                       { return nil }
 func (m listMem) SetLocal(string, any) experience.Effect            { return nil }
 func (m listMem) Transition(experience.SceneID) experience.Effect   { return nil }
 func (m listMem) InputLine() string                                 { return "" }

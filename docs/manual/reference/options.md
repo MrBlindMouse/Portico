@@ -26,6 +26,8 @@ Passed to `Serve`, `ServeDev`, or `NewHost`. Many fields merge from [JSON config
 | `ActionBefore`, `ActionAfter` | Hooks around dispatch |
 | `OnReady` | Called with `*Host` after wiring |
 | `Theme` | Session theme; nil uses Default/Plain |
+| `ScrollbackEcho` | Reprint `> command` under the frame. Default is a bare `>` |
+| `Transcript` | `RecentCommands` across a scene change. Zero clears; `TranscriptKeep` retains; `TranscriptOff` records nothing |
 
 Account resolution order: `AccountBackend` → hashed files → `AccountStore` → `Accounts.Accounts`.
 

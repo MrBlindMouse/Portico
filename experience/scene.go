@@ -49,6 +49,10 @@ type RenderContext interface {
 	// A scene with Keys set fails when it renders if a caret was placed.
 	// Leave it unset and the caret is the full row under the frame.
 	PlaceInput(in render.Input)
+	// RecentCommands returns the last n successful lines for this session, oldest first.
+	// n <= 0 returns the whole list. The list is empty after a scene change unless
+	// the host set TranscriptKeep. TranscriptOff leaves it empty.
+	RecentCommands(n int) []string
 }
 
 // SceneContext adds effect descriptions for actions (not applied during Render).

@@ -50,6 +50,7 @@ func NewHost(addr string, exp *experience.Experience, opts Options) (*Host, erro
 	eng := runtime.NewEngine(exp, applier)
 	eng.SetLogger(opts.Logger)
 	eng.SetTheme(resolveTheme(opts))
+	eng.SetInputPolicy(opts.ScrollbackEcho, opts.Transcript)
 	if opts.ActionRate >= 0 {
 		rate, burst := opts.ActionRate, opts.ActionBurst
 		if rate == 0 {

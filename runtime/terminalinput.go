@@ -14,8 +14,13 @@
 //     Ctrl-Z and Ctrl-\ are ignored, Ctrl-C ends the session, and Ctrl-D on an
 //     empty line ends it too.
 //  2. Transport line filter (IsTerminalProtocolLine): discard whole lines that are
-//     unambiguous wire noise (KITTY_* markers, long base64, escape-shaped remnants).
-//     Short tokens such as "OK" are not protocol here—they may be dropped at step 3.
+//     unambiguous wire noise (KITTY_* markers, long base64, escape-shaped remnants,
+//     iTerm's "-- BEGIN CONDUCTOR --"). Those lines are assembled without local echo
+//     when the bytes are already buffered (a kitten write) or while a bootstrap window
+//     is open. Kitty's ssh kitten streams a tar from KITTY_DATA_START through
+//     KITTY_DATA_END; OK and every other line in that window are absorbed. A line with
+//     a space ends the window early and is kept as a command. Short tokens such as
+//     "OK" outside that window may still reach scene eligibility.
 //  3. Scene eligibility (dispatcher InputEligible + engine RunLoop): dispatch only when
 //     the line matches the scene Inputs map. Any other line prints "no such command".
 //
@@ -31,6 +36,7 @@ package runtime
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"strings"
@@ -65,6 +71,11 @@ type inputReader struct {
 	lastSkippedCSI string // debug: CSI seen while a line had content but did not submit
 	slot           *render.Input
 	notice         string // shown in the slot until the next edit; not part of the line
+	silentLine     bool   // this line is wire; do not echo bytes or CR LF
+	lastSilent     bool   // last completed line was silent; prompt stays put
+	crPending      bool   // saw CR; a following LF is the rest of CRLF, not a new line
+	kittyBootstrap bool   // ssh kitten payload after KITTY_DATA_START, until END
+	conductor      bool   // iTerm it2ssh script after "-- BEGIN CONDUCTOR --"
 }
 
 func newInputReader(r *bufio.Reader) *inputReader {
@@ -89,6 +100,12 @@ func (ir *inputReader) readUserLine() (string, error) {
 			}
 			return "", err
 		}
+		if !ir.pasting && ir.crPending {
+			ir.crPending = false
+			if b == '\n' {
+				continue
+			}
+		}
 		if ir.pasting && (b == '\n' || b == '\r') {
 			if b == '\r' && ir.r.Buffered() > 0 {
 				if peek, _ := ir.r.Peek(1); len(peek) > 0 && peek[0] == '\n' {
@@ -100,14 +117,24 @@ func (ir *inputReader) readUserLine() (string, error) {
 		}
 		switch b {
 		case '\n':
+			if len(ir.buf) == 0 && ir.peekWireFollows() {
+				ir.silentLine = true
+			}
 			return ir.endLine("lf", "")
 		case '\r':
 			// Peek blocks until another byte exists. A lone CR (Enter) must finish
 			// the line now; only swallow LF when it is already buffered (CRLF).
+			swallowed := false
 			if ir.r.Buffered() > 0 {
 				if peek, _ := ir.r.Peek(1); len(peek) > 0 && peek[0] == '\n' {
 					_, _ = ir.r.ReadByte()
+					swallowed = true
 				}
+			}
+			ir.crPending = !swallowed
+			if len(ir.buf) == 0 && ir.peekWireFollows() {
+				ir.silentLine = true
+				ir.crPending = false
 			}
 			return ir.endLine("cr", "")
 		case 0x03: // Ctrl-C
@@ -118,21 +145,39 @@ func (ir *inputReader) readUserLine() (string, error) {
 				return "", io.EOF
 			}
 		case 0x08, 0x7f: // BS, DEL
-			ir.eraseBefore()
+			if !ir.silentLine {
+				ir.eraseBefore()
+			}
 		case 0x0c: // Ctrl-L
+			if ir.silentLine {
+				break
+			}
 			if ir.redraw != nil {
 				ir.redraw()
 			}
 			ir.paintLine()
 		case 0x15: // Ctrl-U
-			ir.eraseAll()
+			if !ir.silentLine {
+				ir.eraseAll()
+			}
 		case 0x17: // Ctrl-W
-			ir.eraseWord()
+			if !ir.silentLine {
+				ir.eraseWord()
+			}
 		case 0x1a, 0x1c: // Ctrl-Z, Ctrl-\
 			// Swallow. These must not suspend or kill the server process.
 		case '\t':
-			ir.completeLine()
+			if !ir.silentLine {
+				ir.completeLine()
+			}
 		case 0x1b:
+			if ir.silentLine {
+				_, err = ir.consumeEscape()
+				if err != nil {
+					return "", err
+				}
+				break
+			}
 			ir.lineBufLen = len(ir.buf)
 			submit, err := ir.consumeEscape()
 			if err != nil {
@@ -143,10 +188,132 @@ func (ir *inputReader) readUserLine() (string, error) {
 			}
 		default:
 			if userLineByteOK(b) {
-				ir.insert([]byte{b})
+				if ir.shouldSilence(b) {
+					ir.silentLine = true
+					ir.appendWireByte(b)
+				} else {
+					ir.insert([]byte{b})
+				}
 			}
 		}
 	}
+}
+
+// shouldSilence reports whether b belongs on a wire line.
+// Peeks only bytes already buffered, so a typed character never blocks.
+func (ir *inputReader) shouldSilence(b byte) bool {
+	if ir.silentLine || ir.kittyBootstrap {
+		return true
+	}
+	if len(ir.buf) != 0 {
+		return false
+	}
+	if ir.conductor {
+		// The next line is more script, or the user. Only the script stays silent.
+		if ir.peekBase64Chunk(b) || ir.peekEscapeShaped(b) || (b == '-' && ir.peekHasPrefix("- BEGIN CONDUCTOR --")) {
+			return true
+		}
+		ir.conductor = false
+		return false
+	}
+	switch {
+	case b == 'K' && ir.peekHasPrefix("ITTY_"):
+		if ir.peekHasPrefix("ITTY_DATA_START") {
+			ir.kittyBootstrap = true
+		}
+		return true
+	case b == '-' && ir.peekHasPrefix("- BEGIN CONDUCTOR --"):
+		ir.conductor = true
+		return true
+	case ir.peekEscapeShaped(b), ir.peekBase64Chunk(b):
+		return true
+	default:
+		return false
+	}
+}
+
+// peekWireFollows reports a protocol dump already buffered after this newline.
+func (ir *inputReader) peekWireFollows() bool {
+	n := ir.r.Buffered()
+	if n == 0 {
+		return false
+	}
+	if n > 80 {
+		n = 80
+	}
+	got, _ := ir.r.Peek(n)
+	if bytes.HasPrefix(got, []byte("KITTY_")) || bytes.HasPrefix(got, []byte("-- BEGIN CONDUCTOR --")) {
+		return true
+	}
+	line := got
+	if i := bytesIndexAny(got); i >= 0 {
+		line = got[:i]
+	}
+	s := string(line)
+	return looksLikeEscapeLine(s) || looksLikeBase64Chunk(s)
+}
+
+func (ir *inputReader) peekHasPrefix(prefix string) bool {
+	if ir.r.Buffered() < len(prefix) {
+		return false
+	}
+	got, err := ir.r.Peek(len(prefix))
+	return err == nil && string(got) == prefix
+}
+
+func (ir *inputReader) peekEscapeShaped(first byte) bool {
+	if !strings.ContainsRune("]P_^X[", rune(first)) {
+		return false
+	}
+	n := ir.r.Buffered()
+	if n < 1 {
+		return false
+	}
+	if n > 64 {
+		n = 64
+	}
+	got, _ := ir.r.Peek(n)
+	s := append([]byte{first}, got...)
+	if i := bytesIndexAny(s); i >= 0 {
+		s = s[:i]
+	}
+	return looksLikeEscapeLine(string(s))
+}
+
+func (ir *inputReader) peekBase64Chunk(first byte) bool {
+	n := ir.r.Buffered()
+	if n < 47 {
+		return false
+	}
+	if n > 256 {
+		n = 256
+	}
+	got, _ := ir.r.Peek(n)
+	line := make([]byte, 0, n+1)
+	line = append(line, first)
+	for _, c := range got {
+		if c == '\n' || c == '\r' {
+			break
+		}
+		line = append(line, c)
+	}
+	return looksLikeBase64Chunk(string(line))
+}
+
+func bytesIndexAny(s []byte) int {
+	for i, c := range s {
+		if c == '\n' || c == '\r' {
+			return i
+		}
+	}
+	return -1
+}
+
+func (ir *inputReader) appendWireByte(b byte) {
+	ir.mu.Lock()
+	ir.buf = append(ir.buf, b)
+	ir.pos = len(ir.buf)
+	ir.mu.Unlock()
 }
 
 func (ir *inputReader) endLine(kind, csi string) (string, error) {
@@ -155,8 +322,11 @@ func (ir *inputReader) endLine(kind, csi string) (string, error) {
 	ir.buf = ir.buf[:0]
 	ir.pos = 0
 	slotted := ir.slot != nil
+	silent := ir.silentLine || ir.kittyBootstrap || ir.conductor
+	ir.silentLine = false
+	ir.lastSilent = silent
 	ir.mu.Unlock()
-	if !slotted {
+	if !slotted && !silent {
 		ir.echoBytes([]byte{'\r', '\n'})
 	}
 	ir.noteLineEnd(kind, csi)
@@ -532,6 +702,12 @@ func (ir *inputReader) pushHistory(line string) {
 	ir.draft = ir.draft[:0]
 }
 
+func (ir *inputReader) clearRecall() {
+	ir.history = nil
+	ir.hist = 0
+	ir.draft = ir.draft[:0]
+}
+
 func (ir *inputReader) historyOlder() {
 	if len(ir.history) == 0 || ir.hist == 0 {
 		return
@@ -585,19 +761,63 @@ func (ir *inputReader) readUserCommand() (string, error) {
 			return "", err
 		}
 		line = normalizeUserLine(line)
-		if line == "" || IsTerminalProtocolLine(line) {
-			if ir.hasSlot() {
-				// The rectangle did not move. Repaint it.
-				ir.paintLine()
-			} else {
-				// Enter already moved off the old prompt line. Put ">" on the new one.
-				ir.echoBytes([]byte("> "))
-			}
+		ir.noteWireWindow(line)
+		if ir.discardTransportLine(line) {
+			ir.promptAfterTransportDiscard()
 			continue
+		}
+		if ir.lastSilent && line != "" && !ir.hasSlot() {
+			// Typed through a wire window: the bytes were not echoed as they arrived.
+			ir.echoBytes([]byte(line))
+			ir.echoBytes([]byte("\r\n"))
 		}
 		ir.pushHistory(line)
 		return line, nil
 	}
+}
+
+const itermConductorBegin = "-- BEGIN CONDUCTOR --"
+
+func (ir *inputReader) noteWireWindow(line string) {
+	switch line {
+	case "KITTY_DATA_START":
+		ir.kittyBootstrap = true
+	case "KITTY_DATA_END":
+		ir.kittyBootstrap = false
+	case itermConductorBegin:
+		ir.conductor = true
+	}
+}
+
+func (ir *inputReader) discardTransportLine(line string) bool {
+	if line == "" {
+		return true
+	}
+	if ir.kittyBootstrap {
+		// A spaced line is someone typing through a stuck window. Keep it.
+		if strings.ContainsRune(line, ' ') && !isKittyWireLine(line) {
+			ir.kittyBootstrap = false
+			return false
+		}
+		return true
+	}
+	if ir.conductor {
+		if line == itermConductorBegin || IsTerminalProtocolLine(line) {
+			return true
+		}
+		ir.conductor = false
+		return false
+	}
+	return IsTerminalProtocolLine(line)
+}
+
+// promptAfterTransportDiscard reprints the prompt only when the discarded line moved the cursor.
+// The repaint starts with CR, so a second prompt replaces the first instead of stacking "> >".
+func (ir *inputReader) promptAfterTransportDiscard() {
+	if ir.lastSilent {
+		return
+	}
+	ir.paintLine()
 }
 
 func (ir *inputReader) setKeys(keys []string) {
@@ -753,7 +973,7 @@ func IsTerminalProtocolLine(s string) bool {
 	if s == "" {
 		return false
 	}
-	if isKittyWireLine(s) {
+	if isKittyWireLine(s) || s == itermConductorBegin {
 		return true
 	}
 	if strings.ContainsRune(s, '\x1b') {

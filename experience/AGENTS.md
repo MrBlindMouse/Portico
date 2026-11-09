@@ -13,7 +13,7 @@ Scenes, actions, spaces, and builder validation. Site modules **import** this pa
 
 | Type | Used in | May |
 |------|---------|-----|
-| `RenderContext` | `Scene.Render` | Read identity, local, assets, space state, `Size()`, `Theme()` |
+| `RenderContext` | `Scene.Render` | Read identity, local, assets, space state, `Size()`, `Theme()`, `RecentCommands()` |
 | `SceneContext` | (via actions) | Above + `SetLocal`/`Transition` **effects** |
 | `ActionContext` | `Action.Run` | Above + `InputLine()`, `Space()`, `Persist()` |
 

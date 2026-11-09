@@ -23,7 +23,13 @@ A scene with `Keys: true` **cannot** place a custom caret via `PlaceInput` durin
 
 ## Caret (line mode)
 
-Without `PlaceInput`, the prompt is `>` on the row below the scene output. With `render.Screen` + `Input` + `Show`, you place the caret in one rectangle. See [Rendering](04-rendering.md).
+Without `PlaceInput`, the prompt is `>` on the row below the scene output. After a successful command the runtime redraws the scene and prints a fresh `>`. It does not leave the command on that row. `Options.ScrollbackEcho` restores the old `> command` line under the frame.
+
+`ctx.RecentCommands(n)` is the session transcript of lines that ran (oldest first; `n <= 0` is the whole list, capped at 32). A scene change clears it. `Options.Transcript` set to `runtime.TranscriptKeep` retains it, including the line that changed scenes. `runtime.TranscriptOff` records nothing. Drawing the list is the scene's job (`render.Screen`); chat messages and guestbook signatures stay in spaces.
+
+Up and down still recall earlier lines in the line editor. That recall clears when the scene changes.
+
+With `render.Screen` + `Input` + `Show`, you place the caret in one rectangle. See [Rendering](04-rendering.md).
 
 ## Rate limiting
 

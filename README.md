@@ -166,7 +166,7 @@ A selectable list stores an `int` in session-local state. `experience.MoveList` 
 
 `SpinnerFrame` does not animate. Change the index with `SetLocalEffect` from an action. Portico does not run a clock.
 
-The caret is the full row under that string, prefixed with `>`. To put it somewhere else, draw a `render.Screen` and call `Input` once. `DrawWithin` keeps a region from painting over its neighbor. `BoxBody`, `ListRow`, and `TableCell` return the rectangle of the inside of a box, the selected list line, or a table cell, including when that block is not at the origin. `Show` returns the grid and places the caret. The prompt counts toward the width. One caret per scene. A `Keys` scene that places one fails when it renders.
+The caret is the full row under that string, prefixed with `>`. A successful command redraws the scene and leaves a fresh `>`. `ctx.RecentCommands` is the transcript if a scene wants to draw one; it is not printed for you. To put the caret somewhere else, draw a `render.Screen` and call `Input` once. `DrawWithin` keeps a region from painting over its neighbor. `BoxBody`, `ListRow`, and `TableCell` return the rectangle of the inside of a box, the selected list line, or a table cell, including when that block is not at the origin. `Show` returns the grid and places the caret. The prompt counts toward the width. One caret per scene. A `Keys` scene that places one fails when it renders.
 
 ```go
 w, h := ctx.Size()

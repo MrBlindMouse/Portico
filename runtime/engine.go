@@ -27,6 +27,29 @@ type Engine struct {
 	reloadFailures atomic.Uint64
 	theme          render.Theme
 	themeSet       bool
+	scrollbackEcho bool
+	transcript     TranscriptMode
+}
+
+// TranscriptMode controls RecentCommands across a scene change.
+type TranscriptMode int
+
+const (
+	// TranscriptClear drops the list when the scene changes. Zero value.
+	TranscriptClear TranscriptMode = iota
+	// TranscriptKeep leaves the list in place, including the line that transitioned.
+	TranscriptKeep
+	// TranscriptOff does not record lines.
+	TranscriptOff
+)
+
+// SetInputPolicy chooses prompt scrollback and the command transcript.
+// Zero values match the defaults: a bare prompt, and a transcript cleared on scene change.
+func (e *Engine) SetInputPolicy(scrollbackEcho bool, transcript TranscriptMode) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.scrollbackEcho = scrollbackEcho
+	e.transcript = transcript
 }
 
 // SetTheme installs the theme RenderContext.Theme returns.
@@ -306,6 +329,9 @@ func (e *Engine) HandleInput(sess *Session, input string) error {
 	effects := act.Run(ctx)
 	res, err := e.applier.Apply(sess, exp, effects)
 	applyMs := time.Since(applyStart).Milliseconds()
+	if err == nil {
+		e.recordCommand(sess, line, res.Transitioned)
+	}
 	if e.hooks.After != nil {
 		e.hooks.After(sess, aid, res, err)
 	}
@@ -412,6 +438,29 @@ func (e *Engine) commitInputLine(term Terminal, line string) {
 		if err := p.CommitInputLine(line); err != nil && e.log != nil {
 			e.log.Debug("input_prompt_failed", "error", err)
 		}
+	}
+}
+
+// recallClearer drops editor up/down recall. SSHTerminal implements it.
+type recallClearer interface {
+	ClearRecall()
+}
+
+func (e *Engine) recordCommand(sess *Session, line string, transitioned bool) {
+	e.mu.RLock()
+	mode := e.transcript
+	e.mu.RUnlock()
+	switch mode {
+	case TranscriptOff:
+		return
+	case TranscriptKeep:
+		sess.noteCommand(line)
+	default:
+		if transitioned {
+			sess.clearCommands()
+			return
+		}
+		sess.noteCommand(line)
 	}
 }
 
@@ -528,7 +577,19 @@ func (e *Engine) RunLoop(sess *Session, term Terminal, activity chan<- struct{})
 			return err
 		}
 		if _, slotted := sess.inputSlot(); !e.sceneKeys(sess) && !slotted {
-			e.commitInputLine(term, in)
+			e.mu.RLock()
+			echo := e.scrollbackEcho
+			e.mu.RUnlock()
+			if echo {
+				e.commitInputLine(term, in)
+			} else {
+				e.beginInputLine(term)
+			}
+		}
+		if scene != sess.CurrentScene() {
+			if c, ok := term.(recallClearer); ok {
+				c.ClearRecall()
+			}
 		}
 		renderMs := time.Since(renderStart).Milliseconds()
 		if e.log != nil {

@@ -20,9 +20,14 @@ type Session struct {
 	termW          int
 	termH          int
 	slot           *render.Input
+	commands       []string // successful lines; cleared on scene change unless kept
 
 	mu sync.RWMutex
 }
+
+// commandCap bounds the session transcript.
+// ponytail: fixed slice; raise it if a scene shows a longer log.
+const commandCap = 32
 
 func newSession(id string, idn identity.Identity, root experience.SceneID) *Session {
 	return &Session{
@@ -130,6 +135,41 @@ func (s *Session) size() (int, int) {
 		h = render.DefaultHeight
 	}
 	return w, h
+}
+
+func (s *Session) noteCommand(line string) {
+	if line == "" {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.commands = append(s.commands, line)
+	if len(s.commands) > commandCap {
+		s.commands = append([]string(nil), s.commands[len(s.commands)-commandCap:]...)
+	}
+}
+
+func (s *Session) clearCommands() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.commands = nil
+}
+
+// RecentCommands returns the last n successful lines, oldest first.
+// n <= 0 returns the whole list. The caller may keep the slice.
+func (s *Session) RecentCommands(n int) []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if len(s.commands) == 0 {
+		return nil
+	}
+	src := s.commands
+	if n > 0 && n < len(src) {
+		src = src[len(src)-n:]
+	}
+	out := make([]string, len(src))
+	copy(out, src)
+	return out
 }
 
 func (s *Session) setLastRender(text string) {

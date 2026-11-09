@@ -19,6 +19,7 @@ func TestIsTerminalProtocolLine(t *testing.T) {
 		{"KITTY_DATA_END", true},
 		{"KITTY_DATA_START", true},
 		{"KITTY_CHUNKED", true},
+		{"-- BEGIN CONDUCTOR --", true},
 		{"OK", false},
 		{"greet", false},
 		{"go elsewhere", false},
@@ -127,15 +128,8 @@ func TestReadUserCommandKittyThenUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != "OK" {
-		t.Fatalf("transport layer returns OK; scene eligibility filters later, got %q", got)
-	}
-	got, err = ir.readUserCommand()
-	if err != nil {
-		t.Fatal(err)
-	}
 	if got != "register u p" {
-		t.Fatalf("got %q", got)
+		t.Fatalf("bootstrap noise absorbed; got %q", got)
 	}
 }
 
@@ -163,6 +157,106 @@ func TestReadUserCommandBase64ChunkWithoutAPC(t *testing.T) {
 	}
 	if got != "hello" {
 		t.Fatalf("got %q", got)
+	}
+}
+
+func TestLeadingWireNewlineKeepsPrompt(t *testing.T) {
+	const b64 = "n0v4uazhRRJ+tvBzET+X8HNZw3sg/Gzh5yJ+LuHnsnb8fAf+L8BHCz4W4WMJPpY1EIlqKAvVQFSoCbGb+O5rIFd6J4l59/fu793fu78f9u//HwAzKeTyAH4BAA=="
+	stream := "\nKITTY_DATA_START\nOK\n" + b64 + "\nKITTY_DATA_END\nhello\n"
+	var echoed []byte
+	ir := newInputReader(bufio.NewReader(strings.NewReader(stream)))
+	ir.echo = func(p []byte) { echoed = append(echoed, p...) }
+	got, err := ir.readUserCommand()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "hello" {
+		t.Fatalf("got %q", got)
+	}
+	if bytes.Contains(echoed, []byte(">")) {
+		t.Fatalf("reprinted prompt: %q", echoed)
+	}
+}
+
+func TestSplitCRLFDoesNotOpenBlankPrompt(t *testing.T) {
+	pr, pw := io.Pipe()
+	var echoed []byte
+	ir := newInputReader(bufio.NewReader(pr))
+	ir.echo = func(p []byte) { echoed = append(echoed, p...) }
+	go func() {
+		_, _ = pw.Write([]byte("chat\r"))
+		time.Sleep(30 * time.Millisecond)
+		_, _ = pw.Write([]byte("\ngo\n"))
+		_ = pw.Close()
+	}()
+	got, err := ir.readUserCommand()
+	if err != nil || got != "chat" {
+		t.Fatalf("first %q %v", got, err)
+	}
+	got, err = ir.readUserCommand()
+	if err != nil || got != "go" {
+		t.Fatalf("second %q %v", got, err)
+	}
+	if bytes.Contains(echoed, []byte(">")) {
+		t.Fatalf("blank enter reprinted prompt: %q", echoed)
+	}
+}
+
+func TestKittyBootstrapSilentEcho(t *testing.T) {
+	const b64 = "n0v4uazhRRJ+tvBzET+X8HNZw3sg/Gzh5yJ+LuHnsnb8fAf+L8BHCz4W4WMJPpY1EIlqKAvVQFSoCbGb+O5rIFd6J4l59/fu793fu78f9u//HwAzKeTyAH4BAA=="
+	stream := "KITTY_DATA_START\nOK\n" + b64 + "\nH4sI\nKITTY_DATA_END\nhello\n"
+	var echoed []byte
+	ir := newInputReader(bufio.NewReader(strings.NewReader(stream)))
+	ir.echo = func(p []byte) { echoed = append(echoed, p...) }
+	got, err := ir.readUserCommand()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "hello" {
+		t.Fatalf("got %q", got)
+	}
+	echo := string(echoed)
+	if strings.Contains(echo, "KITTY_") || strings.Contains(echo, "OK") || strings.Contains(echo, "H4sI") || strings.Contains(echo, b64[:32]) {
+		t.Fatalf("echoed kitten wire: %q", echo)
+	}
+	if !strings.Contains(echo, "hello") {
+		t.Fatalf("user line not echoed: %q", echo)
+	}
+}
+
+func TestBase64ChunkSilentWithoutMarkers(t *testing.T) {
+	const b64 = "n0v4uazhRRJ+tvBzET+X8HNZw3sg/Gzh5yJ+LuHnsnb8fAf+L8BHCz4W4WMJPpY1EIlqKAvVQFSoCbGb+O5rIFd6J4l59/fu793fu78f9u//HwAzKeTyAH4BAA=="
+	var echoed []byte
+	ir := newInputReader(bufio.NewReader(strings.NewReader(b64 + "\nping\n")))
+	ir.echo = func(p []byte) { echoed = append(echoed, p...) }
+	got, err := ir.readUserCommand()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "ping" {
+		t.Fatalf("got %q", got)
+	}
+	if strings.Contains(string(echoed), b64[:24]) {
+		t.Fatalf("echoed base64: %q", echoed)
+	}
+}
+
+func TestITermConductorSilent(t *testing.T) {
+	const b64 = "n0v4uazhRRJ+tvBzET+X8HNZw3sg/Gzh5yJ+LuHnsnb8fAf+L8BHCz4W4WMJPpY1EIlqKAvVQFSoCbGb+O5rIFd6J4l59/fu793fu78f9u//HwAzKeTyAH4BAA=="
+	stream := "-- BEGIN CONDUCTOR --\n" + b64 + "\nguestbook\n"
+	var echoed []byte
+	ir := newInputReader(bufio.NewReader(strings.NewReader(stream)))
+	ir.echo = func(p []byte) { echoed = append(echoed, p...) }
+	got, err := ir.readUserCommand()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "guestbook" {
+		t.Fatalf("got %q", got)
+	}
+	echo := string(echoed)
+	if strings.Contains(echo, "CONDUCTOR") || strings.Contains(echo, b64[:24]) {
+		t.Fatalf("echoed conductor: %q", echo)
 	}
 }
 
@@ -206,7 +300,7 @@ func TestLineEdit(t *testing.T) {
 	if err != nil || got != "chat" {
 		t.Fatalf("enter prompt got %q err %v", got, err)
 	}
-	if !bytes.Equal(echoed, []byte("\r\n> chat\r\n")) {
+	if !bytes.Equal(echoed, []byte("\r\n\r> \x1b[Kchat\r\n")) {
 		t.Fatalf("enter prompt echo %q", echoed)
 	}
 

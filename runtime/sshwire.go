@@ -125,6 +125,9 @@ func (t *SSHTerminal) SetKeys(keys []string) {
 	t.input.setKeys(keys)
 }
 
+// ClearRecall drops up/down lines. A scene change calls this so the next scene starts empty.
+func (t *SSHTerminal) ClearRecall() { t.input.clearRecall() }
+
 // WindowSize returns the PTY size reported at session start.
 func (t *SSHTerminal) WindowSize() (width, height int, ok bool) {
 	pty, _, has := t.sess.Pty()

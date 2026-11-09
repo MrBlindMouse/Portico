@@ -86,6 +86,8 @@ func (c sceneCtx) PlaceInput(in render.Input) {
 	c.place.ok = true
 }
 
+func (c sceneCtx) RecentCommands(n int) []string { return c.sess.RecentCommands(n) }
+
 type actionCtx struct {
 	sceneCtx
 	inputLine string

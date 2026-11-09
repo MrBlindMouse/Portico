@@ -16,6 +16,7 @@ Used in `Scene.Render` — **read only** (except `PlaceInput`, which records car
 | `Size()` | Terminal columns, rows |
 | `Theme()` | `render.Theme` |
 | `PlaceInput(in)` | Caret placement (one per frame) |
+| `RecentCommands(n)` | Session command transcript. Cleared on scene change unless `TranscriptKeep` |
 
 ## ActionContext (actions)
 
