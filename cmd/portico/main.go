@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -33,6 +35,12 @@ func main() {
 		scaffoldCmd(os.Args[2:])
 	case "identity-export":
 		identityExportCmd(os.Args[2:])
+	case "account-export":
+		accountExportCmd(os.Args[2:])
+	case "account-import":
+		accountImportCmd(os.Args[2:])
+	case "wire":
+		wireCmd(os.Args[2:])
 	default:
 		usage()
 		os.Exit(2)
@@ -40,7 +48,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: portico <inspect|scaffold|identity-export|serve -demo> [flags]\n")
+	fmt.Fprintf(os.Stderr, "usage: portico <inspect|scaffold|wire|identity-export|account-export|account-import|serve -demo> [flags]\n")
 	fmt.Fprintf(os.Stderr, "  Sites are Go programs — see examples/hello and README.md (not portico serve).\n")
 }
 
@@ -104,8 +112,9 @@ func serveCmd(args []string) {
 	}
 	opts = opts.MergeConfig(fileCfg)
 	if *enableAccounts {
-		opts.AccountStore = runtime.NewAccountStore()
-		opts.Accounts = &runtime.AccountConfig{Enabled: true, Accounts: opts.AccountStore}
+		store := runtime.NewAccountStore()
+		opts.AccountStore = store
+		opts.Accounts = &runtime.AccountConfig{Enabled: true, Accounts: store}
 	}
 	if err := portico.Serve(*addr, exp, opts); err != nil {
 		log.Fatal(err)
@@ -115,13 +124,32 @@ func serveCmd(args []string) {
 func inspectCmd(args []string) {
 	fs := flag.NewFlagSet("inspect", flag.ExitOnError)
 	base := fs.String("url", "http://127.0.0.1:9922", "inspect base URL")
-	resource := fs.String("resource", "snapshot", "snapshot|sessions")
+	resource := fs.String("resource", "snapshot", "snapshot|sessions|reload-preview|validate")
+	method := fs.String("method", "", "HTTP method (default GET; POST for reload-preview|validate)")
+	file := fs.String("file", "", "JSON body file for POST")
 	_ = fs.Parse(args)
 
+	httpMethod := *method
+	if httpMethod == "" {
+		switch *resource {
+		case "reload-preview", "validate":
+			httpMethod = http.MethodPost
+		default:
+			httpMethod = http.MethodGet
+		}
+	}
 	url := *base + "/inspect/" + *resource
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	var body io.Reader
+	if *file != "" {
+		b, err := os.ReadFile(*file)
+		if err != nil {
+			log.Fatal(err)
+		}
+		body = bytes.NewReader(b)
+	}
+	req, err := http.NewRequestWithContext(ctx, httpMethod, url, body)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -175,6 +203,24 @@ func scaffoldCmd(args []string) {
 		fmt.Println("portico.New().Merge(scaffold.Registration()) // enable opts.Accounts")
 	case "nickname":
 		fmt.Println(`portico.New().Merge(scaffold.NicknameCommands()) // add Inputs["nick"] to scenes`)
+	case "form":
+		fmt.Println("portico.New().Merge(scaffold.Form())")
+	case "blog":
+		fmt.Println("portico.New().Merge(scaffold.Blog())")
+	case "lobby":
+		fmt.Println("portico.New().Merge(scaffold.Lobby())")
+	case "recipe":
+		if len(args) < 2 {
+			log.Fatal("usage: portico scaffold recipe <community|accounts>")
+		}
+		switch args[1] {
+		case "community":
+			fmt.Println("portico.New().Merge(scaffold.RecipeCommunity())")
+		case "accounts":
+			fmt.Println("portico.New().Merge(scaffold.RecipeAccountsSite())")
+		default:
+			log.Fatalf("unknown recipe %q", args[1])
+		}
 	default:
 		log.Fatalf("unknown scaffold %q", args[0])
 	}

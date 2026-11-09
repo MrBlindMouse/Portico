@@ -39,7 +39,8 @@ func TestApplyRegisterAccount(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !accounts.Verify("bob", "secret") {
+	ok, err := accounts.Verify("bob", "secret")
+	if err != nil || !ok {
 		t.Fatal("expected registered user")
 	}
 }

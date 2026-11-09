@@ -39,6 +39,32 @@ func TestSnapshotJSON(t *testing.T) {
 	}
 }
 
+func TestReloadPreviewEndpoint(t *testing.T) {
+	exp, _ := experience.NewBuilder().
+		Root("home").
+		Scene("home", experience.Scene{
+			Render: func(experience.RenderContext) string { return "" },
+		}).
+		Scene("gone", experience.Scene{
+			Render: func(experience.RenderContext) string { return "" },
+		}).
+		Build()
+	eng := runtime.NewEngine(exp, nil)
+	eng.RegisterSession(runtime.NewSessionForTest("s1", identity.Anonymous(), "gone"))
+	h := inspect.NewHandler(eng)
+	body := []byte(`{"root":"home","scenes":{"home":{}}}`)
+	req := httptest.NewRequest(http.MethodPost, "/inspect/reload-preview", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	var preview experience.ReloadPreview
+	if err := json.Unmarshal(rec.Body.Bytes(), &preview); err != nil {
+		t.Fatal(err)
+	}
+	if preview.OK || len(preview.StrandedSessions) != 1 {
+		t.Fatalf("%+v", preview)
+	}
+}
+
 func TestValidateWireEndpoint(t *testing.T) {
 	eng := runtime.NewEngine(mustExp(t), nil)
 	h := inspect.NewHandler(eng)

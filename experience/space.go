@@ -5,4 +5,6 @@ package experience
 type Space struct {
 	OnJoin  []Effect
 	OnLeave []Effect
+	// ValidateSet optionally rejects shared space writes in apply.
+	ValidateSet func(key string, old, newValue any) error
 }

@@ -6,11 +6,29 @@ import (
 
 // Experience is a validated site definition.
 type Experience struct {
-	root    SceneID
-	scenes  map[SceneID]Scene
-	actions map[ActionID]Action
-	spaces  map[SpaceID]Space
-	assets  map[string]string
+	root            SceneID
+	scenes          map[SceneID]Scene
+	actions         map[ActionID]Action
+	spaces          map[SpaceID]Space
+	assets          map[string]string
+	onSessionStart  []Effect
+	onSessionEnd    []Effect
+}
+
+// OnSessionStart returns effects run when a session connects.
+func (e *Experience) OnSessionStart() []Effect {
+	if e == nil {
+		return nil
+	}
+	return append([]Effect(nil), e.onSessionStart...)
+}
+
+// OnSessionEnd returns effects run when a session disconnects.
+func (e *Experience) OnSessionEnd() []Effect {
+	if e == nil {
+		return nil
+	}
+	return append([]Effect(nil), e.onSessionEnd...)
 }
 
 // Root returns the entry scene.
@@ -86,21 +104,25 @@ func (e *Experience) CloneWithAssets(assets map[string]string) *Experience {
 		cpSpaces[k] = v
 	}
 	return &Experience{
-		root:    e.root,
-		scenes:  cpScenes,
-		actions: cpActions,
-		spaces:  cpSpaces,
-		assets:  cpAssets,
+		root:           e.root,
+		scenes:         cpScenes,
+		actions:        cpActions,
+		spaces:         cpSpaces,
+		assets:         cpAssets,
+		onSessionStart: append([]Effect(nil), e.onSessionStart...),
+		onSessionEnd:   append([]Effect(nil), e.onSessionEnd...),
 	}
 }
 
 // Builder constructs an Experience with validation at Build().
 type Builder struct {
-	root    SceneID
-	scenes  map[SceneID]Scene
-	actions map[ActionID]Action
-	spaces  map[SpaceID]Space
-	assets  map[string]string
+	root            SceneID
+	scenes          map[SceneID]Scene
+	actions         map[ActionID]Action
+	spaces          map[SpaceID]Space
+	assets          map[string]string
+	onSessionStart  []Effect
+	onSessionEnd    []Effect
 }
 
 // NewBuilder starts an experience definition.
@@ -143,6 +165,18 @@ func (b *Builder) Asset(name, content string) *Builder {
 	return b
 }
 
+// OnSessionStart registers effects applied when a session connects.
+func (b *Builder) OnSessionStart(effects ...Effect) *Builder {
+	b.onSessionStart = append(b.onSessionStart, effects...)
+	return b
+}
+
+// OnSessionEnd registers effects applied when a session disconnects.
+func (b *Builder) OnSessionEnd(effects ...Effect) *Builder {
+	b.onSessionEnd = append(b.onSessionEnd, effects...)
+	return b
+}
+
 // Merge incorporates another builder's registrations (later wins on conflict).
 func (b *Builder) Merge(other *Builder) *Builder {
 	if other == nil {
@@ -162,6 +196,12 @@ func (b *Builder) Merge(other *Builder) *Builder {
 	}
 	for name, c := range other.assets {
 		b.assets[name] = c
+	}
+	if len(other.onSessionStart) > 0 {
+		b.onSessionStart = append([]Effect(nil), other.onSessionStart...)
+	}
+	if len(other.onSessionEnd) > 0 {
+		b.onSessionEnd = append([]Effect(nil), other.onSessionEnd...)
 	}
 	return b
 }
@@ -226,11 +266,13 @@ func (b *Builder) Build() (*Experience, error) {
 		cpAssets[k] = v
 	}
 	return &Experience{
-		root:    b.root,
-		scenes:  cpScenes,
-		actions: cpActions,
-		spaces:  cpSpaces,
-		assets:  cpAssets,
+		root:           b.root,
+		scenes:         cpScenes,
+		actions:        cpActions,
+		spaces:         cpSpaces,
+		assets:         cpAssets,
+		onSessionStart: append([]Effect(nil), b.onSessionStart...),
+		onSessionEnd:   append([]Effect(nil), b.onSessionEnd...),
 	}, nil
 }
 
@@ -273,5 +315,8 @@ func (b *Builder) validateEffectSceneRefs() error {
 			return err
 		}
 	}
-	return nil
+	if err := checkEffects(b.onSessionStart); err != nil {
+		return err
+	}
+	return checkEffects(b.onSessionEnd)
 }

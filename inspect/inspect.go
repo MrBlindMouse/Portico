@@ -25,6 +25,9 @@ type ExperienceSnap struct {
 	Root         string   `json:"root"`
 	Hash         string   `json:"hash"` // scene id set fingerprint (not full definition hash)
 	Scenes       []string `json:"scenes"`
+	ActionCount  int      `json:"action_count"`
+	SpaceCount   int      `json:"space_count"`
+	BuilderNote  string   `json:"builder_note"`
 }
 
 // SpaceSnap is a read-only space summary for inspection.
@@ -39,8 +42,10 @@ type SessionSnap struct {
 	Scene         string            `json:"scene"`
 	Identity      string            `json:"identity"`
 	Fingerprint   string            `json:"fingerprint"`
-	Inputs        map[string]string `json:"inputs"`
-	RenderHash    string            `json:"render_hash"`
+	Inputs            map[string]string `json:"inputs"`
+	AvailableActions  []string          `json:"available_actions"`
+	LocalKeys         []string          `json:"local_keys"`
+	RenderHash        string            `json:"render_hash"`
 	RenderSize    int               `json:"render_size"`
 	RenderPreview string            `json:"render_preview"`
 	Spaces        []string          `json:"spaces"`
@@ -59,6 +64,7 @@ func NewHandler(eng *runtime.Engine) http.Handler {
 	mux.HandleFunc("GET /inspect/sessions", h.sessions)
 	mux.HandleFunc("GET /inspect/session/{id}", h.session)
 	mux.HandleFunc("POST /inspect/validate", h.validate)
+	mux.HandleFunc("POST /inspect/reload-preview", h.reloadPreview)
 	mux.HandleFunc("GET /inspect/identity/{fingerprint}", h.identity)
 	mux.HandleFunc("GET /inspect/spaces", h.spaces)
 	return mux
@@ -82,6 +88,29 @@ func (h *Handler) session(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	http.NotFound(w, r)
+}
+
+func (h *Handler) reloadPreview(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	var wire experience.Wire
+	if err := json.Unmarshal(body, &wire); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	live := make([]experience.LiveSession, 0)
+	for _, sess := range h.Engine.Sessions() {
+		live = append(live, experience.LiveSession{
+			ID:     sess.ID(),
+			Scene:  sess.CurrentScene(),
+			Spaces: sess.Spaces(),
+		})
+	}
+	preview := experience.PreviewReload(h.Engine.Experience(), wire, live)
+	writeJSON(w, preview)
 }
 
 func (h *Handler) validate(w http.ResponseWriter, r *http.Request) {
@@ -154,17 +183,27 @@ func (h *Handler) buildSnapshot() Snapshot {
 	hash := sceneSetHash(exp)
 	out := Snapshot{
 		Experience: ExperienceSnap{
-			Root:   string(exp.Root()),
-			Hash:   hash,
-			Scenes: scenes,
+			Root:        string(exp.Root()),
+			Hash:        hash,
+			Scenes:      scenes,
+			ActionCount: len(exp.Actions()),
+			SpaceCount:  len(exp.Spaces()),
+			BuilderNote: "Go funcs not introspectable",
 		},
 		Spaces: spaceSnaps(h.Engine.SpaceSnapshots()),
 	}
 	for _, sess := range h.Engine.Sessions() {
 		sc, _ := exp.Scene(sess.CurrentScene())
 		inputs := make(map[string]string)
+		available := make([]string, 0, len(sc.Inputs))
 		for k, v := range sc.Inputs {
 			inputs[k] = string(v)
+			available = append(available, k)
+		}
+		local := sess.LocalCopy()
+		localKeys := make([]string, 0, len(local))
+		for k := range local {
+			localKeys = append(localKeys, k)
 		}
 		_, _ = h.Engine.RenderText(sess)
 		text, size := sess.LastRender()
@@ -182,8 +221,10 @@ func (h *Handler) buildSnapshot() Snapshot {
 			Scene:         string(sess.CurrentScene()),
 			Identity:      sess.Identity().String(),
 			Fingerprint:   sess.Identity().Fingerprint(),
-			Inputs:        inputs,
-			RenderHash:    renderHash(text),
+			Inputs:           inputs,
+			AvailableActions: available,
+			LocalKeys:        localKeys,
+			RenderHash:       renderHash(text),
 			RenderSize:    size,
 			RenderPreview: preview,
 			Spaces:        spaceIDs,

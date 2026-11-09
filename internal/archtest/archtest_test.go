@@ -107,6 +107,16 @@ func TestSessionStateMutationInApplyOnly(t *testing.T) {
 	}
 }
 
+func TestInspectDoesNotImportScaffold(t *testing.T) {
+	root := moduleRoot(t)
+	const insp = "github.com/MrBlindMouse/Portico/inspect"
+	for _, imp := range importsUnder(t, root, insp) {
+		if strings.Contains(imp, "/scaffold") {
+			t.Fatalf("inspect must not import scaffold, found %s", imp)
+		}
+	}
+}
+
 func TestAllPackagesCompile(t *testing.T) {
 	root := moduleRoot(t)
 	pkgs := []string{

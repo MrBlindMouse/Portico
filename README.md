@@ -77,6 +77,9 @@ Hints: `go run ./cmd/portico scaffold guestbook`
 | `AssetDir` | Load files into live assets at startup; poll for hot swap |
 | `AssetPollEvery` | Poll interval (default 1s) |
 | `OnReady` | Hook with `*portico.Host` before `Serve` listens (hot reload, admin hooks) |
+| `ShutdownGrace` | After SIGTERM: wait for idle sessions, then hard-close after timeout |
+| `HashedAccounts` | Use file-backed bcrypt account store under `DataDir/accounts/` |
+| `IdentityStore` | Replace default file KV with a custom `identity.Store` |
 
 JSON config: `config.Load` + `opts.MergeConfig(cfg)` — see `config.File`.
 
@@ -98,11 +101,11 @@ defer cancel()
 return host.Server.ListenAndServe(ctx)
 ```
 
-Or: `portico.HotReload(host.Server, patchedBuilder)`. Reload rejects definitions that would leave live sessions on removed scenes. Wire JSON via inspect only **validates** wiring (`POST /inspect/validate`); full reload needs a `Builder` with your `Render`/`Run` funcs.
+Or: `portico.HotReload(host.Server, patchedBuilder)`. Reload rejects definitions that would leave live sessions on removed scenes. Agents can **preview** impact with `POST /inspect/reload-preview` (wire JSON) or `portico inspect -resource reload-preview -file site.wire.json`. Validate wiring with `POST /inspect/validate` or `portico wire validate -file site.wire.json`. Go remains the source of truth; optional `portico wire codegen -file site.wire.json -out stub.go`.
 
 ### Accounts (development)
 
-Password SSH auth is opt-in (`Options.Accounts` / `accounts_enabled` in config). Sessions get `identity.FromAccount(username)`. Registration scaffold: `scaffold.Registration()` plus `RegisterAccountEffect`. **Dev store is plaintext** — hash passwords in production sites.
+Password SSH auth is opt-in (`Options.Accounts` / `accounts_enabled` in config). Sessions get `identity.FromAccount(username)`. Registration scaffold: `scaffold.Registration()` plus `RegisterAccountEffect`. **Dev:** `runtime.NewAccountStore()` (plaintext). **Production:** `Options.HashedAccounts` or `Options.AccountBackend` with `identity.OpenFileAccountStore(dataDir)` (bcrypt on disk). Export/import: `portico account-export` / `account-import`.
 
 ### Input commands
 
@@ -115,9 +118,11 @@ go run ./examples/hello
 ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null localhost
 ```
 
-Inspect: `curl http://127.0.0.1:9922/inspect/snapshot`
+Inspect: `curl http://127.0.0.1:9922/inspect/snapshot`  
+Reload preview: `curl -X POST http://127.0.0.1:9922/inspect/reload-preview -d @site.wire.json`  
+Readiness: `curl http://127.0.0.1:9923/ready` · Metrics: `curl http://127.0.0.1:9923/metrics`
 
-The `portico` CLI is for operators (`inspect`, `identity-export`, scaffold hints). To run the bundled demo only: `go run ./cmd/portico serve -demo`.
+The `portico` CLI is for operators (`inspect`, `wire`, `identity-export`, `account-export`, scaffold hints). To run the bundled demo only: `go run ./cmd/portico serve -demo`.
 
 ## Package map (for site authors)
 

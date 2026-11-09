@@ -21,6 +21,10 @@ Declarative **site definitions**: scenes, actions, spaces, builder validation. S
 
 `SetLocal`, `Transition`, `Persist`, `JoinSpace`, `LeaveSpace`, `SpaceSet`, `SpaceCAS`, `AppendSpaceList`, `Broadcast`, `ReserveNickname`, `RegisterAccount` (requires runtime account store).
 
+## Cross-session events
+
+DESIGN “emit events” = write domain data with `SpaceSetEffect` / `AppendSpaceListEffect`, then `BroadcastEffect`. No in-process event bus.
+
 ## Prefer / avoid
 
 - Prefer builder methods, typed IDs, and `Merge` for scaffolds.

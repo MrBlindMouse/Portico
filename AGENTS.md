@@ -26,7 +26,8 @@ CI runs `go test`, `go vet`, and `internal/archtest` on every push.
 - Session and space mutation happens only in `runtime/apply` — not in actions, scenes, or site code.
 - `runtime.Session` fields are unexported; construct sessions only inside `runtime`.
 - `experience` must not import `runtime`.
-- Thousands of concurrent sessions, real-time guarantees, and full production account security are DESIGN goals; dev account auth is explicit and plaintext.
+- Single-process scale: harden locks/metrics locally; clustering and real-time SLOs are out of scope (DESIGN §3).
+- Dev account auth may use plaintext `runtime.AccountStore`; production sites opt into `identity.FileAccountStore` (bcrypt).
 - No domain logic in `runtime` — only orchestration.
 
 ## Architecture map
@@ -41,7 +42,7 @@ CI runs `go test`, `go vet`, and `internal/archtest` on every push.
 | `inspect`     | Read-only JSON snapshots for agents |
 | `scaffold`    | Composable starter definitions (optional for sites) |
 | `asset`       | Named filesystem assets and poll watcher |
-| `cmd/portico` | CLI: `inspect`, `scaffold`, `identity-export`, `serve -demo` |
+| `cmd/portico` | CLI: `inspect`, `scaffold`, `wire`, `identity-export`, `account-export`, `serve -demo` |
 | `internal/*`  | archtest, faketerm, fakessh — not importable by sites |
 
 ## Gotchas
@@ -59,10 +60,14 @@ CI runs `go test`, `go vet`, and `internal/archtest` on every push.
 - `experience/AGENTS.md` — builder validation, contexts, effects
 - `scaffold/AGENTS.md` — composing scaffolds into sites
 
-## Shipped vs planned (v0.1 snapshot)
+## Shipped vs planned (v0.2)
 
-**Shipped in tree:** experience builder, `RenderContext`/`ActionContext`, effects (incl. nickname, register account), apply, embedded SSH, identity file store, per-IP/global conn limits, idle reset on input, spaces broadcast/CAS, inspect HTTP, scaffolds (landing/guestbook/chat/registration/nickname), assets + poll, hot-reload with live-session check, status/health HTTP, configurable rate limit, dev account SSH + registration scaffold.
+**v0.1 baseline (shipped):** experience builder, effects/apply, SSH runtime, identity KV, spaces, inspect HTTP, scaffolds (landing/guestbook/chat/registration/nickname), assets, hot-reload, status/health, rate limits, dev plaintext accounts.
 
-**Still lighter than DESIGN §7:** full JSON definition format (wire validate only), form/input helpers, event bus, email verification, hashed account passwords in production, clustered spaces, inspect HTTP reload without Builder.
+**v0.2 (shipped in tree):** reload preview inspect endpoint, richer snapshots, form/theme scaffolds, `ShutdownGrace` drain, `/ready` + `/metrics`, `identity.AccountStore` + `FileAccountStore`, session lifecycle effects, action hooks, blog/lobby/recipe scaffolds, space/scene validators, `portico wire` CLI.
+
+**Still out of scope:** clustered spaces, in-process event bus, SMTP/email verification in core, interpreted JSON experiences.
+
+**v0.2 acceptance:** each phase ships tests (`go test ./...`, `go vet`, `internal/archtest`) and README touch where operators/agents are affected.
 
 **Observability:** structured `slog` for session connect/disconnect, action dispatch, apply/dispatch errors; `config.NewLogger` + `-log-level` / config `log_level`.

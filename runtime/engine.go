@@ -19,8 +19,16 @@ type Engine struct {
 	sessions  map[string]*Session
 	nextID    atomic.Uint64
 	onAction  func()
+	hooks     ActionHooks
 	limits    *rateLimiter
 	log       *slog.Logger
+	reloadFailures atomic.Uint64
+}
+
+// ActionHooks optionally intercept action dispatch.
+type ActionHooks struct {
+	Before func(sess *Session, action experience.ActionID, line string) (string, error)
+	After  func(sess *Session, action experience.ActionID, result ApplyResult, err error)
 }
 
 // EnableRateLimit enables per-session action throttling.
@@ -82,6 +90,15 @@ func (e *Engine) SpaceSnapshots() map[string]SpaceSnapshot {
 
 // SetOnAction hooks action execution for metrics.
 func (e *Engine) SetOnAction(fn func()) { e.onAction = fn }
+
+// SetActionHooks configures before/after action callbacks.
+func (e *Engine) SetActionHooks(h ActionHooks) { e.hooks = h }
+
+// ReloadFailures returns failed hot-reload attempts.
+func (e *Engine) ReloadFailures() uint64 { return e.reloadFailures.Load() }
+
+// NoteReloadFailure increments reload failure metrics.
+func (e *Engine) NoteReloadFailure() { e.reloadFailures.Add(1) }
 
 // SetLogger enables structured logs for actions and render errors.
 func (e *Engine) SetLogger(l *slog.Logger) {
@@ -161,7 +178,8 @@ func (e *Engine) HandleInput(sess *Session, input string) error {
 			return err
 		}
 	}
-	aid, err := ResolveInput(exp, sess.CurrentScene(), input)
+	line := input
+	aid, err := ResolveInput(exp, sess.CurrentScene(), line)
 	if err != nil {
 		if e.log != nil {
 			e.log.Warn("dispatch_failed", "session", sess.ID(), "input", input, "error", err)
@@ -172,9 +190,19 @@ func (e *Engine) HandleInput(sess *Session, input string) error {
 	if !ok {
 		return fmt.Errorf("portico: undefined action %q", aid)
 	}
-	ctx := newActionContext(sess, exp, e.spaces, e.applier.Store(), input)
+	if e.hooks.Before != nil {
+		var err error
+		line, err = e.hooks.Before(sess, aid, line)
+		if err != nil {
+			return err
+		}
+	}
+	ctx := newActionContext(sess, exp, e.spaces, e.applier.Store(), line)
 	effects := act.Run(ctx)
 	res, err := e.applier.Apply(sess, exp, effects)
+	if e.hooks.After != nil {
+		e.hooks.After(sess, aid, res, err)
+	}
 	if err != nil {
 		if e.log != nil {
 			e.log.Error("apply_failed", "session", sess.ID(), "action", aid, "error", err)

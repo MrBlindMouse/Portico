@@ -22,7 +22,14 @@ type File struct {
 	ActionBurst   float64       `json:"action_burst"`
 	AssetDir        string        `json:"asset_dir"`
 	AssetPollEvery  time.Duration `json:"asset_poll_interval"`
-	Accounts        bool          `json:"accounts_enabled"`
+	Accounts            bool          `json:"accounts_enabled"`
+	HashedAccounts      bool          `json:"hashed_accounts"`
+	AllowAccounts       []string      `json:"allow_accounts"`
+	DenyAccounts        []string      `json:"deny_accounts"`
+	RequireAccount      bool          `json:"require_account"`
+	ShutdownGrace       time.Duration `json:"shutdown_grace"`
+	KeepAliveInterval   time.Duration `json:"keepalive_interval"`
+	KeepAliveCountMax   int           `json:"keepalive_count_max"`
 }
 
 // Load reads path if present; returns zero value and nil error when missing.

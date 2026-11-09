@@ -4,10 +4,11 @@ import "fmt"
 
 // Wire is a minimal serializable experience sketch for inspect validation (not a full site definition).
 type Wire struct {
-	Root    string                       `json:"root"`
-	Scenes  map[string]WireScene           `json:"scenes"`
-	Actions []string                       `json:"actions"`
-	Spaces  []string                       `json:"spaces"`
+	Root    string             `json:"root"`
+	Scenes  map[string]WireScene `json:"scenes"`
+	Actions []string           `json:"actions"`
+	Spaces  []string           `json:"spaces"`
+	Assets  []string           `json:"assets,omitempty"`
 }
 
 // WireScene lists input bindings by action name.

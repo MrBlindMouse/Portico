@@ -30,16 +30,22 @@ type ServerConfig struct {
 	MaxConns      int
 	MaxConnsPerIP int
 	Logger        *slog.Logger
-	Accounts     *AccountConfig
-	AllowKeys    []string
-	DenyKeys     []string
+	Accounts          *AccountConfig
+	AllowKeys         []string
+	DenyKeys          []string
+	AllowAccounts     []string
+	DenyAccounts      []string
+	RequireAccount    bool
+	ShutdownGrace     time.Duration
+	KeepAliveInterval time.Duration
+	KeepAliveCountMax int
 }
 
 // AccountConfig enables password authentication (phase 8).
 type AccountConfig struct {
 	Enabled  bool
-	Users    map[string]string // username -> password (dev only; hash in production)
-	Accounts *AccountStore
+	Users    map[string]string // username -> password (dev only)
+	Accounts identity.AccountStore
 }
 
 // DefaultConfig returns dev-friendly defaults.
@@ -60,6 +66,10 @@ type Server struct {
 	mu        sync.Mutex
 	conns     int
 	connsByIP map[string]int
+
+	draining   bool
+	sessionsWG sync.WaitGroup
+	liveSSH    sync.Map // session id -> ssh.Session
 }
 
 // NewServer creates an SSH server for the engine.
@@ -119,12 +129,34 @@ func (s *Server) passwordHandler(ctx ssh.Context, pass string) bool {
 		}
 	}
 	if s.cfg.Accounts.Accounts != nil {
-		return s.cfg.Accounts.Accounts.Verify(user, pass)
+		ok, err := s.cfg.Accounts.Accounts.Verify(user, pass)
+		return err == nil && ok
 	}
 	return false
 }
 
+// Draining reports whether the server is shutting down.
+func (s *Server) Draining() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.draining
+}
+
+// ActiveSessions returns the number of tracked SSH sessions.
+func (s *Server) ActiveSessions() int {
+	n := 0
+	s.liveSSH.Range(func(_, _ any) bool {
+		n++
+		return true
+	})
+	return n
+}
+
 func (s *Server) handleSession(sess ssh.Session) {
+	if s.Draining() {
+		_, _ = ioWriteString(sess, "server is shutting down\n")
+		return
+	}
 	remote := sess.RemoteAddr().String()
 	if !s.acquireConn(remote) {
 		s.cfg.Logger.Warn("connection_rejected", "reason", "limit", "remote", remote)
@@ -135,7 +167,13 @@ func (s *Server) handleSession(sess ssh.Session) {
 
 	var idn identity.Identity
 	sshUser := sess.User()
-	if sshUser != "" && s.cfg.Accounts != nil && s.cfg.Accounts.Enabled {
+	usedPassword := sshUser != "" && s.cfg.Accounts != nil && s.cfg.Accounts.Enabled
+	if usedPassword {
+		if s.accountDenied(sshUser) {
+			s.cfg.Logger.Warn("connection_denied", "account", sshUser, "remote", remote)
+			_, _ = ioWriteString(sess, "access denied\n")
+			return
+		}
 		idn = identity.FromAccount(sshUser)
 	} else if pk := sess.PublicKey(); pk != nil {
 		idn = identity.FromPublicKey(pk)
@@ -144,16 +182,40 @@ func (s *Server) handleSession(sess ssh.Session) {
 			_, _ = ioWriteString(sess, "access denied\n")
 			return
 		}
+		if s.cfg.Accounts != nil && s.cfg.Accounts.Accounts != nil {
+			if rec, ok, _ := s.cfg.Accounts.Accounts.LookupByFingerprint(idn.Fingerprint()); ok {
+				idn = identity.FromAccount(rec.Username)
+			}
+		}
 	} else {
 		idn = identity.Anonymous()
+	}
+	if s.cfg.RequireAccount && idn.Account() == "" {
+		s.cfg.Logger.Warn("connection_denied", "reason", "require_account", "remote", remote)
+		_, _ = ioWriteString(sess, "account required\n")
+		return
 	}
 
 	id := s.engine.NewSessionID()
 	root := s.engine.Experience().Root()
 	child := newSession(id, idn, root)
+	s.sessionsWG.Add(1)
+	s.liveSSH.Store(id, sess)
+	defer func() {
+		s.liveSSH.Delete(id)
+		s.sessionsWG.Done()
+	}()
 	s.engine.RegisterSession(child)
 	s.cfg.Logger.Info("session_connected", "session", id, "identity", idn.String(), "remote", sess.RemoteAddr().String())
+	exp := s.engine.Experience()
+	if hooks := exp.OnSessionStart(); len(hooks) > 0 {
+		_, _ = s.engine.Applier().Apply(child, exp, hooks)
+	}
 	defer func() {
+		exp := s.engine.Experience()
+		if hooks := exp.OnSessionEnd(); len(hooks) > 0 {
+			_, _ = s.engine.Applier().Apply(child, exp, hooks)
+		}
 		for _, sp := range child.Spaces() {
 			_, _ = s.engine.Applier().Apply(child, s.engine.Experience(), []experience.Effect{
 				experience.LeaveSpaceEffect(sp),
@@ -216,6 +278,23 @@ func (s *Server) releaseConn(remote string) {
 	}
 }
 
+func (s *Server) accountDenied(user string) bool {
+	for _, d := range s.cfg.DenyAccounts {
+		if d == user {
+			return true
+		}
+	}
+	if len(s.cfg.AllowAccounts) == 0 {
+		return false
+	}
+	for _, a := range s.cfg.AllowAccounts {
+		if a == user {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *Server) denied(fp string) bool {
 	for _, d := range s.cfg.DenyKeys {
 		if d == fp {
@@ -268,7 +347,30 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 func (s *Server) ListenAndServeOn(ctx context.Context, ln net.Listener) error {
 	go func() {
 		<-ctx.Done()
+		s.mu.Lock()
+		s.draining = true
+		s.mu.Unlock()
 		_ = ln.Close()
+		grace := s.cfg.ShutdownGrace
+		if grace <= 0 {
+			grace = 30 * time.Second
+		}
+		done := make(chan struct{})
+		go func() {
+			s.sessionsWG.Wait()
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-time.After(grace):
+			s.liveSSH.Range(func(key, value any) bool {
+				if sshSess, ok := value.(ssh.Session); ok {
+					_ = sshSess.Close()
+				}
+				return true
+			})
+			s.sessionsWG.Wait()
+		}
 	}()
 	s.cfg.Logger.Info("portico listening", "addr", ln.Addr().String())
 	err := s.ssh.Serve(ln)
@@ -287,7 +389,11 @@ func (s *Server) ReloadExperience(b *experience.Builder) error {
 	if err != nil {
 		return err
 	}
-	return s.engine.SetExperience(exp)
+	if err := s.engine.SetExperience(exp); err != nil {
+		s.engine.NoteReloadFailure()
+		return err
+	}
+	return nil
 }
 
 func ioWriteString(w ioStringWriter, v string) (int, error) {

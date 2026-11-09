@@ -9,6 +9,10 @@ Optional **starter definitions** for site authors. Each function returns `*exper
 | `Chat()` | Chat space + scene |
 | `Registration()` | `register <user> <pass>` (needs `Options.Accounts`) |
 | `NicknameCommands()` | `reserve-nick` action; wire `nick` into scene inputs |
+| `Form()` | Two-step local form demo |
+| `Blog()` | List/open post assets `post-<id>` |
+| `Lobby()` | Ready/start lobby space |
+| `RecipeCommunity()` / `RecipeAccountsSite()` | Merged starter graphs |
 
 Scaffolds may assume scene/action id strings — merge order matters when ids collide (later `Merge` wins).
 

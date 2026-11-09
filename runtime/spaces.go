@@ -72,19 +72,19 @@ func (r *spaceRegistry) memberIdentities(space experience.SpaceID) []identity.Id
 	return out
 }
 
-func (r *spaceRegistry) set(space experience.SpaceID, key string, value any) {
-	st := r.get(space)
-	st.mu.Lock()
-	defer st.mu.Unlock()
-	st.values[key] = value
-}
-
 func (r *spaceRegistry) getValue(space experience.SpaceID, key string) (any, bool) {
 	st := r.get(space)
 	st.mu.RLock()
 	defer st.mu.RUnlock()
 	v, ok := st.values[key]
 	return v, ok
+}
+
+func (r *spaceRegistry) set(space experience.SpaceID, key string, value any) {
+	st := r.get(space)
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	st.values[key] = value
 }
 
 func (r *spaceRegistry) cas(space experience.SpaceID, key string, expect, value any) bool {

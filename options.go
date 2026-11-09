@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/MrBlindMouse/Portico/config"
+	"github.com/MrBlindMouse/Portico/identity"
 	"github.com/MrBlindMouse/Portico/runtime"
 )
 
@@ -25,8 +26,17 @@ type Options struct {
 	AssetPollEvery time.Duration
 	Logger         *slog.Logger
 	LogLevel       string
-	AccountStore   *runtime.AccountStore
-	Accounts       *runtime.AccountConfig
+	AccountStore     *runtime.AccountStore
+	AccountBackend   identity.AccountStore
+	IdentityStore    identity.Store
+	Accounts         *runtime.AccountConfig
+	AllowAccounts    []string
+	DenyAccounts     []string
+	RequireAccount   bool
+	HashedAccounts   bool
+	ShutdownGrace    time.Duration
+	KeepAliveInterval time.Duration
+	KeepAliveCountMax int
 	// OnReady runs after the host is wired, before Serve returns (and before ListenAndServe in NewHost-only flows).
 	OnReady func(*Host)
 }
@@ -71,6 +81,27 @@ func (o Options) MergeConfig(cfg config.File) Options {
 	}
 	if cfg.AssetPollEvery > 0 {
 		o.AssetPollEvery = cfg.AssetPollEvery
+	}
+	if len(cfg.AllowAccounts) > 0 {
+		o.AllowAccounts = cfg.AllowAccounts
+	}
+	if len(cfg.DenyAccounts) > 0 {
+		o.DenyAccounts = cfg.DenyAccounts
+	}
+	if cfg.RequireAccount {
+		o.RequireAccount = true
+	}
+	if cfg.ShutdownGrace > 0 {
+		o.ShutdownGrace = cfg.ShutdownGrace
+	}
+	if cfg.KeepAliveInterval > 0 {
+		o.KeepAliveInterval = cfg.KeepAliveInterval
+	}
+	if cfg.KeepAliveCountMax > 0 {
+		o.KeepAliveCountMax = cfg.KeepAliveCountMax
+	}
+	if cfg.HashedAccounts {
+		o.HashedAccounts = true
 	}
 	return o
 }

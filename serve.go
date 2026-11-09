@@ -54,11 +54,33 @@ func (o Options) withDefaults() Options {
 	return o
 }
 
-func openStore(dataDir string) (identity.Store, error) {
-	if dataDir != "" {
-		return identity.OpenFileStore(dataDir)
+func openStore(opts Options) (identity.Store, error) {
+	if opts.IdentityStore != nil {
+		return opts.IdentityStore, nil
+	}
+	if opts.DataDir != "" {
+		return identity.OpenFileStore(opts.DataDir)
 	}
 	return identity.NewMemoryStore(), nil
+}
+
+func resolveAccountStore(opts Options) identity.AccountStore {
+	if opts.AccountBackend != nil {
+		return opts.AccountBackend
+	}
+	if opts.HashedAccounts && opts.DataDir != "" {
+		store, err := identity.OpenFileAccountStore(opts.DataDir)
+		if err == nil {
+			return store
+		}
+	}
+	if opts.AccountStore != nil {
+		return opts.AccountStore
+	}
+	if opts.Accounts != nil && opts.Accounts.Accounts != nil {
+		return opts.Accounts.Accounts
+	}
+	return nil
 }
 
 func serverConfig(addr string, opts Options) runtime.ServerConfig {
@@ -70,21 +92,31 @@ func serverConfig(addr string, opts Options) runtime.ServerConfig {
 	cfg.Logger = opts.Logger
 	cfg.AllowKeys = opts.AllowKeys
 	cfg.DenyKeys = opts.DenyKeys
+	cfg.AllowAccounts = opts.AllowAccounts
+	cfg.DenyAccounts = opts.DenyAccounts
+	cfg.RequireAccount = opts.RequireAccount
+	cfg.ShutdownGrace = opts.ShutdownGrace
+	cfg.KeepAliveInterval = opts.KeepAliveInterval
+	cfg.KeepAliveCountMax = opts.KeepAliveCountMax
 	if opts.MaxConns > 0 {
 		cfg.MaxConns = opts.MaxConns
 	}
 	if opts.MaxConnsPerIP > 0 {
 		cfg.MaxConnsPerIP = opts.MaxConnsPerIP
 	}
+	acct := resolveAccountStore(opts)
 	if opts.Accounts != nil {
 		cfg.Accounts = opts.Accounts
-	} else if opts.AccountStore != nil {
-		cfg.Accounts = &runtime.AccountConfig{Enabled: true, Accounts: opts.AccountStore}
+		if cfg.Accounts.Accounts == nil {
+			cfg.Accounts.Accounts = acct
+		}
+	} else if acct != nil {
+		cfg.Accounts = &runtime.AccountConfig{Enabled: true, Accounts: acct}
 	}
 	return cfg
 }
 
-func startAuxiliaryHTTP(opts Options, sshAddr string, eng *runtime.Engine, actions *atomic.Uint64) {
+func startAuxiliaryHTTP(opts Options, sshAddr string, srv *runtime.Server, eng *runtime.Engine, actions *atomic.Uint64) {
 	if opts.InspectAddr != "" {
 		go func() {
 			opts.Logger.Info("inspect listening", "addr", opts.InspectAddr)
@@ -94,7 +126,7 @@ func startAuxiliaryHTTP(opts Options, sshAddr string, eng *runtime.Engine, actio
 	if opts.StatusAddr != "" {
 		go func() {
 			opts.Logger.Info("status listening", "addr", opts.StatusAddr)
-			_ = http.ListenAndServe(opts.StatusAddr, statusHandler(sshAddr, actions))
+			_ = http.ListenAndServe(opts.StatusAddr, statusHandler(sshAddr, actions, defaultStatus(srv, eng, opts.DataDir)))
 		}()
 	}
 }

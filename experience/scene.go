@@ -6,6 +6,8 @@ import "github.com/MrBlindMouse/Portico/identity"
 type Scene struct {
 	Render func(ctx RenderContext) string
 	Inputs map[string]ActionID
+	// ValidateLocal optionally rejects session-local writes in apply.
+	ValidateLocal func(key string, value any) error
 }
 
 // RenderContext is read-only context for scene rendering.

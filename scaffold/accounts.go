@@ -8,7 +8,7 @@ import (
 )
 
 // Registration adds scenes for account registration when password auth is enabled.
-// Mail verification remains an external extension point.
+// Works with plaintext dev stores and identity.FileAccountStore (bcrypt). Mail verification is an external extension point.
 func Registration() *experience.Builder {
 	b := experience.NewBuilder()
 	b.Scene("register", experience.Scene{

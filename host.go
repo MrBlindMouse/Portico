@@ -30,16 +30,14 @@ func NewHost(addr string, exp *experience.Experience, opts Options) (*Host, erro
 	}
 	opts = opts.withDefaults()
 
-	store, err := openStore(opts.DataDir)
+	store, err := openStore(opts)
 	if err != nil {
 		return nil, err
 	}
 
 	applier := runtime.NewApplier(nil, store)
-	if opts.AccountStore != nil {
-		applier.SetAccountStore(opts.AccountStore)
-	} else if opts.Accounts != nil && opts.Accounts.Accounts != nil {
-		applier.SetAccountStore(opts.Accounts.Accounts)
+	if acct := resolveAccountStore(opts); acct != nil {
+		applier.SetAccountStore(acct)
 	}
 
 	eng := runtime.NewEngine(exp, applier)
@@ -67,7 +65,7 @@ func NewHost(addr string, exp *experience.Experience, opts Options) (*Host, erro
 	}
 
 	host := &Host{Server: srv, engine: eng}
-	startAuxiliaryHTTP(opts, addr, eng, &actions)
+	startAuxiliaryHTTP(opts, addr, srv, eng, &actions)
 	startAssetPoll(context.Background(), opts, eng)
 
 	if opts.OnReady != nil {

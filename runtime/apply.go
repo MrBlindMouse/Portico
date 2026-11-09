@@ -17,7 +17,7 @@ type ApplyResult struct {
 type Applier struct {
 	spaces   *spaceRegistry
 	store    identity.Store
-	accounts *AccountStore
+	accounts identity.AccountStore
 	pending  []persistFlush
 }
 
@@ -27,8 +27,8 @@ type persistFlush struct {
 	val any
 }
 
-// SetAccountStore enables RegisterAccount effects (dev account store).
-func (a *Applier) SetAccountStore(s *AccountStore) {
+// SetAccountStore enables RegisterAccount effects when password auth is enabled.
+func (a *Applier) SetAccountStore(s identity.AccountStore) {
 	a.accounts = s
 }
 
@@ -49,6 +49,12 @@ func (a *Applier) Apply(sess *Session, exp *experience.Experience, effects []exp
 	for _, eff := range effects {
 		switch e := eff.(type) {
 		case experience.SetLocal:
+			sc, ok := exp.Scene(sess.CurrentScene())
+			if ok && sc.ValidateLocal != nil {
+				if err := sc.ValidateLocal(e.Key, e.Value); err != nil {
+					return res, err
+				}
+			}
 			sess.mu.Lock()
 			sess.local[e.Key] = e.Value
 			sess.mu.Unlock()
@@ -102,8 +108,25 @@ func (a *Applier) Apply(sess *Session, exp *experience.Experience, effects []exp
 			sess.mu.Unlock()
 			a.spaces.leave(e.Space, sess)
 		case experience.SpaceSet:
+			sp, ok := exp.Space(e.Space)
+			if !ok {
+				return res, fmt.Errorf("portico: undefined space %q", e.Space)
+			}
+			if sp.ValidateSet != nil {
+				old, _ := a.spaces.getValue(e.Space, e.Key)
+				if err := sp.ValidateSet(e.Key, old, e.Value); err != nil {
+					return res, err
+				}
+			}
 			a.spaces.set(e.Space, e.Key, e.Value)
 		case experience.SpaceCAS:
+			sp, ok := exp.Space(e.Space)
+			if ok && sp.ValidateSet != nil {
+				old, _ := a.spaces.getValue(e.Space, e.Key)
+				if err := sp.ValidateSet(e.Key, old, e.Value); err != nil {
+					return res, err
+				}
+			}
 			if !a.spaces.cas(e.Space, e.Key, e.Expect, e.Value) {
 				return res, fmt.Errorf("portico: space cas failed for %q", e.Key)
 			}
@@ -126,7 +149,9 @@ func (a *Applier) Apply(sess *Session, exp *experience.Experience, effects []exp
 			if e.Username == "" || e.Password == "" {
 				return res, fmt.Errorf("portico: username and password required")
 			}
-			a.accounts.Register(e.Username, e.Password)
+			if err := a.accounts.Register(e.Username, e.Password); err != nil {
+				return res, err
+			}
 		default:
 			return res, fmt.Errorf("portico: unknown effect %T", eff)
 		}

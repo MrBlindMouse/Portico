@@ -8,11 +8,13 @@ import (
 
 func TestAccountVerify(t *testing.T) {
 	s := runtime.NewAccountStore()
-	s.Register("alice", "secret")
-	if !s.Verify("alice", "secret") {
+	_ = s.Register("alice", "secret")
+	ok, err := s.Verify("alice", "secret")
+	if err != nil || !ok {
 		t.Fatal("expected valid password")
 	}
-	if s.Verify("alice", "wrong") {
+	ok, _ = s.Verify("alice", "wrong")
+	if ok {
 		t.Fatal("expected invalid password")
 	}
 }

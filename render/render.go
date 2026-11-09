@@ -81,7 +81,7 @@ func Emphasis(text string, enableANSI bool) string {
 	if !enableANSI {
 		return text
 	}
-	return "\x1b[1m" + text + "\x1b[0m"
+	return Default.Bold(text)
 }
 
 func padTruncate(s string, w int) string {
