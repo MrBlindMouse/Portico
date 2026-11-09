@@ -1,4 +1,5 @@
-// Reference Portico site: merge scaffolds, then ServeDev. Copy this package as your own main.
+// Reference consumer inside this module: RecipeCommunity + ServeDev.
+// SSH sites outside this repo import github.com/MrBlindMouse/Portico; they are not added under examples/.
 package main
 
 import (
@@ -11,14 +12,7 @@ import (
 )
 
 func main() {
-	exp, err := portico.New().
-		Merge(scaffold.Guestbook()).
-		Merge(scaffold.Chat()).
-		Merge(scaffold.Landing(map[string]experience.SceneID{
-			"guestbook": "guestbook",
-			"chat":      "chat",
-		})).
-		Build()
+	exp, err := build()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -33,4 +27,10 @@ func main() {
 	if err := portico.ServeDev(exp, opts); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func build() (*experience.Experience, error) {
+	return portico.New().
+		Merge(scaffold.RecipeCommunity()).
+		Build()
 }

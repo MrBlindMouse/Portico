@@ -1,6 +1,6 @@
 # scaffold/
 
-Optional **starter definitions** for site authors. Each function returns `*experience.Builder` to `Merge` into your site — not opaque generated code.
+Optional **starter definitions** that a site `main` imports and `Merge`s. Each function returns `*experience.Builder` — not opaque generated code, and not a place to put one site's domain logic.
 
 | Function | Adds |
 |----------|------|
@@ -16,4 +16,4 @@ Optional **starter definitions** for site authors. Each function returns `*exper
 
 Scaffolds may assume scene/action id strings — merge order matters when ids collide (later `Merge` wins).
 
-Sites should **not** fork scaffolds into `runtime`; copy and edit definitions in the site repo instead.
+Sites should **not** fork scaffolds into `runtime`. Copy the definition into the site repo and edit it there (`examples/notes`).

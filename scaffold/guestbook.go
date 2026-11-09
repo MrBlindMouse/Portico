@@ -18,23 +18,15 @@ func Guestbook() *experience.Builder {
 	b.Root("guestbook")
 	b.Action("sign", experience.Action{
 		Run: func(ctx experience.ActionContext) []experience.Effect {
-			msg, _ := ctx.Local("draft")
-			text, _ := msg.(string)
-			if strings.TrimSpace(text) == "" {
-				text = ctx.Identity().String() + " was here"
+			text := restAfter(ctx.InputLine(), "sign")
+			if text == "" {
+				text = "was here"
 			}
 			return []experience.Effect{
 				experience.JoinSpaceEffect(guestbookSpace),
-				experience.AppendSpaceListEffect(guestbookSpace, guestbookListKey, text),
+				experience.AppendSpaceListEffect(guestbookSpace, guestbookListKey, GuestbookSignMessage(ctx.Identity().String(), text)),
 				experience.BroadcastEffect(guestbookSpace),
-				experience.SetLocalEffect("draft", ""),
 			}
-		},
-	})
-	b.Action("set-draft", experience.Action{
-		Run: func(ctx experience.ActionContext) []experience.Effect {
-			line, _ := ctx.Local("input_line")
-			return []experience.Effect{experience.SetLocalEffect("draft", line)}
 		},
 	})
 	b.Scene("guestbook", experience.Scene{
@@ -46,7 +38,7 @@ func Guestbook() *experience.Builder {
 			if len(lines) == 0 {
 				lines = append(lines, "(no signatures yet)")
 			}
-			lines = append(lines, "", "Commands: sign")
+			lines = append(lines, "", "Commands: sign <message>")
 			return render.Box("Guestbook", strings.Join(lines, "\n"), 52)
 		},
 		Inputs: map[string]experience.ActionID{

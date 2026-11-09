@@ -1,21 +1,27 @@
 # AGENTS.md
 
-Ops contract for agents working on **Portico the framework**. Site-specific apps live in their own `main` packages (see `examples/hello`). **DESIGN.md is the vision contract; "Planned" there is not implemented until shipped.**
+Ops contract for agents changing **this repository** (the Portico framework).
+
+Building an SSH site is a different job: import `github.com/MrBlindMouse/Portico` in **your** module. Start with `portico init` and [docs/site-agents.md](docs/site-agents.md). Do not add site scenes to this tree. `examples/` are reference consumers, not the product.
+
+**DESIGN.md is the vision contract; "Planned" there is not implemented until shipped.**
 
 ## Audience
 
 | Who | Owns |
 |-----|------|
 | Framework (`experience`, `runtime`, `portico`, …) | Layers, invariants, extension points |
-| Site author (`examples/*`, user repos) | Scenes, actions, domain, `main` + `Serve` |
+| Site author (`examples/*`, user repos) | Scenes, actions, domain, `main` + `Serve`; see `docs/site-agents.md` |
 | `cmd/portico` | Operator helpers; **not** the primary site entry (use `-demo` only for bundled smoke test) |
 
 ## Run and test
 
+These commands are for **this repo** (framework CI and the bundled examples). A site repo runs `go run .` in its own module.
+
 ```bash
 go test ./...
 go vet ./...
-go run ./examples/hello   # reference site, SSH on :2222
+go run ./examples/hello   # reference consumer, SSH on :2222
 ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null localhost
 ```
 
@@ -42,7 +48,7 @@ CI runs `go test`, `go vet`, and `internal/archtest` on every push.
 | `inspect`     | Read-only JSON snapshots for agents |
 | `scaffold`    | Composable starter definitions (optional for sites) |
 | `asset`       | Named filesystem assets and poll watcher |
-| `cmd/portico` | CLI: `inspect`, `scaffold`, `wire`, `identity-export`, `account-export`, `serve -demo` |
+| `cmd/portico` | CLI: `init`, `docs`, `inspect`, `scaffold`, `wire`, `identity-export`, `account-export`, `serve -demo` |
 | `internal/*`  | archtest, faketerm, fakessh — not importable by sites |
 
 ## Gotchas

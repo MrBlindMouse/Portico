@@ -6,11 +6,31 @@ You write the experience (scenes, actions, spaces). Portico handles SSH, session
 
 ## Create a site
 
-A Portico site is an ordinary Go program that imports Portico as a library.
+A Portico site is an ordinary Go program that imports Portico as a library. Either generate that program, or write it. Both end the same way: `go run .`, then SSH to port 2222.
+
+### Generate it (`portico init`)
+
+From an empty directory:
 
 ```bash
-mkdir my-site
-cd my-site
+mkdir my-site && cd my-site
+go run github.com/MrBlindMouse/Portico/cmd/portico@latest init -module github.com/yourname/my-site
+go run .
+```
+
+`init` creates `go.mod` (if needed), runs `go get`, and writes `main.go`, `AGENTS.md`, and `README.md`.
+
+| `-style` | `main.go` |
+|----------|-----------|
+| `community` (default) | `scaffold.RecipeCommunity()` — landing, guestbook, chat |
+| `scratch` | One custom scene and a `greet` action (same program as below) |
+
+Use `-force` to overwrite those three files. Doc URLs for the version in `go.mod`: `portico docs -tag vX.Y.Z`.
+
+### Or write it
+
+```bash
+mkdir my-site && cd my-site
 go mod init github.com/yourname/my-site
 go get github.com/MrBlindMouse/Portico
 ```
@@ -31,7 +51,13 @@ func main() {
 		Root("home").
 		Scene("home", experience.Scene{
 			Render: func(ctx experience.RenderContext) string {
-				return "Hello, " + ctx.Identity().String() + "\n\nType: greet\n"
+				msg := ""
+				if flash, ok := ctx.Local("flash"); ok {
+					if s, ok := flash.(string); ok {
+						msg = s + "\n\n"
+					}
+				}
+				return msg + "Hello, " + ctx.Identity().String() + "\n\nType: greet\n"
 			},
 			Inputs: map[string]experience.ActionID{"greet": "greet"},
 		}).
@@ -53,13 +79,15 @@ func main() {
 }
 ```
 
+Runnable copy: [examples/from-scratch](examples/from-scratch). Scaffold equivalent: [examples/hello](examples/hello) (`RecipeCommunity`).
+
 ```bash
 go run .
 # in another terminal
-ssh -p 2222 localhost
+ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null localhost
 ```
 
-That’s the whole loop: `go get` the framework, compose an experience, call `ServeDev` (or `Serve`).
+The loop is always: compose an experience, call `ServeDev` (or `Serve`).
 
 ## Rules
 
@@ -70,20 +98,17 @@ That’s the whole loop: `go get` the framework, compose an experience, call `Se
 
 ## Scaffolds
 
-Start from a working pattern instead of a blank file:
+`portico init` (default) and [examples/hello](examples/hello) are this one-liner:
 
 ```go
 import "github.com/MrBlindMouse/Portico/scaffold"
 
 exp, err := portico.New().
-	Merge(scaffold.Guestbook()).
-	Merge(scaffold.Landing(map[string]experience.SceneID{
-		"guestbook": "guestbook",
-	})).
+	Merge(scaffold.RecipeCommunity()).
 	Build()
 ```
 
-Available scaffolds include guestbook, chat, landing, registration, and nickname.
+`RecipeCommunity` merges guestbook, chat, and a landing menu. Merge other starters the same way: guestbook, chat, landing, registration, nickname, form, blog, lobby, `RecipeAccountsSite`. `portico scaffold <name>` prints the merge line. Later `Merge` wins when ids collide. Copy a scaffold into your repo when you need to change it.
 
 ## Options
 
@@ -134,6 +159,8 @@ Do not expose the inspect or status HTTP endpoints without authentication.
 
 ## More
 
+- **Building a site:** [docs/building-a-site.md](docs/building-a-site.md)
+- **Agents in site repos:** [docs/site-agents.md](docs/site-agents.md)
+- Examples: [from-scratch](examples/from-scratch) (write a scene), [hello](examples/hello) (merge a scaffold), [notes](examples/notes) (copy a scaffold and edit it)
 - Design and architecture: [DESIGN.md](DESIGN.md)
-- Framework contributor / agent notes: [AGENTS.md](AGENTS.md)
-- Reference site: [examples/hello](examples/hello)
+- Framework contributor notes: [AGENTS.md](AGENTS.md) (not for consumer sites)

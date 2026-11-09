@@ -1,6 +1,6 @@
 # experience/
 
-Declarative **site definitions**: scenes, actions, spaces, builder validation. Site authors spend most of their time here.
+Scenes, actions, spaces, and builder validation. Site modules **import** this package (`github.com/MrBlindMouse/Portico/experience`) and define their experience in their own repo. Do not add a site's domain scenes to this package.
 
 ## Invariants
 

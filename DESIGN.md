@@ -37,7 +37,7 @@ Secondary goals include fast local iteration, simple deployment (single binary, 
 The following are explicitly out of scope:
 
 - A fixed catalog of domain-specific features that every site must include.
-- A general-purpose programming language or arbitrary code-execution model as the primary authoring interface. Agents work with declarative definitions and narrow extension points.
+- A separate authoring language, an interpreted experience file, or site code that mutates sessions outside the effect model. A site is an ordinary Go program that imports Portico and stays on the builder, scenes, actions, and effects.
 - Replacement of existing low-level SSH or terminal libraries. Portico sits above them.
 - Built-in support for any particular visual metaphor, game style, or interaction pattern beyond the primitive layers defined in this document.
 - High-scale multiplayer infrastructure, real-time guarantees, or resource behavior under thousands of concurrent sessions.
@@ -332,6 +332,8 @@ type Session struct {
 
 ### Public usage
 
+Shipped sites are separate Go modules that import this library. Illustrative shape (see README for the current `Serve` / `ServeDev` signatures):
+
 ```go
 exp, err := portico.New().
     Scene("home", homeScene).
@@ -339,7 +341,7 @@ exp, err := portico.New().
     Scene("guestbook", guestbookScene).
     Build()
 
-portico.Serve(":22", exp)
+portico.Serve(":22", exp, portico.Options{})
 ```
 
 This structure keeps the happy path short while ensuring that core state remains unexported, mutation is centralized, and identifiers are distinct types.
@@ -348,11 +350,13 @@ This structure keeps the happy path short while ensuring that core state remains
 
 ## 9. Agent Interaction Model
 
-Agents interact with Portico through three complementary mechanisms.
+Agents building a site work in **that site's repository**, importing `github.com/MrBlindMouse/Portico`. They do not author the site inside the framework tree. There is no separate experience-file format: the definition is Go (`portico.New()`, scenes, actions, `Build`, `Serve` or `ServeDev`). Operational contract: `docs/site-agents.md`.
+
+Agents interact with a running site through three complementary mechanisms.
 
 ### 8.1 Declarative Definitions
 
-The primary artifact is a structured definition of the experience (scenes, actions, spaces, identity configuration, and asset references). Agents create and edit these definitions. The runtime loads them and hot-reloads changes.
+The primary artifact is the site's Go experience (scenes, actions, spaces, identity configuration, and asset references). Agents create and edit that code in the site module. The runtime loads the built `Experience` and can hot-reload a new one.
 
 The definition format is designed to be easy for an agent to generate, validate, and incrementally modify. It is also human-readable so that directors can review and adjust it.
 
@@ -452,6 +456,6 @@ Portico does not mandate a particular hosting provider. It aims to make the resu
 
 Portico applies the Rails methodology—convention over configuration, named layers, scaffolding, opinionated defaults with escape hatches, structural strictness through types and API design, and a shared structural language—to the domain of interactive SSH experiences.
 
-Agents are the primary authors. They work with declarative definitions of scenes, actions, spaces, identity, and assets. The runtime owns session lifecycle, rendering, input dispatch, presence, and persistence. Common patterns are available as scaffolds. Custom logic attaches at explicit extension points when the declarative path is insufficient.
+Agents and humans are the authors, working in their own module that imports Portico. They define scenes, actions, spaces, identity, and assets in Go. The runtime owns session lifecycle, rendering, input dispatch, presence, and persistence. Common patterns are available as scaffolds to merge. Custom logic stays on those extension points.
 
 The result is a system in which creating, iterating on, and maintaining an SSH site is predictable, inspectable, and fast, while remaining open to experiences that the original designers did not anticipate. The name Portico reflects its role as the structured entrance through which SSH sessions arrive and through which agents and humans build what lies beyond.

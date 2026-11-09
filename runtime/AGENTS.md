@@ -1,6 +1,6 @@
 # runtime/
 
-SSH server, session lifecycle, input dispatch, and effect application. **Site authors rarely import this** except advanced hosting (`HotReload` on `*runtime.Server`).
+SSH server, session lifecycle, input dispatch, and effect application. **Site modules do not import this package.** They call `portico.Serve`, `ServeDev`, or `NewHost` / `Host.HotReload`.
 
 ## Invariants
 

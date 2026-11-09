@@ -41,6 +41,10 @@ func main() {
 		accountImportCmd(os.Args[2:])
 	case "wire":
 		wireCmd(os.Args[2:])
+	case "init":
+		initCmd(os.Args[2:])
+	case "docs":
+		docsCmd(os.Args[2:])
 	default:
 		usage()
 		os.Exit(2)
@@ -48,8 +52,20 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: portico <inspect|scaffold|wire|identity-export|account-export|account-import|serve -demo> [flags]\n")
-	fmt.Fprintf(os.Stderr, "  Sites are Go programs — see examples/hello and README.md (not portico serve).\n")
+	fmt.Fprintf(os.Stderr, "usage: portico <init|docs|inspect|scaffold|wire|identity-export|account-export|account-import|serve -demo> [flags]\n")
+	fmt.Fprintf(os.Stderr, "  A site is your own Go module that imports this library.\n")
+	fmt.Fprintf(os.Stderr, "  Create one: portico init -module <module-path>   then: go run .\n")
+	fmt.Fprintf(os.Stderr, "  Guides: portico docs    (portico serve is only a -demo smoke test)\n")
+}
+
+func docsCmd(args []string) {
+	fs := flag.NewFlagSet("docs", flag.ExitOnError)
+	tag := fs.String("tag", "main", "git tag for doc URLs (match your go.mod version)")
+	_ = fs.Parse(args)
+	base := "https://github.com/MrBlindMouse/Portico/blob/" + *tag
+	fmt.Printf("building-a-site: %s/docs/building-a-site.md\n", base)
+	fmt.Printf("site-agents:     %s/docs/site-agents.md\n", base)
+	fmt.Printf("examples:        %s/examples/from-scratch\n", base)
 }
 
 func serveCmd(args []string) {
@@ -64,7 +80,7 @@ func serveCmd(args []string) {
 	logLevel := fs.String("log-level", "info", "log level: debug, info, warn, error")
 	_ = fs.Parse(args)
 	if !*demo {
-		log.Fatal("portico serve requires -demo (operator smoke test). Build your site: go run ./examples/hello")
+		log.Fatal("portico serve is a smoke test and requires -demo. Your site is a separate module: portico init -module <path>, then go run .")
 	}
 	var fileCfg config.File
 	if *configPath != "" {

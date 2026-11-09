@@ -22,9 +22,8 @@ func Chat() *experience.Builder {
 	})
 	b.Action("send", experience.Action{
 		Run: func(ctx experience.ActionContext) []experience.Effect {
-			line, _ := ctx.Local("line")
-			text, _ := line.(string)
-			if strings.TrimSpace(text) == "" {
+			text := restAfter(ctx.InputLine(), "send")
+			if text == "" {
 				return nil
 			}
 			msg := ctx.Identity().String() + ": " + text
@@ -32,14 +31,13 @@ func Chat() *experience.Builder {
 				experience.JoinSpaceEffect(chatSpace),
 				experience.AppendSpaceListEffect(chatSpace, chatMessagesKey, msg),
 				experience.BroadcastEffect(chatSpace),
-				experience.SetLocalEffect("line", ""),
 			}
 		},
 	})
 	b.Scene("chat", experience.Scene{
 		Render: func(ctx experience.RenderContext) string {
 			var body strings.Builder
-			body.WriteString("Commands: join-chat, send\n\n")
+			body.WriteString("Commands: join-chat, send <message>\n\n")
 			for _, msg := range ctx.SpaceList(chatSpace, chatMessagesKey) {
 				body.WriteString("  ")
 				body.WriteString(fmt.Sprint(msg))
