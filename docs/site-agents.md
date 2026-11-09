@@ -160,9 +160,9 @@ Hints: `portico scaffold <name>` prints merge snippets. See `scaffold/AGENTS.md`
 
 ## Identity
 
-A session that connects with no credentials is a guest. That path stays open when the site has no key allow/deny list, no password accounts, and `RequireAccount` is false, so `ssh` with no key still works.
+A session that connects with no credentials is a guest. That path stays open when the site has no key allow/deny list, no password accounts, and `RequireAccount` is false, so `ssh` with no key still works. The SSH username (OpenSSH sends your local login when you omit `user@`) is the display label for that connection. It is not persisted and not unique. `Identity.String()` uses a reserved nickname, then the account name, then that login.
 
-SSH clients stop when "none" succeeds, so a key or password is only used once that path is off. Turning on accounts, a key list, or `RequireAccount` does that. A public key stays a key identity unless the fingerprint is linked to an account. A password login is the account named by the SSH user. `RequireAccount` rejects guests and keys that are not linked.
+SSH clients stop when "none" succeeds, so a key or password is only used once that path is off. Turning on accounts, a key list, or `RequireAccount` does that. A public key stays a key for persistence unless the fingerprint is linked to an account. A password login is the account named by the SSH user. `RequireAccount` rejects guests and keys that are not linked.
 
 ## Testing
 

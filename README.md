@@ -133,7 +133,9 @@ exp, err := portico.New().
 
 Account stores are chosen in this order: `AccountBackend`, then `HashedAccounts` with `DataDir`, then `AccountStore`, then `Accounts.Accounts`. If hashed accounts are requested and that directory cannot be opened, `Serve` returns the error.
 
-With no account store and no key list, `ssh` with no key still connects as a guest. A key allow/deny list, password accounts, or `RequireAccount` turns that off, because SSH clients stop at the first successful method and a successful "none" login would skip the key and the password. A key login stays a key unless that fingerprint is linked to an account. A password login is the account. `RequireAccount` drops guests and unlinked keys.
+With no account store and no key list, `ssh` with no key still connects. A key allow/deny list, password accounts, or `RequireAccount` turns that off, because SSH clients stop at the first successful method and a successful "none" login would skip the key and the password. A password login is the account. A key stays a key for persistence unless that fingerprint is linked to an account. `RequireAccount` drops guests and unlinked keys.
+
+When the session has no account, the SSH username is the display label for that connection only (`johan` when OpenSSH fills in your local login). It is not stored and it is not unique. A reserved nickname replaces it for the rest of the session. With no username, a guest still shows as `guest` and an unlinked key as `key-` plus the start of the fingerprint.
 
 You can also load options from a JSON config file (`log_level`). Timestamps use sub-second precision on the default logger.
 

@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -347,7 +348,7 @@ func (s *Server) identify(sess ssh.Session) (identity.Identity, bool) {
 			_, _ = ioWriteString(sess, "account required\n")
 			return identity.Identity{}, false
 		}
-		return idn, true
+		return withSessionLogin(idn, sess.User()), true
 	}
 	if sess.Context().Value(passwordAuthKey{}) != nil {
 		user := sess.User()
@@ -363,7 +364,20 @@ func (s *Server) identify(sess ssh.Session) (identity.Identity, bool) {
 		_, _ = ioWriteString(sess, "account required\n")
 		return identity.Identity{}, false
 	}
-	return identity.Anonymous(), true
+	return withSessionLogin(identity.Anonymous(), sess.User()), true
+}
+
+// withSessionLogin labels a non-account session with the SSH username.
+// The label is not written to the nickname store. Account names stay the account.
+func withSessionLogin(idn identity.Identity, user string) identity.Identity {
+	if idn.Account() != "" {
+		return idn
+	}
+	user = strings.TrimSpace(user)
+	if user == "" {
+		return idn
+	}
+	return idn.WithLogin(user)
 }
 
 func (s *Server) keepAlive(sess ssh.Session) {

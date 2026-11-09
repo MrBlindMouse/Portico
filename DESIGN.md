@@ -114,7 +114,7 @@ The runtime owns the session lifecycle, the mapping of input to actions, the ren
 
 A session represents a single SSH connection. It is isolated by default. It carries:
 
-- An identity derived from the client’s SSH public key (or an anonymous identity if no key is presented).
+- An identity derived from the client’s SSH public key (or an anonymous identity if no key is presented). When the session has no account, the SSH username is the display label for that connection only.
 - A current scene.
 - Local state that is not shared with other sessions.
 - Optional membership in one or more spaces.
@@ -161,7 +161,7 @@ By default, identity is derived from the SSH public key fingerprint presented by
 - Per-identity key-value storage for saved state.
 - The ability for actions to read and write this storage.
 
-Anonymous sessions (those without a key) are supported but have no persistent identity.
+Anonymous sessions (those without a key) are supported but have no persistent identity. Their display label is the SSH username for that connection when the client sent one. The same label applies to a key that is not linked to an account. It is not written to the nickname store. Persistence still follows the key fingerprint or the account.
 
 Sites that need lasting accounts may enable an optional account layer. When enabled, an account (username, password hash, and zero or more linked key fingerprints) becomes the primary identity. The runtime can accept password authentication during the SSH handshake (alone or in combination with a key) and attach the resulting account to the session. Registration and nickname management are ordinary scenes and actions. Key-only and anonymous access remain available unless a site’s policy disables them. Any further fields a site stores on an account are that site’s data.
 

@@ -87,7 +87,7 @@ func Lobby() *experience.Builder {
 }
 
 func lobbySetReady(ctx experience.ActionContext, ready bool) []experience.Effect {
-	// ponytail: last write of the whole ready map wins; concurrent ready clicks can drop one update. Keys are Identity.String, so every anonymous session is "guest". Upgrade path is SpaceCAS plus a stable per-session id.
+	// ponytail: last write of the whole ready map wins; concurrent ready clicks can drop one update. Keys are Identity.String, so two sessions with the same SSH login (or both "guest") share one entry. Upgrade path is SpaceCAS plus a stable per-session id.
 	m := readyMap(ctx)
 	m[ctx.Identity().String()] = ready
 	return []experience.Effect{

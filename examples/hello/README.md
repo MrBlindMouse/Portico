@@ -16,8 +16,10 @@ You start on the landing menu.
 
 | Type | What happens |
 |------|----------------|
-| `guestbook` | Shared signatures. `sign ships ahoy` posts `guest: ships ahoy`. `sign` alone posts `guest: was here`. |
-| `chat` | Shared messages. `send hello there` posts `guest: hello there`. `join-chat` marks you present. `send` alone posts nothing. |
+| `guestbook` | Shared signatures. `sign ships ahoy` posts `<ssh-user>: ships ahoy`. `sign` alone posts `<ssh-user>: was here`. |
+| `chat` | Shared messages. `send hello there` posts `<ssh-user>: hello there`. `join-chat` marks you present. `send` alone posts nothing. |
+
+`<ssh-user>` is the username OpenSSH sends (your local login when you omit `user@`). It lasts for that connection. A reserved nickname replaces it. In-process tests that build an anonymous session with no SSH user still show `guest`.
 
 Those scenes have no command back to the menu. Disconnect and connect again to return to landing.
 

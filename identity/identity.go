@@ -13,6 +13,7 @@ type Identity struct {
 	fingerprint string
 	nickname    string
 	account     string
+	login       string // SSH username for this connection; not persisted
 	anonymous   bool
 }
 
@@ -61,16 +62,30 @@ func (i Identity) WithNickname(name string) Identity {
 	return i
 }
 
+// Login returns the SSH username for this connection.
+// It is a display alias only. It is not stored and is not unique.
+func (i Identity) Login() string { return i.login }
+
+// WithLogin returns a copy with the SSH username set.
+func (i Identity) WithLogin(name string) Identity {
+	i.login = name
+	return i
+}
+
 // Anonymous reports whether this session has no persistent identity.
 func (i Identity) Anonymous() bool { return i.anonymous }
 
 // String is a short display label for presence lists.
+// A reserved nickname wins, then an account, then the SSH username for this connection.
 func (i Identity) String() string {
 	if i.nickname != "" {
 		return i.nickname
 	}
 	if i.account != "" {
 		return i.account
+	}
+	if i.login != "" {
+		return i.login
 	}
 	if i.anonymous {
 		return "guest"

@@ -17,7 +17,7 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 )
 
-func TestSSHNoKeyIsGuest(t *testing.T) {
+func TestSSHNoKeyUsesLogin(t *testing.T) {
 	addr := serveIdentity(t, identityScene(t, false), nil)
 	client := dialSSH(t, addr, &gossh.ClientConfig{
 		User:            "alice",
@@ -25,11 +25,11 @@ func TestSSHNoKeyIsGuest(t *testing.T) {
 	})
 	defer client.Close()
 	out := readShell(t, client)
-	if !strings.Contains(out, "guest") {
+	if !strings.Contains(out, "anon alice") {
 		t.Fatalf("output=%q", out)
 	}
-	if strings.Contains(out, "alice") {
-		t.Fatalf("username became identity: %q", out)
+	if strings.Contains(out, "account") {
+		t.Fatalf("guest became an account: %q", out)
 	}
 }
 
@@ -46,11 +46,11 @@ func TestSSHKeyIdentityPersists(t *testing.T) {
 	})
 	defer client.Close()
 	out := readShell(t, client)
-	if !strings.Contains(out, "key-") || !strings.Contains(out, "persisted") {
+	if !strings.Contains(out, "key alice") || !strings.Contains(out, "persisted") {
 		t.Fatalf("output=%q", out)
 	}
-	if strings.Contains(out, "alice") {
-		t.Fatalf("key session took the username: %q", out)
+	if strings.Contains(out, "account") {
+		t.Fatalf("key session became an account: %q", out)
 	}
 }
 
@@ -87,7 +87,7 @@ func TestSSHAccountsKeepKeySeparateFromPassword(t *testing.T) {
 	})
 	keyOut := readShell(t, keyClient)
 	keyClient.Close()
-	if !strings.Contains(keyOut, "key-") || strings.Contains(keyOut, "alice") {
+	if !strings.Contains(keyOut, "key alice") || strings.Contains(keyOut, "account") {
 		t.Fatalf("key with accounts=%q", keyOut)
 	}
 
@@ -98,7 +98,7 @@ func TestSSHAccountsKeepKeySeparateFromPassword(t *testing.T) {
 	})
 	defer passClient.Close()
 	passOut := readShell(t, passClient)
-	if !strings.Contains(passOut, "alice") {
+	if !strings.Contains(passOut, "account alice") {
 		t.Fatalf("password output=%q", passOut)
 	}
 
@@ -135,7 +135,7 @@ func TestSSHRequireAccountRejectsNone(t *testing.T) {
 	})
 	defer client.Close()
 	out := readShell(t, client)
-	if !strings.Contains(out, "alice") {
+	if !strings.Contains(out, "account alice") {
 		t.Fatalf("output=%q", out)
 	}
 }
@@ -163,7 +163,7 @@ func TestSSHLinkedKeyBecomesAccount(t *testing.T) {
 	})
 	defer client.Close()
 	out := readShell(t, client)
-	if !strings.Contains(out, "alice") {
+	if !strings.Contains(out, "account alice") || strings.Contains(out, "someone") {
 		t.Fatalf("linked key output=%q", out)
 	}
 }
@@ -174,7 +174,16 @@ func identityScene(t *testing.T, persist bool) *experience.Experience {
 		Root("home").
 		Scene("home", experience.Scene{
 			Render: func(ctx experience.RenderContext) string {
-				s := ctx.Identity().String()
+				id := ctx.Identity()
+				s := id.String()
+				switch {
+				case id.Account() != "":
+					s = "account " + id.Account()
+				case id.Anonymous():
+					s = "anon " + s
+				default:
+					s = "key " + s
+				}
 				if v, ok := ctx.Persisted("token"); ok && v == "yes" {
 					s += " persisted"
 				}
