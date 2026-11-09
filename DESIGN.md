@@ -474,12 +474,53 @@ Today, scene output is a **character grid**: `render` helpers, `Screen`, ANSI th
 
 **Status:** undecided. May remain out of Portico entirely (sites embed escape sequences in assets or scene strings).
 
+**Motivation:** SSH sites such as `ssh pieter.com` show **inline raster art** on connect (posters, menus). That effect is not the character `Screen`; it is **graphics escape output** on the PTY. Portico sites can approximate it today by **embedding pre-encoded sequences in assets or `Render` output**; there is no first-class helper yet.
+
+**Protocol survey (research, not a commitment):**
+
+| Approach | Role | SSH / heterogeneous clients | Fidelity | Caveats |
+|----------|------|-----------------------------|----------|---------|
+| **Sixel** | Bitmap strips in a DCS (`ESC P … q … ST`) | **Widest practical default** over SSH | Palette (~256 colors), dithering | **Ghostty does not support Sixel** (Kitty graphics instead). **tmux** often needs passthrough; nested sessions are awkward. |
+| **Kitty graphics** | APC `ESC _ G …` (PNG/RGBA, placement, z-index) | Best on Kitty, WezTerm, Ghostty, Konsole | True color, placement, animation | Spec-rich; fewer “any SSH client” guarantees. See [Kitty graphics protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/). |
+| **iTerm2 inline (OSC 1337)** | Base64 image in an OSC | macOS / iTerm2 ecosystem | Good | Narrow; third fallback at most. |
+| **Chafa symbol modes** | Half-blocks and Unicode mosaics in **text** | **Universal** (no graphics terminal) | Lower resolution; reads as “pixel-ish” | Not true pixels; fits shipped `render` without a new engine. |
+
+Consensus from terminal maintainers and tools (2024–2025): **Sixel = safe fallback for SSH**; **Kitty = best when the terminal is known**; many programs ship **Sixel + Kitty + text fallback**.
+
+**Libraries and tools (prefer reuse; do not hand-roll encoders):**
+
+| Layer | Suggestion | Notes |
+|-------|------------|-------|
+| **Build-time assets** | [Chafa](https://hpjansson.org/chafa/) CLI | `chafa -f sixel` / `-f kitty` → store under `asset`; **zero encoder code** in the server. Fits landing posters. |
+| **Go, multi-protocol** | [blacktop/go-termimg](https://github.com/blacktop/go-termimg) | Kitty, Sixel, iTerm2, half-block fallback; sizing and detection. Strong default if Portico adds a thin helper. |
+| **Go, Sixel-only** | [mattn/go-sixel](https://github.com/mattn/go-sixel) | Pure Go encoder; used by go-termimg’s Sixel path. |
+| **Go, lighter multi** | [kenshaw/rasterm](https://github.com/kenshaw/rasterm) | Kitty, iTerm, Sixel. |
+| **Go, Kitty-focused** | [SerenaFontaine/kgp](https://serenafontaine.github.io/kgp/), [dolmen-go/kittyimg](https://pkg.go.dev/github.com/dolmen-go/kittyimg) | Placement and protocol detail when standardizing on Kitty/WezTerm/Ghostty. |
+| **Reference C encoder** | [libsixel](https://github.com/saitoha/libsixel) | What `img2sixel` uses; prefer Go or Chafa in this tree unless CGO is explicitly chosen. |
+
+**Site patterns under study (no framework API yet):**
+
+1. **Precomputed** Sixel (or Kitty) blob in `asset`, prepended at landing `Render` / `Screen.Draw`.
+2. **Runtime encode** only when the poster is dynamic; cache bytes in session-local or on disk; use go-termimg or mattn/go-sixel.
+3. **Fallback scene** with Chafa symbol output or plain text when graphics are unavailable.
+4. Optional **second asset** (Kitty variant) for clients that do not render Sixel.
+
+**If promoted, a lean framework shape might be:** a `render` helper that returns **opaque bytes** to draw (asset name and/or `image.Image`, optional protocol hint), backed by **precomputed Sixel** first and a Go library second—not a new encoder in Portico.
+
+**Portico-specific constraints (unchanged by research):**
+
+- Each paint uses **full-screen clear** then scene text; graphics may **flicker, scroll, or vanish** depending on the client—posters often want a dedicated landing scene or acceptance of redraw cost.
+- The runtime **filters Kitty APC noise on input**; emitting graphics on output is a separate concern.
+- **Inspect** and string snapshots may embed large escape blobs; tests should treat graphics as optional.
+- **Resize** does not reflow raster art; precompute per size or re-encode on resize (expensive).
+
 **Questions to resolve before any promotion:**
 
 - Whether the layer belongs in the framework or stays site-owned, given client fragmentation and the runtime’s non-goal of becoming a full VT emulator.
 - How graphics interact with **full-screen clear**, **resize**, and the **single caret** (hit targets, focus, and whether input stays line-oriented).
 - Whether **inspect** and string snapshots remain meaningful when output is partly non-text.
 - Minimum viable API: one protocol vs a pluggable backend, and how that aligns with “lean primitives” and agent predictability.
+- Whether the default recommendation is **Sixel assets + symbol fallback**, with Kitty as an optional second asset or detected upgrade path.
 
 Until those are answered, agents and sites should assume **characters and ANSI only**. See README and `docs/site-agents.md` for what is shipped.
 
