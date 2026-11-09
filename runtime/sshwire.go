@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/MrBlindMouse/Portico/render"
 	"github.com/gliderlabs/ssh"
 )
 
@@ -26,14 +27,43 @@ func NewSSHTerminal(sess ssh.Session) *SSHTerminal {
 }
 
 func (t *SSHTerminal) WriteFrame(text string) error {
+	return t.writeCleared(text, true)
+}
+
+// WriteGrid clears the screen and writes text without adding a trailing newline,
+// so a full-height grid does not scroll before the caret is placed.
+// ponytail: autowrap is off for the write. The bottom-right cell can still wrap on
+// some terminals if the last row is exactly the width. Upgrade path is CUP for that cell.
+func (t *SSHTerminal) WriteGrid(text string) error {
+	return t.writeCleared(text, false)
+}
+
+func (t *SSHTerminal) writeCleared(text string, ensureNewline bool) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if !strings.HasSuffix(text, "\n") {
+	if ensureNewline && !strings.HasSuffix(text, "\n") {
 		text += "\n"
 	}
-	_, err := io.WriteString(t.sess, "\x1b[2J\x1b[H"+text)
+	prefix := "\x1b[2J\x1b[H"
+	if !ensureNewline {
+		prefix = "\x1b[?7l" + prefix
+		text += "\x1b[?7h"
+	}
+	_, err := io.WriteString(t.sess, prefix+text)
 	return err
 }
+
+// SetSlot installs the caret rectangle. Nil restores the prompt row under the frame.
+func (t *SSHTerminal) SetSlot(in *render.Input) { t.input.setSlot(in) }
+
+// PaintSlot redraws the caret rectangle from the line buffer.
+func (t *SSHTerminal) PaintSlot() { t.input.paintLine() }
+
+// SlotActive reports whether a caret rectangle is installed.
+func (t *SSHTerminal) SlotActive() bool { return t.input.hasSlot() }
+
+// RejectSlot shows msg inside the caret rectangle until the next edit.
+func (t *SSHTerminal) RejectSlot(msg string) { t.input.rejectSlot(msg) }
 
 func (t *SSHTerminal) ReadInput() (string, error) {
 	return t.input.readUserCommand()
@@ -93,6 +123,15 @@ func (t *SSHTerminal) RestoreInputLine() {
 // SetKeys selects single-key reads. An empty list returns to line entry.
 func (t *SSHTerminal) SetKeys(keys []string) {
 	t.input.setKeys(keys)
+}
+
+// WindowSize returns the PTY size reported at session start.
+func (t *SSHTerminal) WindowSize() (width, height int, ok bool) {
+	pty, _, has := t.sess.Pty()
+	if !has || pty.Window.Width <= 0 || pty.Window.Height <= 0 {
+		return 0, 0, false
+	}
+	return pty.Window.Width, pty.Window.Height, true
 }
 
 func (t *SSHTerminal) OnResize(fn func(int, int)) {

@@ -9,8 +9,24 @@ import (
 	"time"
 
 	"github.com/MrBlindMouse/Portico/identity"
+	"github.com/MrBlindMouse/Portico/render"
 	"github.com/MrBlindMouse/Portico/runtime"
 )
+
+func TestResolveTheme(t *testing.T) {
+	t.Setenv("NO_COLOR", "")
+	if resolveTheme(Options{}).Bold("a") != render.Default.Bold("a") {
+		t.Fatal("default theme")
+	}
+	t.Setenv("NO_COLOR", "1")
+	if resolveTheme(Options{}).Bold("a") != "a" {
+		t.Fatal("NO_COLOR")
+	}
+	custom := render.Default
+	if resolveTheme(Options{Theme: &custom}).Bold("a") != render.Default.Bold("a") {
+		t.Fatal("explicit theme")
+	}
+}
 
 func TestWithDefaultsLogLevel(t *testing.T) {
 	o := Options{LogLevel: "debug"}.withDefaults()

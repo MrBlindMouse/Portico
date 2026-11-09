@@ -4,6 +4,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/MrBlindMouse/Portico/identity"
+	"github.com/MrBlindMouse/Portico/render"
 )
 
 // Scene describes a renderable view and input bindings.
@@ -37,6 +38,17 @@ type RenderContext interface {
 	Members(space SpaceID) []identity.Identity
 	SpaceLocal(space SpaceID, key string) (any, bool)
 	SpaceList(space SpaceID, key string) []any
+	// Size is the terminal window in columns and rows.
+	// A session with no reported size returns 80 by 24.
+	Size() (width, height int)
+	// Theme is the site theme for this session.
+	// The runtime uses render.Default unless Options.Theme or NO_COLOR selects another.
+	Theme() render.Theme
+	// PlaceInput records the single caret rectangle for this frame.
+	// It does not change session state. A second call replaces the first.
+	// A scene with Keys set fails when it renders if a caret was placed.
+	// Leave it unset and the caret is the full row under the frame.
+	PlaceInput(in render.Input)
 }
 
 // SceneContext adds effect descriptions for actions (not applied during Render).

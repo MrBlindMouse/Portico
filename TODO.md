@@ -1,6 +1,6 @@
 # TODO
 
-DESIGN.md describes the scaffold. Section 15 of that file is the list of systems a site or another program builds. They are not framework tasks.
+DESIGN.md describes the scaffold. Section 16 of that file is the list of systems a site or another program builds. They are not framework tasks. Section 15 records undecided future research only (not shipped).
 
 What is still missing inside the scaffold:
 

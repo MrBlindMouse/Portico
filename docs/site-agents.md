@@ -67,7 +67,7 @@ Environment: `PORTICO_DATA`, `PORTICO_LOG_LEVEL` (when wired in `main`). Do not 
 
 | Context | Where | Read / do |
 |---------|-------|-----------|
-| `RenderContext` | `Scene.Render` | Identity, local, assets, space state |
+| `RenderContext` | `Scene.Render` | Identity, local, assets, space state, `Size()`, `Theme()` |
 | `ActionContext` | `Action.Run` | Above + `InputLine()`, space helpers, persist effects |
 
 Common effects: `SetLocalEffect`, `TransitionEffect`, `PersistEffect`, `JoinSpaceEffect`, `LeaveSpaceEffect`, `SpaceSetEffect`, `AppendSpaceListEffect`, `BroadcastEffect`, `ReserveNicknameEffect`, `RegisterAccountEffect` (requires account store in options).
@@ -80,6 +80,66 @@ Scene `Inputs` map **keys** to `ActionID`:
 
 - Exact line match, or **first word** prefix (`register user pass` → key `register`).
 - Multi-word commands: use `ctx.InputLine()` in the action.
+- `Scene.Keys` dispatches one bound key (`up`, `down`, `left`, `right`, or one rune) with no line prompt. Use it for a list selection.
+
+## Rendering
+
+`Scene.Render` returns the whole frame. The runtime paints it after each applied action and on resize.
+
+- `ctx.Size()` is columns and rows. It is 80 by 24 until the client reports a window.
+- `ctx.Theme()` is `Options.Theme`, or `render.Plain` when `NO_COLOR` is set to a non-empty value, or `render.Default`.
+
+Fit and draw with `render`: `Wrap`, `Truncate`, `Pad`, `AlignLeft`, `AlignRight`, `AlignCenter`, `Box`, `Columns`, `Table`, `List`, `Progress`, `SpinnerFrame`. Widths are rune counts. Style a string after you fit it. These helpers do not skip ANSI codes.
+
+Theme roles: bold, muted, error, accent, ok, warn, inverse. Copy `render.Default` or `render.Plain` and replace a field to change one role. Do not nest role calls.
+
+A list selection is an `int` in session-local state:
+
+- `experience.LocalListIndex` (`list_index`) is the key when you pass `""`.
+- `experience.MoveList(ctx, key, delta, n)` returns a `SetLocal` effect clamped to `0..n-1`.
+- `experience.RenderList(ctx, key, items, visible)` draws that window. The selected row starts with `>` and uses the inverse role. `visible <= 0` shows every row. Rows are cut to `Size` width.
+- Bind `up` and `down` with `Keys: true`.
+
+```go
+Render: func(ctx experience.RenderContext) string {
+    _, h := ctx.Size()
+    return experience.RenderList(ctx, "", []string{"one", "two", "three"}, h-2)
+},
+Keys: true,
+Inputs: map[string]experience.ActionID{"up": "menu-up", "down": "menu-down"},
+```
+
+```go
+Run: func(ctx experience.ActionContext) []experience.Effect {
+    return experience.MoveList(ctx, "", -1, 3)
+},
+```
+
+`render.Progress(done, total, width)` is a static bar. `render.SpinnerFrame(i)` is one glyph. Store `i` yourself and change it with `SetLocalEffect`. The framework does not tick a clock.
+
+## Caret
+
+With no placed input, and without `Keys: true`, the caret is `>` on the full row under the frame. Typing stays on that row.
+
+`render.Screen` is a grid. `Draw` writes text to the screen edge. `DrawWithin(row, col, width, height, text)` drops runes outside that rectangle, so a left column cannot paint over the right. A width or height of `0` runs through the screen edge. `Show(ctx)` returns the grid and places the caret. The prompt is painted in the rectangle and counts toward `width`. A second `Input` replaces the first.
+
+These return a `render.Rect` for a block drawn at an origin, so the caret can sit on it:
+
+| Function | Rectangle |
+|----------|-----------|
+| `BoxBody(row, col, title, body, width)` | Inside the border, under the title when there is one |
+| `ListRow(row, col, items, selected, visible, width)` | The selected line of that `List` |
+| `TableCell(row, col, widths, bodyRow, colIndex, header)` | One body cell. `header` counts the header and the rule |
+
+```go
+s := render.NewScreen(w, h)
+s.DrawWithin(2, 4, 40, 0, render.Table(headers, rows, widths))
+cell := render.TableCell(2, 4, widths, bodyRow, 0, true)
+s.Input(cell.Row, cell.Col, cell.Width, ">")
+return s.Show(ctx)
+```
+
+A scene with `Keys: true` that also places an input fails when it renders. `Build` does not run `Render`, so it cannot see the rectangle.
 
 ## Scaffolds
 

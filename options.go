@@ -7,6 +7,7 @@ import (
 	"github.com/MrBlindMouse/Portico/config"
 	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
+	"github.com/MrBlindMouse/Portico/render"
 	"github.com/MrBlindMouse/Portico/runtime"
 )
 
@@ -48,6 +49,9 @@ type Options struct {
 	ActionAfter  func(experience.SessionView, experience.ActionID, error)
 	// OnReady runs after the host is wired, before Serve returns (and before ListenAndServe in NewHost-only flows).
 	OnReady func(*Host)
+	// Theme is the session theme. Nil uses render.Default, or render.Plain when
+	// NO_COLOR is set to a non-empty value.
+	Theme *render.Theme
 }
 
 // MergeConfig overlays non-zero fields from a config file onto opts.

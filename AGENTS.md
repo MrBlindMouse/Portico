@@ -44,7 +44,7 @@ CI runs `go test`, `go vet`, and `internal/archtest` on every push.
 | `experience`  | Scenes, actions, spaces, builder, effects (descriptions) |
 | `runtime`     | SSH server, sessions, dispatch, apply, spaces registry |
 | `identity`    | SSH fingerprint / account identity, file-backed KV, nicknames |
-| `render`      | Terminal layout helpers |
+| `render`      | Terminal layout, theme roles, list/table/progress helpers |
 | `inspect`     | Read-only JSON snapshots for agents |
 | `scaffold`    | Composable starter definitions (optional for sites) |
 | `asset`       | Named filesystem assets and poll watcher |

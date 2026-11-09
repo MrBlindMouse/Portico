@@ -5,17 +5,21 @@ import (
 
 	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
+	"github.com/MrBlindMouse/Portico/render"
 )
 
 // Session is one SSH connection's runtime state.
 type Session struct {
-	id       string
-	identity identity.Identity
-	current  experience.SceneID
-	local    map[string]any
-	spaces   map[experience.SpaceID]struct{}
+	id             string
+	identity       identity.Identity
+	current        experience.SceneID
+	local          map[string]any
+	spaces         map[experience.SpaceID]struct{}
 	lastRender     string
 	lastRenderSize int
+	termW          int
+	termH          int
+	slot           *render.Input
 
 	mu sync.RWMutex
 }
@@ -86,6 +90,46 @@ func (s *Session) setIdentity(idn identity.Identity) {
 // SetIdentityForTest updates identity in tests.
 func (s *Session) SetIdentityForTest(idn identity.Identity) {
 	s.setIdentity(idn)
+}
+
+func (s *Session) setSlot(in *render.Input) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if in == nil {
+		s.slot = nil
+		return
+	}
+	cp := *in
+	s.slot = &cp
+}
+
+func (s *Session) inputSlot() (render.Input, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.slot == nil {
+		return render.Input{}, false
+	}
+	return *s.slot, true
+}
+
+func (s *Session) setSize(width, height int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.termW = width
+	s.termH = height
+}
+
+func (s *Session) size() (int, int) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	w, h := s.termW, s.termH
+	if w <= 0 {
+		w = render.DefaultWidth
+	}
+	if h <= 0 {
+		h = render.DefaultHeight
+	}
+	return w, h
 }
 
 func (s *Session) setLastRender(text string) {

@@ -128,6 +128,7 @@ exp, err := portico.New().
 | `RequireAccount` | Reject guests and keys that are not linked to an account |
 | `ActionBefore` / `ActionAfter` | Hooks around action dispatch. They take `experience.SessionView`, so site code does not import `runtime` |
 | `InspectAddr` / `StatusAddr` | Localhost HTTP endpoints for inspection and health |
+| `Theme` | Session theme (`render.Default` when nil). A non-empty `NO_COLOR` selects `render.Plain` |
 | `LogLevel` | `debug`, `info`, `warn`, or `error` — use **debug** to log Kitty/protocol line discards, ineligible PTY lines, command text, and per-command `read_ms` / `render_ms` (`input_cycle`) |
 
 Account stores are chosen in this order: `AccountBackend`, then `HashedAccounts` with `DataDir`, then `AccountStore`, then `Accounts.Accounts`. If hashed accounts are requested and that directory cannot be opened, `Serve` returns the error.
@@ -143,6 +144,37 @@ You can also load options from a JSON config file (`log_level`). Timestamps use 
 - **Input** — Scene inputs match exact lines or the first word of a line. Actions can read the full line with `ctx.InputLine()`.
 - **Inspection** — When using `ServeDev`, an HTTP inspect endpoint is available on localhost (default `:9922`). Example: `curl http://127.0.0.1:9922/inspect/snapshot`.
 
+## Rendering
+
+A scene returns one string. The runtime paints that string after each applied action and when the terminal is resized. `ctx.Size()` is the window in columns and rows (80×24 until the client reports a size). `ctx.Theme()` is the session theme.
+
+`render` fits and draws that string. Widths are rune counts. Fit the text, then apply a theme role. The helpers do not skip ANSI codes.
+
+| Helper | Use |
+|--------|-----|
+| `Wrap`, `Truncate`, `Pad`, `AlignLeft`, `AlignRight`, `AlignCenter` | Fit text |
+| `Box`, `Columns`, `Table` | Layout |
+| `List` | A window of rows. The selected row starts with `>` |
+| `Progress` | A static bar: `[##--] 50%` |
+| `SpinnerFrame` | One glyph for an index the site stores |
+
+`Theme` roles are bold, muted, error, accent, ok, warn, and inverse. `render.Plain` leaves text unchanged.
+
+A selectable list stores an `int` in session-local state. `experience.MoveList` returns the `SetLocal` effect (clamped to the list). `experience.RenderList` only reads it. Bind `up` and `down` on a scene with `Keys: true`. The default key is `experience.LocalListIndex`.
+
+`SpinnerFrame` does not animate. Change the index with `SetLocalEffect` from an action. Portico does not run a clock.
+
+The caret is the full row under that string, prefixed with `>`. To put it somewhere else, draw a `render.Screen` and call `Input` once. `DrawWithin` keeps a region from painting over its neighbor. `BoxBody`, `ListRow`, and `TableCell` return the rectangle of the inside of a box, the selected list line, or a table cell, including when that block is not at the origin. `Show` returns the grid and places the caret. The prompt counts toward the width. One caret per scene. A `Keys` scene that places one fails when it renders.
+
+```go
+w, h := ctx.Size()
+s := render.NewScreen(w, h)
+s.DrawWithin(0, 0, w/2, h-1, history)
+s.DrawWithin(0, w/2, w-w/2, h-1, replies)
+s.Input(h-1, 0, w/2, ">")
+return s.Show(ctx)
+```
+
 ## Packages
 
 | Import | Use for |
@@ -150,7 +182,7 @@ You can also load options from a JSON config file (`log_level`). Timestamps use 
 | `github.com/MrBlindMouse/Portico` | `New`, `Serve`, `ServeDev`, `Options`, `NewHost` |
 | `.../experience` | Scenes, actions, spaces, effects |
 | `.../scaffold` | Ready-made starting definitions |
-| `.../render` | Simple layout helpers (`Box`, `Columns`) |
+| `.../render` | Layout, theme, list, table, progress (`Box`, `Wrap`, `Table`, `List`) |
 | `.../asset` | Loading assets into a builder |
 
 Do not import `internal/...` from site code.

@@ -462,7 +462,47 @@ The result is a system in which creating, iterating on, and maintaining an SSH s
 
 ---
 
-## 15. Built outside Portico
+## 15. Future research (not shipped)
+
+The following items are under consideration only. They are **not** part of the scaffold, **not** in `TODO.md` as committed work, and **not** implemented until an explicit design decision promotes them.
+
+### Terminal pixel / graphics layer
+
+Today, scene output is a **character grid**: `render` helpers, `Screen`, ANSI theme roles, and one composable caret rectangle. That model stays the default even if a graphics layer exists later.
+
+**Research topic:** an optional **pixel or raster layer** (sometimes described as a separate engine) that would emit **terminal-specific graphics protocols** (for example Kitty graphics, Sixel, or iTerm image sequences) on the same SSH session, alongside or instead of part of the text grid for a region.
+
+**Status:** undecided. May remain out of Portico entirely (sites embed escape sequences in assets or scene strings).
+
+**Questions to resolve before any promotion:**
+
+- Whether the layer belongs in the framework or stays site-owned, given client fragmentation and the runtime’s non-goal of becoming a full VT emulator.
+- How graphics interact with **full-screen clear**, **resize**, and the **single caret** (hit targets, focus, and whether input stays line-oriented).
+- Whether **inspect** and string snapshots remain meaningful when output is partly non-text.
+- Minimum viable API: one protocol vs a pluggable backend, and how that aligns with “lean primitives” and agent predictability.
+
+Until those are answered, agents and sites should assume **characters and ANSI only**. See README and `docs/site-agents.md` for what is shipped.
+
+### Theme canvas (global background)
+
+Today, `render.Theme` provides **foreground emphasis roles** (bold, muted, error, accent, ok, warn, inverse). Each role wraps a string with ANSI and resets SGR at the end. The runtime clears the screen with `ESC [2J` / home before each frame; **empty cells use the terminal default**, not a site-chosen color. There is no theme field for a session-wide background.
+
+**Research topic:** an optional **canvas** on `Theme` (or an equivalent hook on `Options`) that would set a **default background** for the PTY for that session—typically one ANSI background sequence emitted after clear, or a convention for filling the `Screen` grid so unpainted cells match.
+
+**Status:** undecided. Sites can prefix scene output with background SGR manually today; that is not inspect-friendly and does not cover the caret slot or the default `>` row unless the site styles those too.
+
+**Questions to resolve before any promotion:**
+
+- Whether canvas is one escape per frame, per-row fill on `Screen`, or both, and how it interacts with **NO_COLOR** and `render.Plain`.
+- Whether **full clear** on some clients wipes background attributes and makes a global color flicker or fail.
+- Whether **inverse** and per-role foreground colors remain the only text styling, or canvas implies default foreground as well.
+- Whether **inspect** snapshots and tests should strip or record canvas sequences.
+
+Until those are answered, agents and sites should assume **no global background in the theme API**. Foreground roles via `ctx.Theme()` remain the shipped model.
+
+---
+
+## 16. Built outside Portico
 
 Portico stops at the blocks above. A site, or a program next to the site, owns anything that chooses a product. None of the following is a missing framework feature:
 

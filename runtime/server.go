@@ -254,11 +254,16 @@ func (s *Server) handleSession(sess ssh.Session) {
 
 	term := NewSSHTerminal(sess)
 	var lastW, lastH int
+	if w, h, ok := term.WindowSize(); ok {
+		child.setSize(w, h)
+		lastW, lastH = w, h
+	}
 	term.OnResize(func(w, h int) {
-		if w == lastW && h == lastH {
+		if w <= 0 || h <= 0 || (w == lastW && h == lastH) {
 			return
 		}
 		lastW, lastH = w, h
+		child.setSize(w, h)
 		_ = s.engine.Render(child, term)
 		term.RestoreInputLine()
 	})

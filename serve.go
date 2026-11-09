@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"os/signal"
 	"sync/atomic"
 	"syscall"
@@ -14,6 +15,7 @@ import (
 	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
 	"github.com/MrBlindMouse/Portico/inspect"
+	"github.com/MrBlindMouse/Portico/render"
 	"github.com/MrBlindMouse/Portico/runtime"
 )
 
@@ -48,6 +50,17 @@ func (o Options) withDefaults() Options {
 		}
 	}
 	return o
+}
+
+// resolveTheme picks Options.Theme, then Plain when NO_COLOR is non-empty, then Default.
+func resolveTheme(opts Options) render.Theme {
+	if opts.Theme != nil {
+		return *opts.Theme
+	}
+	if os.Getenv("NO_COLOR") != "" {
+		return render.Plain
+	}
+	return render.Default
 }
 
 func openStore(opts Options) (identity.Store, error) {

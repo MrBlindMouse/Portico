@@ -3,6 +3,7 @@ package runtime
 import (
 	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
+	"github.com/MrBlindMouse/Portico/render"
 )
 
 type sceneCtx struct {
@@ -10,6 +11,14 @@ type sceneCtx struct {
 	exp   *experience.Experience
 	sp    *spaceRegistry
 	store identity.Store
+	theme render.Theme
+	place *inputPlace
+}
+
+// inputPlace is the caret chosen while Render runs. Nil means the call is not a paint.
+type inputPlace struct {
+	in render.Input
+	ok bool
 }
 
 func (c sceneCtx) Identity() identity.Identity { return c.sess.Identity() }
@@ -60,6 +69,23 @@ func (c sceneCtx) SpaceList(space experience.SpaceID, key string) []any {
 	return c.sp.list(space, key)
 }
 
+func (c sceneCtx) Size() (int, int) { return c.sess.size() }
+
+func (c sceneCtx) Theme() render.Theme {
+	if c.theme.Bold == nil {
+		return render.Default
+	}
+	return c.theme
+}
+
+func (c sceneCtx) PlaceInput(in render.Input) {
+	if c.place == nil {
+		return
+	}
+	c.place.in = in
+	c.place.ok = true
+}
+
 type actionCtx struct {
 	sceneCtx
 	inputLine string
@@ -92,13 +118,13 @@ func (s spaceCtx) List(space experience.SpaceID, key string) []any {
 	return s.sp.list(space, key)
 }
 
-func newActionContext(sess *Session, exp *experience.Experience, sp *spaceRegistry, store identity.Store, inputLine string) experience.ActionContext {
+func newActionContext(sess *Session, exp *experience.Experience, sp *spaceRegistry, store identity.Store, inputLine string, theme render.Theme) experience.ActionContext {
 	return actionCtx{
-		sceneCtx:  sceneCtx{sess: sess, exp: exp, sp: sp, store: store},
+		sceneCtx:  sceneCtx{sess: sess, exp: exp, sp: sp, store: store, theme: theme},
 		inputLine: inputLine,
 	}
 }
 
-func newSceneContext(sess *Session, exp *experience.Experience, sp *spaceRegistry, store identity.Store) experience.SceneContext {
-	return sceneCtx{sess: sess, exp: exp, sp: sp, store: store}
+func newSceneContext(sess *Session, exp *experience.Experience, sp *spaceRegistry, store identity.Store, theme render.Theme, place *inputPlace) experience.SceneContext {
+	return sceneCtx{sess: sess, exp: exp, sp: sp, store: store, theme: theme, place: place}
 }

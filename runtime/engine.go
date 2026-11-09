@@ -9,6 +9,7 @@ import (
 
 	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
+	"github.com/MrBlindMouse/Portico/render"
 )
 
 // Engine runs the session loop against a Terminal.
@@ -24,6 +25,26 @@ type Engine struct {
 	limits         *rateLimiter
 	log            *slog.Logger
 	reloadFailures atomic.Uint64
+	theme          render.Theme
+	themeSet       bool
+}
+
+// SetTheme installs the theme RenderContext.Theme returns.
+// Call it before sessions connect. An unset theme is render.Default.
+func (e *Engine) SetTheme(t render.Theme) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.theme = t
+	e.themeSet = true
+}
+
+func (e *Engine) viewTheme() render.Theme {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	if !e.themeSet {
+		return render.Default
+	}
+	return e.theme
 }
 
 // ActionHooks optionally intercept action dispatch.
@@ -162,7 +183,7 @@ func (e *Engine) NewSessionID() string {
 
 // RenderText returns the current scene output without writing a terminal.
 func (e *Engine) RenderText(sess *Session) (string, error) {
-	out, err := e.renderScene(sess)
+	out, _, err := e.renderScene(sess)
 	if err != nil {
 		return "", err
 	}
@@ -171,24 +192,83 @@ func (e *Engine) RenderText(sess *Session) (string, error) {
 }
 
 // Render writes the current scene to the terminal.
+// A placed input is painted inside its rectangle. Otherwise the caller draws the prompt row.
 func (e *Engine) Render(sess *Session, term Terminal) error {
-	out, err := e.RenderText(sess)
+	out, slot, err := e.renderScene(sess)
 	if err != nil {
 		return err
+	}
+	sess.setLastRender(out)
+	sess.setSlot(slot)
+	syncInputSlot(term, slot)
+	if slot != nil {
+		if err := writeGrid(term, out); err != nil {
+			return err
+		}
+		paintInputSlot(term)
+		return nil
 	}
 	return term.WriteFrame(out)
 }
 
-func (e *Engine) renderScene(sess *Session) (string, error) {
+func (e *Engine) renderScene(sess *Session) (string, *render.Input, error) {
 	e.mu.RLock()
 	exp := e.exp
 	e.mu.RUnlock()
 	sc, ok := exp.Scene(sess.CurrentScene())
 	if !ok {
-		return "", fmt.Errorf("portico: session scene %q undefined", sess.CurrentScene())
+		return "", nil, fmt.Errorf("portico: session scene %q undefined", sess.CurrentScene())
 	}
-	ctx := newSceneContext(sess, exp, e.spaces, e.applier.Store())
-	return sc.Render(ctx), nil
+	place := &inputPlace{}
+	ctx := newSceneContext(sess, exp, e.spaces, e.applier.Store(), e.viewTheme(), place)
+	out := sc.Render(ctx)
+	if sc.Keys && place.ok {
+		return "", nil, fmt.Errorf("portico: scene %q places an input and has Keys set", sess.CurrentScene())
+	}
+	if !place.ok {
+		return out, nil, nil
+	}
+	in := place.in
+	return out, &in, nil
+}
+
+// inputSlotter is the line editor's caret rectangle. Nil clears it.
+type inputSlotter interface {
+	SetSlot(*render.Input)
+	PaintSlot()
+}
+
+// slotRejecter reports an unmatched line inside the caret rectangle.
+type slotRejecter interface {
+	SlotActive() bool
+	RejectSlot(msg string)
+}
+
+type gridWriter interface {
+	WriteGrid(text string) error
+}
+
+func syncInputSlot(term Terminal, slot *render.Input) {
+	s, ok := term.(inputSlotter)
+	if !ok {
+		return
+	}
+	s.SetSlot(slot)
+}
+
+func paintInputSlot(term Terminal) {
+	s, ok := term.(inputSlotter)
+	if !ok {
+		return
+	}
+	s.PaintSlot()
+}
+
+func writeGrid(term Terminal, text string) error {
+	if g, ok := term.(gridWriter); ok {
+		return g.WriteGrid(text)
+	}
+	return term.WriteFrame(text)
 }
 
 // HandleInput resolves and runs an action for one input token.
@@ -222,7 +302,7 @@ func (e *Engine) HandleInput(sess *Session, input string) error {
 		}
 	}
 	applyStart := time.Now()
-	ctx := newActionContext(sess, exp, e.spaces, e.applier.Store(), line)
+	ctx := newActionContext(sess, exp, e.spaces, e.applier.Store(), line, e.viewTheme())
 	effects := act.Run(ctx)
 	res, err := e.applier.Apply(sess, exp, effects)
 	applyMs := time.Since(applyStart).Milliseconds()
@@ -306,6 +386,10 @@ func (e *Engine) attachLineEditor(sess *Session, term Terminal) {
 }
 
 func (e *Engine) rejectInput(term Terminal, msg string) {
+	if s, ok := term.(slotRejecter); ok && s.SlotActive() {
+		s.RejectSlot(msg)
+		return
+	}
 	if p, ok := term.(InputPrompter); ok {
 		if err := p.RejectInput(msg); err != nil && e.log != nil {
 			e.log.Debug("input_prompt_failed", "error", err)
@@ -373,7 +457,7 @@ func (e *Engine) RunLoop(sess *Session, term Terminal, activity chan<- struct{})
 	}
 	e.attachLineEditor(sess, term)
 	e.syncKeys(sess, term)
-	if !e.sceneKeys(sess) {
+	if _, slotted := sess.inputSlot(); !e.sceneKeys(sess) && !slotted {
 		e.beginInputLine(term)
 	}
 	for {
@@ -443,7 +527,7 @@ func (e *Engine) RunLoop(sess *Session, term Terminal, activity chan<- struct{})
 		if err := e.Render(sess, term); err != nil {
 			return err
 		}
-		if !e.sceneKeys(sess) {
+		if _, slotted := sess.inputSlot(); !e.sceneKeys(sess) && !slotted {
 			e.commitInputLine(term, in)
 		}
 		renderMs := time.Since(renderStart).Milliseconds()

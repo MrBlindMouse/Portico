@@ -48,6 +48,16 @@ Keep `main` thin; grow a `site` package when definitions get large.
 5. **`Build()`** — fix validation errors (missing action refs, bad transitions).
 6. **`ServeDev`** with `DataDir`; smoke-test over SSH.
 
+## Rendering
+
+Scenes return a string. Read the window with `ctx.Size()` and the theme with `ctx.Theme()`. Draw with `render` (`Wrap`, `Box`, `Table`, `List`, `Progress`, `SpinnerFrame`). Widths count runes.
+
+A menu stores its index in local state. The action returns `experience.MoveList`. The scene calls `experience.RenderList` and binds `up` / `down` with `Keys: true`. See [site-agents.md](site-agents.md#rendering).
+
+`Options.Theme` replaces the default ANSI roles. A non-empty `NO_COLOR` uses `render.Plain` when `Theme` is nil. `SpinnerFrame` does not move on its own.
+
+The caret is the row under the frame. `render.NewScreen` plus `Input` and `Show` puts that caret in one rectangle. `DrawWithin` clips a region. `BoxBody`, `ListRow`, and `TableCell` report where a block landed. See [site-agents.md](site-agents.md#caret).
+
 ## Scaffolds and recipes
 
 ```go
@@ -71,6 +81,7 @@ To customize behavior, **copy** the scaffold definitions into your repo and edit
 | `InspectAddr` | Default `127.0.0.1:9922` in dev |
 | `AssetDir` | For `asset` package + blog scaffold |
 | `Accounts` | Registration scaffold; not for production as plaintext |
+| `Theme` | `render.Theme`. Nil keeps `render.Default` (`render.Plain` if `NO_COLOR` is set) |
 
 ## Hot reload
 

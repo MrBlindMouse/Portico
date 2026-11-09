@@ -17,5 +17,5 @@ func SetSessionTerminalForTest(sess *Session, t Terminal) {
 
 // NewActionContextForTest builds an action context for tests.
 func NewActionContextForTest(sess *Session, exp *experience.Experience, eng *Engine) experience.ActionContext {
-	return newActionContext(sess, exp, eng.spaces, eng.Applier().Store(), "")
+	return newActionContext(sess, exp, eng.spaces, eng.Applier().Store(), "", eng.viewTheme())
 }

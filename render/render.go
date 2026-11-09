@@ -4,6 +4,28 @@ import (
 	"strings"
 )
 
+// BoxBody is the inside of a Box of the given width drawn at row, col.
+// The rectangle starts under the top border, and under the title and rule when title is set.
+// Height is the number of body lines. An empty body is one line, matching Box.
+func BoxBody(row, col int, title, body string, width int) Rect {
+	if width < 20 {
+		width = 20
+	}
+	bodyRow := row + 1
+	if title != "" {
+		bodyRow = row + 3
+	}
+	lines := 1
+	if body != "" {
+		lines = strings.Count(body, "\n") + 1
+	}
+	inner := width - 4
+	if inner < 1 {
+		inner = 1
+	}
+	return Rect{Row: bodyRow, Col: col + 2, Width: inner, Height: lines}
+}
+
 // Box draws a simple titled box around content.
 func Box(title, body string, width int) string {
 	if width < 20 {
@@ -17,7 +39,7 @@ func Box(title, body string, width int) string {
 	b.WriteString("┐\n")
 	if title != "" {
 		b.WriteString("│ ")
-		b.WriteString(padTruncate(title, inner-2))
+		b.WriteString(Pad(title, inner-2))
 		b.WriteString(" │\n")
 		b.WriteString("├")
 		b.WriteString(line)
@@ -25,7 +47,7 @@ func Box(title, body string, width int) string {
 	}
 	for _, row := range strings.Split(body, "\n") {
 		b.WriteString("│ ")
-		b.WriteString(padTruncate(row, inner-2))
+		b.WriteString(Pad(row, inner-2))
 		b.WriteString(" │\n")
 	}
 	b.WriteString("└")
@@ -45,8 +67,8 @@ func Columns(cols ...string) string {
 		lines := strings.Split(c, "\n")
 		rows[i] = lines
 		for _, ln := range lines {
-			if len(ln) > width {
-				width = len(ln)
+			if n := runeLen(ln); n > width {
+				width = n
 			}
 		}
 	}
@@ -66,7 +88,7 @@ func Columns(cols ...string) string {
 				out.WriteString("  ")
 			}
 			if y < len(r) {
-				out.WriteString(padTruncate(r[y], width))
+				out.WriteString(Pad(r[y], width))
 			} else {
 				out.WriteString(strings.Repeat(" ", width))
 			}
@@ -82,17 +104,4 @@ func Emphasis(text string, enableANSI bool) string {
 		return text
 	}
 	return Default.Bold(text)
-}
-
-func padTruncate(s string, w int) string {
-	if w <= 0 {
-		return ""
-	}
-	if len(s) > w {
-		if w <= 1 {
-			return s[:w]
-		}
-		return s[:w-1] + "…"
-	}
-	return s + strings.Repeat(" ", w-len(s))
 }

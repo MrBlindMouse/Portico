@@ -7,7 +7,8 @@
 //     (key codes in csiEnterKeys with final u/~, SS3 ESC O M). SSHTerminal echoes typed
 //     bytes, erases on backspace, and prints "> " via InputPrompter after each frame
 //     (remote ECHO is often off). Enter echoes CR LF and the next "> " is on that
-//     new line. Arrows, Home, and End move inside the line. Up and down recall
+//     new line. A placed input rectangle is painted with cursor addressing inside
+//     that rectangle instead, and Enter does not echo CR LF. Arrows, Home, and End move inside the line. Up and down recall
 //     history. Tab completes the scene command. Ctrl-L redraws. Bracketed paste
 //     is inserted as text. Ctrl-U clears the line, Ctrl-W deletes the previous word,
 //     Ctrl-Z and Ctrl-\ are ignored, Ctrl-C ends the session, and Ctrl-D on an
@@ -30,11 +31,14 @@ package runtime
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"strings"
 	"sync"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/MrBlindMouse/Portico/render"
 )
 
 // historyCap bounds per-session command recall.
@@ -59,6 +63,8 @@ type inputReader struct {
 	lastLineEnd    string // debug: how the last readUserLine ended (lf, cr, csi_enter, ss3_enter)
 	lastSubmitCSI  string // debug: CSI that submitted, e.g. "27;13;13~"
 	lastSkippedCSI string // debug: CSI seen while a line had content but did not submit
+	slot           *render.Input
+	notice         string // shown in the slot until the next edit; not part of the line
 }
 
 func newInputReader(r *bufio.Reader) *inputReader {
@@ -148,8 +154,11 @@ func (ir *inputReader) endLine(kind, csi string) (string, error) {
 	line := string(ir.buf)
 	ir.buf = ir.buf[:0]
 	ir.pos = 0
+	slotted := ir.slot != nil
 	ir.mu.Unlock()
-	ir.echoBytes([]byte{'\r', '\n'})
+	if !slotted {
+		ir.echoBytes([]byte{'\r', '\n'})
+	}
 	ir.noteLineEnd(kind, csi)
 	return line, nil
 }
@@ -160,16 +169,54 @@ func (ir *inputReader) echoBytes(p []byte) {
 	}
 }
 
-func (ir *inputReader) snapshot() (buf []byte, pos int) {
+func (ir *inputReader) snapshot() (buf []byte, pos int, slot *render.Input, notice string) {
 	ir.mu.Lock()
 	defer ir.mu.Unlock()
-	return append([]byte(nil), ir.buf...), ir.pos
+	var s *render.Input
+	if ir.slot != nil {
+		cp := *ir.slot
+		s = &cp
+	}
+	return append([]byte(nil), ir.buf...), ir.pos, s, ir.notice
 }
 
-// paintLine reprints "> " and the buffer, then puts the cursor back.
+func (ir *inputReader) hasSlot() bool {
+	ir.mu.Lock()
+	defer ir.mu.Unlock()
+	return ir.slot != nil
+}
+
+func (ir *inputReader) setSlot(in *render.Input) {
+	ir.mu.Lock()
+	defer ir.mu.Unlock()
+	if in == nil {
+		ir.slot = nil
+		ir.notice = ""
+		return
+	}
+	cp := *in
+	ir.slot = &cp
+}
+
+func (ir *inputReader) rejectSlot(msg string) {
+	ir.mu.Lock()
+	ir.notice = msg
+	ir.mu.Unlock()
+	ir.paintLine()
+}
+
+func (ir *inputReader) clearNotice() {
+	ir.notice = ""
+}
+
+// paintLine reprints the prompt line, or the placed caret rectangle.
 // ponytail: one column per rune; wide glyphs can leave a cell. Upgrade path is wcwidth.
 func (ir *inputReader) paintLine() {
-	buf, pos := ir.snapshot()
+	buf, pos, slot, notice := ir.snapshot()
+	if slot != nil {
+		ir.echoBytes(slotPaintBytes(*slot, buf, pos, notice))
+		return
+	}
 	ir.echoBytes(paintLineBytes(buf, pos))
 }
 
@@ -187,16 +234,101 @@ func paintLineBytes(buf []byte, pos int) []byte {
 	return out
 }
 
+// slotPaintBytes fills the caret rectangle and parks the cursor inside it.
+// notice is shown only while the edit buffer is empty.
+// ponytail: the window is a rune slice of the editable columns. Wide glyphs can spill the cell.
+func slotPaintBytes(in render.Input, buf []byte, pos int, notice string) []byte {
+	width := in.Width
+	if width < 1 {
+		width = 1
+	}
+	prompt := []rune(in.Prompt)
+	if len(prompt) > width {
+		prompt = prompt[:width]
+	}
+	editable := width - len(prompt)
+	var vis []rune
+	cursor := len(prompt)
+	if notice != "" && len(buf) == 0 {
+		vis = []rune(notice)
+		if len(vis) > editable {
+			vis = vis[:editable]
+		}
+		cursor = len(prompt) + len(vis)
+	} else if editable > 0 {
+		runes := []rune(string(buf))
+		if pos < 0 {
+			pos = 0
+		}
+		if pos > len(buf) {
+			pos = len(buf)
+		}
+		posR := utf8.RuneCount(buf[:pos])
+		if posR > len(runes) {
+			posR = len(runes)
+		}
+		start := 0
+		if posR > editable {
+			start = posR - editable
+		}
+		end := start + editable
+		if end > len(runes) {
+			end = len(runes)
+			start = end - editable
+			if start < 0 {
+				start = 0
+			}
+		}
+		vis = runes[start:end]
+		cursor = len(prompt) + posR - start
+	}
+	if cursor > width {
+		cursor = width
+	}
+	if cursor < 0 {
+		cursor = 0
+	}
+	cells := make([]rune, width)
+	for i := range cells {
+		cells[i] = ' '
+	}
+	copy(cells, prompt)
+	if len(prompt) < width {
+		copy(cells[len(prompt):], vis)
+	}
+	out := make([]byte, 0, 32+width*2)
+	out = append(out, cup(in.Row, in.Col)...)
+	out = append(out, string(cells)...)
+	out = append(out, cup(in.Row, in.Col+cursor)...)
+	return out
+}
+
+func cup(row, col int) []byte {
+	if row < 0 {
+		row = 0
+	}
+	if col < 0 {
+		col = 0
+	}
+	return fmt.Appendf(nil, "\x1b[%d;%dH", row+1, col+1)
+}
+
 func (ir *inputReader) insert(p []byte) {
 	if len(p) == 0 {
 		return
 	}
 	ir.mu.Lock()
+	ir.clearNotice()
 	atEnd := ir.pos == len(ir.buf)
+	slotted := ir.slot != nil
 	if atEnd {
 		ir.buf = append(ir.buf, p...)
 		ir.pos = len(ir.buf)
 		ir.mu.Unlock()
+		if slotted {
+			ir.paintLine()
+			return
+		}
 		ir.echoBytes(p)
 		return
 	}
@@ -222,6 +354,7 @@ func (ir *inputReader) insertSpace() {
 
 func (ir *inputReader) setLine(s string) {
 	ir.mu.Lock()
+	ir.clearNotice()
 	ir.buf = append(ir.buf[:0], s...)
 	ir.pos = len(ir.buf)
 	ir.mu.Unlock()
@@ -239,14 +372,16 @@ func (ir *inputReader) eraseBefore() {
 		size = 1
 	}
 	atEnd := ir.pos == len(ir.buf)
+	slotted := ir.slot != nil
+	ir.clearNotice()
 	ir.buf = append(ir.buf[:ir.pos-size], ir.buf[ir.pos:]...)
 	ir.pos -= size
 	ir.mu.Unlock()
-	if atEnd {
-		ir.echoBytes([]byte{'\b', ' ', '\b'})
+	if slotted || !atEnd {
+		ir.paintLine()
 		return
 	}
-	ir.paintLine()
+	ir.echoBytes([]byte{'\b', ' ', '\b'})
 }
 
 func (ir *inputReader) eraseAll() {
@@ -256,19 +391,21 @@ func (ir *inputReader) eraseAll() {
 		return
 	}
 	atEnd := ir.pos == len(ir.buf)
+	slotted := ir.slot != nil
 	n := utf8.RuneCount(ir.buf)
+	ir.clearNotice()
 	ir.buf = ir.buf[:0]
 	ir.pos = 0
 	ir.mu.Unlock()
-	if atEnd {
-		seq := make([]byte, 0, n*3)
-		for i := 0; i < n; i++ {
-			seq = append(seq, '\b', ' ', '\b')
-		}
-		ir.echoBytes(seq)
+	if slotted || !atEnd {
+		ir.paintLine()
 		return
 	}
-	ir.paintLine()
+	seq := make([]byte, 0, n*3)
+	for i := 0; i < n; i++ {
+		seq = append(seq, '\b', ' ', '\b')
+	}
+	ir.echoBytes(seq)
 }
 
 func (ir *inputReader) eraseWord() {
@@ -310,6 +447,7 @@ func (ir *inputReader) deleteForward() {
 	if size < 1 {
 		size = 1
 	}
+	ir.clearNotice()
 	ir.buf = append(ir.buf[:ir.pos], ir.buf[ir.pos+size:]...)
 	ir.mu.Unlock()
 	ir.paintLine()
@@ -326,7 +464,12 @@ func (ir *inputReader) moveLeft() {
 		size = 1
 	}
 	ir.pos -= size
+	slotted := ir.slot != nil
 	ir.mu.Unlock()
+	if slotted {
+		ir.paintLine()
+		return
+	}
 	ir.echoBytes([]byte{'\b'})
 }
 
@@ -342,7 +485,12 @@ func (ir *inputReader) moveRight() {
 	}
 	chunk := append([]byte(nil), ir.buf[ir.pos:ir.pos+size]...)
 	ir.pos += size
+	slotted := ir.slot != nil
 	ir.mu.Unlock()
+	if slotted {
+		ir.paintLine()
+		return
+	}
 	ir.echoBytes(chunk)
 }
 
@@ -438,8 +586,13 @@ func (ir *inputReader) readUserCommand() (string, error) {
 		}
 		line = normalizeUserLine(line)
 		if line == "" || IsTerminalProtocolLine(line) {
-			// Enter already moved off the old prompt line. Put ">" on the new one.
-			ir.echoBytes([]byte("> "))
+			if ir.hasSlot() {
+				// The rectangle did not move. Repaint it.
+				ir.paintLine()
+			} else {
+				// Enter already moved off the old prompt line. Put ">" on the new one.
+				ir.echoBytes([]byte("> "))
+			}
 			continue
 		}
 		ir.pushHistory(line)

@@ -13,7 +13,7 @@ Scenes, actions, spaces, and builder validation. Site modules **import** this pa
 
 | Type | Used in | May |
 |------|---------|-----|
-| `RenderContext` | `Scene.Render` | Read identity, local, assets, space state |
+| `RenderContext` | `Scene.Render` | Read identity, local, assets, space state, `Size()`, `Theme()` |
 | `SceneContext` | (via actions) | Above + `SetLocal`/`Transition` **effects** |
 | `ActionContext` | `Action.Run` | Above + `InputLine()`, `Space()`, `Persist()` |
 
@@ -30,4 +30,6 @@ DESIGN “emit events” = write domain data with `SpaceSetEffect` / `AppendSpac
 - Prefer builder methods, typed IDs, and `Merge` for scaffolds.
 - Prefer `InputLine()` for multi-word commands when using prefix dispatch.
 - `Scene.Keys` dispatches one bound key per action (one rune, or `up`/`down`/`left`/`right`). Leave it unset for line entry.
+- List selection is local state: `MoveList` returns a `SetLocal` effect, `RenderList` only reads. Default key `LocalListIndex`.
+- `PlaceInput` describes the caret for this frame. It does not write session state. One rectangle. `Keys` plus a placed input fails at render.
 - Avoid importing `runtime`, `scaffold`, or `examples` from reusable site packages (your `main` may import scaffolds).
