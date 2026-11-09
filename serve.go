@@ -2,6 +2,7 @@ package portico
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os/signal"
 	"sync/atomic"
@@ -60,32 +61,37 @@ func openStore(opts Options) (identity.Store, error) {
 }
 
 // resolveAccountStore picks AccountBackend, then a bcrypt file store when
-// HashedAccounts and DataDir are set, then AccountStore, then Accounts.Accounts.
-func resolveAccountStore(opts Options) identity.AccountStore {
+// HashedAccounts is set, then AccountStore, then Accounts.Accounts.
+// A hashed-account open that fails is returned; it does not fall through to another store.
+func resolveAccountStore(opts Options) (identity.AccountStore, error) {
 	if opts.AccountBackend != nil {
-		return opts.AccountBackend
+		return opts.AccountBackend, nil
 	}
-	if opts.HashedAccounts && opts.DataDir != "" {
-		store, err := identity.OpenFileAccountStore(opts.DataDir)
-		if err == nil {
-			return store
+	if opts.HashedAccounts {
+		if opts.DataDir == "" {
+			return nil, fmt.Errorf("portico: hashed accounts require DataDir")
 		}
+		return identity.OpenFileAccountStore(opts.DataDir)
 	}
 	if opts.AccountStore != nil {
-		return opts.AccountStore
+		return opts.AccountStore, nil
 	}
 	if opts.Accounts != nil && opts.Accounts.Accounts != nil {
-		return opts.Accounts.Accounts
+		return opts.Accounts.Accounts, nil
 	}
-	return nil
+	return nil, nil
 }
 
-func serverConfig(addr string, opts Options) runtime.ServerConfig {
+func serverConfig(addr string, opts Options) (runtime.ServerConfig, error) {
 	cfg := runtime.DefaultConfig()
 	cfg.Addr = addr
 	cfg.DataDir = opts.DataDir
 	cfg.HostKeyPath = opts.HostKeyPath
-	cfg.IdleTimeout = opts.IdleTimeout
+	if opts.IdleTimeout > 0 {
+		cfg.IdleTimeout = opts.IdleTimeout
+	} else if opts.IdleTimeout < 0 {
+		cfg.IdleTimeout = 0
+	}
 	cfg.Logger = opts.Logger
 	cfg.AllowKeys = opts.AllowKeys
 	cfg.DenyKeys = opts.DenyKeys
@@ -101,7 +107,10 @@ func serverConfig(addr string, opts Options) runtime.ServerConfig {
 	if opts.MaxConnsPerIP > 0 {
 		cfg.MaxConnsPerIP = opts.MaxConnsPerIP
 	}
-	acct := resolveAccountStore(opts)
+	acct, err := resolveAccountStore(opts)
+	if err != nil {
+		return runtime.ServerConfig{}, err
+	}
 	if opts.Accounts != nil {
 		cfg.Accounts = opts.Accounts
 		if cfg.Accounts.Accounts == nil {
@@ -110,7 +119,7 @@ func serverConfig(addr string, opts Options) runtime.ServerConfig {
 	} else if acct != nil {
 		cfg.Accounts = &runtime.AccountConfig{Enabled: true, Accounts: acct}
 	}
-	return cfg
+	return cfg, nil
 }
 
 func startAuxiliaryHTTP(opts Options, sshAddr string, srv *runtime.Server, eng *runtime.Engine, actions *atomic.Uint64) {

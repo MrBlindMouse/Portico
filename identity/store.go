@@ -171,6 +171,7 @@ func (s *FileStore) ReserveNickname(id Identity, nickname string) error {
 	if owner, ok := nf.ByNickname[nickname]; ok && owner != fp {
 		return fmt.Errorf("portico: nickname %q already taken", nickname)
 	}
+	releaseOtherNicknames(nf.ByNickname, fp, nickname)
 	nf.ByNickname[nickname] = fp
 	return s.saveNicks(nf)
 }
@@ -288,8 +289,18 @@ func (m *MemoryStore) ReserveNickname(id Identity, nickname string) error {
 	if owner, ok := m.nicks[nickname]; ok && owner != fp {
 		return fmt.Errorf("portico: nickname %q already taken", nickname)
 	}
+	releaseOtherNicknames(m.nicks, fp, nickname)
 	m.nicks[nickname] = fp
 	return nil
+}
+
+// releaseOtherNicknames drops every name this fingerprint already holds except keep.
+func releaseOtherNicknames(nicks map[string]string, fp, keep string) {
+	for name, owner := range nicks {
+		if owner == fp && name != keep {
+			delete(nicks, name)
+		}
+	}
 }
 
 func (m *MemoryStore) NicknameOwner(nickname string) (Identity, bool, error) {

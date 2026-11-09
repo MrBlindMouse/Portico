@@ -12,10 +12,11 @@ import (
 
 // Options configures Serve.
 type Options struct {
-	DataDir       string
-	HostKeyPath   string
-	InspectAddr   string
-	StatusAddr    string
+	DataDir     string
+	HostKeyPath string
+	InspectAddr string
+	StatusAddr  string
+	// IdleTimeout disconnects idle sessions. 0 keeps the 30 minute default. Negative disables it.
 	IdleTimeout   time.Duration
 	MaxConns      int
 	MaxConnsPerIP int

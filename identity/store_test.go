@@ -29,6 +29,27 @@ func TestMemoryStoreRoundTrip(t *testing.T) {
 	}
 }
 
+func TestMemoryStoreReReserveReleasesOldName(t *testing.T) {
+	store := identity.NewMemoryStore()
+	id := identity.ForFingerprint("testfp")
+	if err := store.ReserveNickname(id, "alice"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.ReserveNickname(id, "ada2"); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, err := store.NicknameOwner("alice"); err != nil || ok {
+		t.Fatalf("old name still held ok=%v err=%v", ok, err)
+	}
+	owner, ok, err := store.NicknameOwner("ada2")
+	if err != nil || !ok || owner.Fingerprint() != id.Fingerprint() {
+		t.Fatalf("owner=%+v ok=%v err=%v", owner, ok, err)
+	}
+	if err := store.ReserveNickname(id, "ada2"); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestAnonymousPersistRejected(t *testing.T) {
 	store := identity.NewMemoryStore()
 	if err := store.Set(identity.Anonymous(), "k", "v"); err == nil {

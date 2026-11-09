@@ -36,8 +36,15 @@ func NewHost(addr string, exp *experience.Experience, opts Options) (*Host, erro
 	}
 
 	applier := runtime.NewApplier(nil, store)
-	if acct := resolveAccountStore(opts); acct != nil {
+	acct, err := resolveAccountStore(opts)
+	if err != nil {
+		return nil, err
+	}
+	if acct != nil {
 		applier.SetAccountStore(acct)
+		if opts.AccountBackend == nil {
+			opts.AccountBackend = acct
+		}
 	}
 
 	eng := runtime.NewEngine(exp, applier)
@@ -76,7 +83,10 @@ func NewHost(addr string, exp *experience.Experience, opts Options) (*Host, erro
 		return nil, err
 	}
 
-	cfg := serverConfig(addr, opts)
+	cfg, err := serverConfig(addr, opts)
+	if err != nil {
+		return nil, err
+	}
 	srv, err := runtime.NewServer(cfg, eng)
 	if err != nil {
 		return nil, err

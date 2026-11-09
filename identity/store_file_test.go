@@ -50,6 +50,35 @@ func TestFileStoreRoundTrip(t *testing.T) {
 	}
 }
 
+func TestFileStoreReReserveReleasesOldName(t *testing.T) {
+	dir := t.TempDir()
+	store, err := identity.OpenFileStore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := identity.ForFingerprint("testfp")
+	if err := store.ReserveNickname(id, "alice"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.ReserveNickname(id, "ada2"); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, err := store.NicknameOwner("alice"); err != nil || ok {
+		t.Fatalf("old name still held ok=%v err=%v", ok, err)
+	}
+	owner, ok, err := store.NicknameOwner("ada2")
+	if err != nil || !ok || owner.Fingerprint() != id.Fingerprint() {
+		t.Fatalf("owner=%+v ok=%v err=%v", owner, ok, err)
+	}
+	store2, err := identity.OpenFileStore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, err := store2.NicknameOwner("alice"); err != nil || ok {
+		t.Fatalf("reopen still holds alice ok=%v err=%v", ok, err)
+	}
+}
+
 func TestFileStoreRejectsPathFingerprint(t *testing.T) {
 	store, err := identity.OpenFileStore(t.TempDir())
 	if err != nil {

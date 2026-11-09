@@ -115,7 +115,7 @@ exp, err := portico.New().
 | Field | Purpose |
 |-------|---------|
 | `DataDir` | Where identity data and the host key are stored |
-| `IdleTimeout` | Disconnect idle sessions |
+| `IdleTimeout` | Disconnect idle sessions. `0` keeps the 30 minute default. Negative disables it |
 | `MaxConns` / `MaxConnsPerIP` | Connection limits |
 | `AllowKeys` / `DenyKeys` | Key fingerprint allow/deny lists. Setting either list requires a real SSH auth method |
 | `ActionRate` / `ActionBurst` | Per-session action throttling. `0` is the default (5/s, burst 10). A negative `ActionRate` turns limiting off |
@@ -130,7 +130,7 @@ exp, err := portico.New().
 | `InspectAddr` / `StatusAddr` | Localhost HTTP endpoints for inspection and health |
 | `LogLevel` | `debug`, `info`, `warn`, or `error` — use **debug** to log Kitty/protocol line discards, ineligible PTY lines, command text, and per-command `read_ms` / `render_ms` (`input_cycle`) |
 
-Account stores are chosen in this order: `AccountBackend`, then `HashedAccounts` with `DataDir`, then `AccountStore`, then `Accounts.Accounts`.
+Account stores are chosen in this order: `AccountBackend`, then `HashedAccounts` with `DataDir`, then `AccountStore`, then `Accounts.Accounts`. If hashed accounts are requested and that directory cannot be opened, `Serve` returns the error.
 
 With no account store and no key list, `ssh` with no key still connects as a guest. A key allow/deny list, password accounts, or `RequireAccount` turns that off, because SSH clients stop at the first successful method and a successful "none" login would skip the key and the password. A key login stays a key unless that fingerprint is linked to an account. A password login is the account. `RequireAccount` drops guests and unlinked keys.
 
