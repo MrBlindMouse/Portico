@@ -191,18 +191,61 @@ Do not import `internal/...` from site code.
 
 ## Production
 
-Dev mode listens on port 2222. For port 22 on Linux:
+`ServeDev` is for local work: SSH on **:2222** plus localhost inspect/status defaults. Production sites call **`Serve(addr, exp, opts)`** with the listen address you want. The address is a normal Go `host:port` string (`:22`, `203.0.113.5:22`, `127.0.0.1:2222`, …). Inspect and status bind separately via `Options.InspectAddr` and `Options.StatusAddr` (empty disables that HTTP server).
+
+Wire the SSH address in your site's `main` (flags, env, or config). The library does not add CLI flags to generated sites; a typical pattern:
+
+```go
+addr := flag.String("addr", ":2222", "SSH listen address")
+flag.Parse()
+opts := portico.Options{DataDir: ".portico-data" /* + HashedAccounts, limits, … */}
+if err := portico.Serve(*addr, exp, opts); err != nil {
+    log.Fatal(err)
+}
+```
+
+The framework CLI smoke test (`portico serve -demo`) accepts `-addr`, `-inspect`, `-status`, and an optional JSON `-config` file (`listen`, `inspect_addr`, `status_addr`, `data_dir`, …).
+
+### Two SSH servers on port 22
+
+Most hosts already run **OpenSSH** on port 22. You cannot bind two processes to the same **IP:port**. The straightforward layout is:
+
+1. Add a **second public IP** on the machine (or VM).
+2. Point a **hostname** at that IP (`play.example.com` → the new address).
+3. Keep **sshd** on the primary IP only (`ListenAddress` in `sshd_config`, not `0.0.0.0` if Portico also uses :22).
+4. Run Portico on the second IP, still on port 22:
+
+```go
+portico.Serve("203.0.113.10:22", exp, opts)
+```
+
+Users run `ssh play.example.com` (port 22) for the site and unchanged SSH admin/login on the original host. No alternate client port and no proxy in front of SSH unless you want one.
+
+Use **bcrypt account files** in production (`HashedAccounts` + `DataDir`, or `identity.FileAccountStore` via `AccountBackend`), not the dev plaintext `AccountStore`.
+
+### Privileged port 22 on Linux
+
+Ports below 1024 need extra permission. Prefer the **second-IP** setup above when both services use :22. If Portico is the only listener on :22 (dedicated box or high port elsewhere for admin SSH), build a binary and grant bind capability once:
 
 ```bash
 go build -o my-site
 sudo setcap 'cap_net_bind_service=+ep' ./my-site
-./my-site
+./my-site -addr :22   # when main parses -addr and calls Serve
 ```
 
-Do not expose the inspect or status HTTP endpoints without authentication.
+Running the binary as root works but is discouraged.
+
+### Operations
+
+- Turn off or keep inspect/status on loopback only unless you add authentication in front.
+- Set connection limits, key/account allow lists, and `LogLevel` as needed.
+- Use `ShutdownGrace` when a supervisor sends SIGTERM.
+
+See [docs/site-agents.md](docs/site-agents.md) for account-store precedence and agent-facing notes.
 
 ## More
 
+- **Manual (full reference):** [docs/manual/README.md](docs/manual/README.md)
 - **Building a site:** [docs/building-a-site.md](docs/building-a-site.md)
 - **Agents in site repos:** [docs/site-agents.md](docs/site-agents.md)
 - Examples: [from-scratch](examples/from-scratch) (write a scene), [hello](examples/hello) (merge a scaffold), [notes](examples/notes) (copy a scaffold and edit it)

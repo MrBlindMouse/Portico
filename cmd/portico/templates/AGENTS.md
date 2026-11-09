@@ -15,6 +15,7 @@ Do not assume APIs from DESIGN or from a different Portico version.
 
 ```bash
 go run .
+# prod: go run . -addr <dedicated-ip>:22
 ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null localhost
 curl -s http://127.0.0.1:9922/inspect/snapshot
 ```

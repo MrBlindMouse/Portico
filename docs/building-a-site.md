@@ -31,7 +31,7 @@ Session and space mutation happen only inside the runtime **apply** step. Your a
 
 ```
 my-site/
-  main.go          # ServeDev + options
+  main.go          # Serve + -addr + options (from portico init)
   site/            # optional: BuildExperience() etc.
   .portico-data/   # host key, identity KV (gitignore)
   AGENTS.md        # agent contract for this repo (from init)
@@ -46,7 +46,7 @@ Keep `main` thin; grow a `site` package when definitions get large.
 3. Define **actions** returning `[]experience.Effect`.
 4. Optional **spaces** for shared multi-user state.
 5. **`Build()`** — fix validation errors (missing action refs, bad transitions).
-6. **`ServeDev`** with `DataDir`; smoke-test over SSH.
+6. **`Serve`** (or `ServeDev` in examples) with `DataDir`; smoke-test over SSH.
 
 ## Rendering
 
@@ -112,6 +112,7 @@ Put [site-agents.md](site-agents.md) in your workflow: site repos should include
 
 ## More
 
+- [manual/README.md](manual/README.md) — full operator and reference manual
 - [README.md](../README.md) — API tables and production
 - [scaffold/AGENTS.md](../scaffold/AGENTS.md) — scaffold catalog
 - [experience/AGENTS.md](../experience/AGENTS.md) — effects and contexts

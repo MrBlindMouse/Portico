@@ -63,6 +63,7 @@ func docsCmd(args []string) {
 	tag := fs.String("tag", "main", "git tag for doc URLs (match your go.mod version)")
 	_ = fs.Parse(args)
 	base := "https://github.com/MrBlindMouse/Portico/blob/" + *tag
+	fmt.Printf("manual:          %s/docs/manual/README.md\n", base)
 	fmt.Printf("building-a-site: %s/docs/building-a-site.md\n", base)
 	fmt.Printf("site-agents:     %s/docs/site-agents.md\n", base)
 	fmt.Printf("examples:        %s/examples/from-scratch\n", base)

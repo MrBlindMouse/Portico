@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"os"
 
@@ -9,6 +10,9 @@ import (
 )
 
 func main() {
+	addr := flag.String("addr", ":2222", "SSH listen address")
+	flag.Parse()
+
 	exp, err := portico.New().
 		Root("home").
 		Scene("home", experience.Scene{
@@ -38,8 +42,12 @@ func main() {
 	if v := os.Getenv("PORTICO_DATA"); v != "" {
 		dataDir = v
 	}
-	opts := portico.Options{DataDir: dataDir}
-	if err := portico.ServeDev(exp, opts); err != nil {
+	opts := portico.Options{
+		DataDir:     dataDir,
+		InspectAddr: "127.0.0.1:9922",
+		StatusAddr:  "127.0.0.1:9923",
+	}
+	if err := portico.Serve(*addr, exp, opts); err != nil {
 		log.Fatal(err)
 	}
 }

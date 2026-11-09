@@ -6,6 +6,7 @@ Contract for AI agents and operators building an **SSH site** that imports `gith
 
 Read `require github.com/MrBlindMouse/Portico` in **this repo’s `go.mod`**. When unsure about an API, prefer that version over training data:
 
+- Manual: `https://github.com/MrBlindMouse/Portico/blob/<tag>/docs/manual/README.md`
 - Upstream contract: `https://github.com/MrBlindMouse/Portico/blob/<tag>/docs/site-agents.md`
 - Human guide: `https://github.com/MrBlindMouse/Portico/blob/<tag>/docs/building-a-site.md`
 - Offline API: `go doc github.com/MrBlindMouse/Portico/experience`
@@ -170,8 +171,10 @@ Site integration tests can use **`testkit`** (`testkit.New(exp)`) for an in-memo
 
 ## Production notes
 
-- Dev: SSH **:2222**. Production may use `:22` + `setcap` (see README).
+- Dev: **`ServeDev`** → SSH **:2222**. Production: **`Serve(addr, …)`** with `-addr` or config in `main` (see README **Production**).
+- **Two SSH daemons on :22:** second public IP + DNS hostname; bind Portico to that IP (`203.0.113.10:22`); restrict **sshd** `ListenAddress` to the primary IP so both can use port 22.
 - Dev `Accounts` store is plaintext; production should use `identity.FileAccountStore` (bcrypt), or `HashedAccounts` with `DataDir`. Account store precedence is `AccountBackend`, then hashed files, then `AccountStore`, then `Accounts.Accounts`.
+- Inspect/status HTTP: localhost or disabled in prod unless protected.
 
 ## Framework vs site docs
 
