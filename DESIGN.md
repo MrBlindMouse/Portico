@@ -85,7 +85,7 @@ Key techniques include:
 - **Typed identifiers.** Scene, action, and space identifiers are distinct types rather than raw strings, so the compiler rejects mismatched identifiers.
 - **Centralized mutation.** Actions and scenes return descriptions of intended effects. The runtime is the sole component that applies those effects to session or space state. This keeps control flow auditable and prevents scattered mutation.
 - **Builders and functional options.** Configuration of experiences, spaces, and custom actions uses builders or option patterns that only yield a usable value once required elements are supplied.
-- **Automated enforcement.** Custom analyzers, architecture tests, and targeted linters run in continuous integration to forbid direct field access, require approved constructors, and prevent package boundary violations. Code generation is used for repetitive registries so wiring cannot drift.
+- **Automated enforcement.** Custom analyzers, architecture tests, and targeted linters run in continuous integration to forbid direct field access, require approved constructors, and prevent package boundary violations. The site itself stays ordinary Go.
 
 These measures do not provide full ownership or borrow checking. They do, however, move the framework from pure convention to a design in which most illegal states are either unrepresentable or automatically rejected before they can be merged. This supports long-term maintainability when the primary authors are agents and when multiple contributors modify sites over time.
 
@@ -136,7 +136,7 @@ An action is a named, side-effecting operation. Actions are the verbs of the sys
 - Mutate session-local state.
 - Mutate state in a space the session belongs to.
 - Switch the session to a different scene.
-- Emit events that other sessions or spaces can observe.
+- Broadcast a state change to the other sessions in a space.
 - Read or write identity-scoped persistence.
 
 Actions are defined declaratively where possible. When custom logic is required, it attaches at a defined extension point rather than replacing the action system. In the implementation, actions return descriptions of effects; the runtime applies them.
@@ -163,7 +163,7 @@ By default, identity is derived from the SSH public key fingerprint presented by
 
 Anonymous sessions (those without a key) are supported but have no persistent identity.
 
-Sites that need lasting accounts may enable an optional account layer. When enabled, an account (username, password hash, optional verified email, and zero or more linked key fingerprints) becomes the primary identity. The runtime can accept password authentication during the SSH handshake (alone or in combination with a key) and attach the resulting account to the session. Registration, nickname management, and optional email verification are expressed as ordinary scenes and actions; sending mail is an explicit extension point. Key-only and anonymous access remain available unless a site’s policy disables them.
+Sites that need lasting accounts may enable an optional account layer. When enabled, an account (username, password hash, and zero or more linked key fingerprints) becomes the primary identity. The runtime can accept password authentication during the SSH handshake (alone or in combination with a key) and attach the resulting account to the session. Registration and nickname management are ordinary scenes and actions. Key-only and anonymous access remain available unless a site’s policy disables them. Any further fields a site stores on an account are that site’s data.
 
 ### 6.6 Asset
 
@@ -179,7 +179,7 @@ The following capabilities belong in the core runtime so that sites and agents d
 - Solid handling of terminal resize and redraw.
 - Configurable idle timeout and SSH keepalives.
 - Per-IP and global connection limits.
-- Clean disconnect handling (leave hooks, presence removal, pending persistence).
+- Clean disconnect handling (leave hooks and presence removal).
 
 ### Input
 - Input mapping that supports keys, sequences, and basic command entry.
@@ -190,7 +190,7 @@ The following capabilities belong in the core runtime so that sites and agents d
 - Structured session and space state with validation on write.
 - Simple conflict handling for shared state (last-write-wins by default, with an optional compare-and-set primitive).
 - Export and import of identity and account data.
-- A built-in SQLite store as the zero-config default for identity, accounts, and key-value data. The Store interface allows replacement with another backend when needed. Session-local and pure space state remain in memory unless explicitly snapshotted.
+- A `Store` interface for identity, accounts, and key-value data, with a file-backed default under the data directory so a site runs without choosing a database. A site that wants another backend implements the interface. Session-local state and space state stay in memory. A site saves what it cares about with `Persist`.
 
 ### Observability and agent support
 - Structured logs and basic metrics for connections, actions, and errors.
@@ -213,8 +213,8 @@ The following capabilities belong in the core runtime so that sites and agents d
 - Configuration via flags and a simple config file (listen address, data directory, log level, feature flags).
 
 ### Included helpers
-- A simple built-in form scene pattern for registration, checkout, and similar flows.
-- An in-process event bus so background ticks or external signals can update spaces and sessions.
+- A simple form pattern for multi-step prompts. Using it is optional.
+- A way for the site’s own process to submit effects without a keypress, so a timer or other signal in that process can update spaces and sessions. The site owns the timer. Portico applies the effects.
 
 ### Testing
 Testing support is a base capability so that test-driven development is the low-friction path for both agents and humans.
@@ -227,9 +227,9 @@ Portico ships a testkit (separate from the production runtime) that provides:
 - Exposure of the same definition validation used at load time, so tests fail fast on broken references.
 - Optional lightweight string snapshots for non-trivial scene output.
 
-Scaffolds may emit a starter test alongside generated definitions. The testkit reuses the real runtime apply logic and Store interface so tests remain honest. Full end-to-end tests over a live SSH port are possible but are not the default path.
+Scaffolds may include a starter test when a site copies them. The testkit reuses the real runtime apply logic and `Store` interface so tests remain honest. Full end-to-end tests over a live SSH port are possible but are not the default path.
 
-These capabilities stay inside the runtime and the identity layer. Payment providers, mail servers, search engines, media streaming, clustering, and unrestricted plugin execution remain outside the base framework and are reached only through explicit extension points when needed.
+These capabilities stay inside the runtime and the identity layer.
 
 ---
 
@@ -459,3 +459,17 @@ Portico applies the Rails methodology—convention over configuration, named lay
 Agents and humans are the authors, working in their own module that imports Portico. They define scenes, actions, spaces, identity, and assets in Go. The runtime owns session lifecycle, rendering, input dispatch, presence, and persistence. Common patterns are available as scaffolds to merge. Custom logic stays on those extension points.
 
 The result is a system in which creating, iterating on, and maintaining an SSH site is predictable, inspectable, and fast, while remaining open to experiences that the original designers did not anticipate. The name Portico reflects its role as the structured entrance through which SSH sessions arrive and through which agents and humans build what lies beyond.
+
+---
+
+## 15. Built outside Portico
+
+Portico stops at the blocks above. A site, or a program next to the site, owns anything that chooses a product. None of the following is a missing framework feature:
+
+- Another database, such as SQLite, behind `Store`.
+- Mail, including SMTP and email verification. The site’s scenes collect an address if they want one. Something else sends the mail.
+- Payments, search, media streaming, and other domain services.
+- A message bus, topic system, or plugin host. Cross-session updates are a space write and a broadcast. A clock or webhook in the site submits effects through the hook in §7.
+- More than one process, or a cluster. Spaces live in the one SSH process.
+- A login wall on the inspect or status port. Those ports are localhost tools for the author.
+- An interpreted or generated experience that replaces the Go definition.
