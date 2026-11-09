@@ -74,7 +74,7 @@ To customize behavior, **copy** the scaffold definitions into your repo and edit
 
 ## Hot reload
 
-Advanced: `portico.NewHost(exp, opts)`, then `host.HotReload(builder)` with a newly built experience. Invalid graphs or sessions stranded in removed scenes are rejected. Use `POST /inspect/reload-preview` before applying.
+Advanced: `portico.NewHost(exp, opts)`, then `host.HotReload(builder)` with a newly built experience. Invalid graphs or sessions stranded in removed scenes or spaces are rejected. Use `POST /inspect/reload-preview` before applying.
 
 ## Inspection
 

@@ -33,6 +33,10 @@ func (c sceneCtx) Asset(name string) (string, bool) {
 	return c.exp.Asset(name)
 }
 
+func (c sceneCtx) Assets() map[string]string {
+	return c.exp.Assets()
+}
+
 func (c sceneCtx) Persisted(key string) (any, bool) {
 	if c.store == nil {
 		return nil, false

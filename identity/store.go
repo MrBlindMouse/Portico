@@ -44,6 +44,9 @@ func (s *FileStore) identityPath(id Identity) (string, error) {
 	if fp == "" {
 		return "", fmt.Errorf("portico: cannot persist anonymous identity")
 	}
+	if fp == "." || fp == ".." || fp != filepath.Base(fp) {
+		return "", fmt.Errorf("portico: invalid fingerprint")
+	}
 	return filepath.Join(s.dir, "identities", fp+".json"), nil
 }
 
@@ -224,9 +227,9 @@ func (s *FileStore) ImportAll(data map[string]map[string]any) error {
 
 // MemoryStore is an in-memory Store for tests.
 type MemoryStore struct {
-	mu      sync.Mutex
-	byID    map[string]map[string]any
-	nicks   map[string]string
+	mu    sync.Mutex
+	byID  map[string]map[string]any
+	nicks map[string]string
 }
 
 func NewMemoryStore() *MemoryStore {

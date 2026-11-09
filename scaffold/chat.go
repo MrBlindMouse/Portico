@@ -14,7 +14,9 @@ const chatMessagesKey = "messages"
 // Chat adds a multi-user chat space and scene.
 func Chat() *experience.Builder {
 	b := experience.NewBuilder()
-	b.Space(chatSpace, experience.Space{})
+	b.Space(chatSpace, experience.Space{
+		OnJoin: []experience.Effect{experience.BroadcastEffect(chatSpace)},
+	})
 	b.Action("join-chat", experience.Action{
 		Run: func(ctx experience.ActionContext) []experience.Effect {
 			return []experience.Effect{experience.JoinSpaceEffect(chatSpace)}

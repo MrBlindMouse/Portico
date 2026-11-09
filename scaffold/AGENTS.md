@@ -8,7 +8,7 @@ Optional **starter definitions** that a site `main` imports and `Merge`s. Each f
 | `Guestbook()` | Shared signature space |
 | `Chat()` | Chat space + scene |
 | `Registration()` | `register <user> <pass>` (needs `Options.Accounts`) |
-| `NicknameCommands()` | `reserve-nick` action; wire `nick` into scene inputs |
+| `NicknameCommands()` | `reserve-nick` action; bind `nick` on your scenes. `RecipeAccountsSite` does this |
 | `Form()` | Two-step local form demo |
 | `Blog()` | List/open post assets `post-<id>` |
 | `Lobby()` | Ready/start lobby space |

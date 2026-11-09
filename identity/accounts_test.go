@@ -7,6 +7,17 @@ import (
 	"github.com/MrBlindMouse/Portico/identity"
 )
 
+func TestFileAccountStoreRejectsPathUsername(t *testing.T) {
+	dir := t.TempDir()
+	store, err := identity.OpenFileAccountStore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Register("../outside", "secret"); err == nil {
+		t.Fatal("expected invalid username")
+	}
+}
+
 func TestFileAccountStoreRegisterVerify(t *testing.T) {
 	dir := t.TempDir()
 	store, err := identity.OpenFileAccountStore(dir)
@@ -15,6 +26,9 @@ func TestFileAccountStoreRegisterVerify(t *testing.T) {
 	}
 	if err := store.Register("alice", "secret"); err != nil {
 		t.Fatal(err)
+	}
+	if err := store.Register("alice", "other"); err == nil {
+		t.Fatal("duplicate register")
 	}
 	ok, err := store.Verify("alice", "secret")
 	if err != nil || !ok {

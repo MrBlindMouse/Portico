@@ -117,12 +117,22 @@ exp, err := portico.New().
 | `DataDir` | Where identity data and the host key are stored |
 | `IdleTimeout` | Disconnect idle sessions |
 | `MaxConns` / `MaxConnsPerIP` | Connection limits |
-| `AllowKeys` / `DenyKeys` | Key fingerprint allow/deny lists |
-| `ActionRate` / `ActionBurst` | Per-session action throttling |
+| `AllowKeys` / `DenyKeys` | Key fingerprint allow/deny lists. Setting either list requires a real SSH auth method |
+| `ActionRate` / `ActionBurst` | Per-session action throttling. `0` is the default (5/s, burst 10). A negative `ActionRate` turns limiting off |
+| `KeepAliveInterval` / `KeepAliveCountMax` | SSH keepalive probes. `0` leaves them off. After `KeepAliveCountMax` failed probes the session closes |
 | `AssetDir` | Directory of assets to load and watch |
-| `Accounts` | Enable password-based accounts (development) |
+| `Accounts` | Enable password-based accounts (development). See account-store order below |
+| `AccountBackend` | Account store that wins over the other account fields |
+| `HashedAccounts` + `DataDir` | Bcrypt account files under the data directory, used when `AccountBackend` is unset |
+| `AccountStore` | Dev plaintext store, used when the two rows above are unset |
+| `RequireAccount` | Reject guests and keys that are not linked to an account |
+| `ActionBefore` / `ActionAfter` | Hooks around action dispatch. They take `experience.SessionView`, so site code does not import `runtime` |
 | `InspectAddr` / `StatusAddr` | Localhost HTTP endpoints for inspection and health |
-| `LogLevel` | `debug`, `info`, `warn`, or `error` — use **debug** to log Kitty/protocol line discards, ineligible PTY lines, and per-command `read_ms` / `render_ms` (`input_cycle`) |
+| `LogLevel` | `debug`, `info`, `warn`, or `error` — use **debug** to log Kitty/protocol line discards, ineligible PTY lines, command text, and per-command `read_ms` / `render_ms` (`input_cycle`) |
+
+Account stores are chosen in this order: `AccountBackend`, then `HashedAccounts` with `DataDir`, then `AccountStore`, then `Accounts.Accounts`.
+
+With no account store and no key list, `ssh` with no key still connects as a guest. A key allow/deny list, password accounts, or `RequireAccount` turns that off, because SSH clients stop at the first successful method and a successful "none" login would skip the key and the password. A key login stays a key unless that fingerprint is linked to an account. A password login is the account. `RequireAccount` drops guests and unlinked keys.
 
 You can also load options from a JSON config file (`log_level`). Timestamps use sub-second precision on the default logger.
 

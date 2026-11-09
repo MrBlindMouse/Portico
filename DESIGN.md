@@ -2,7 +2,7 @@
 
 ## Design Document
 
-**Status:** Draft  
+**Status:** Aspiration (draft). Shipped behavior is the README, `docs/site-agents.md`, and `AGENTS.md`. Unshipped ideas are listed in `TODO.md`.  
 **Version:** 0.5  
 **Name:** Portico
 

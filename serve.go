@@ -59,6 +59,8 @@ func openStore(opts Options) (identity.Store, error) {
 	return identity.NewMemoryStore(), nil
 }
 
+// resolveAccountStore picks AccountBackend, then a bcrypt file store when
+// HashedAccounts and DataDir are set, then AccountStore, then Accounts.Accounts.
 func resolveAccountStore(opts Options) identity.AccountStore {
 	if opts.AccountBackend != nil {
 		return opts.AccountBackend

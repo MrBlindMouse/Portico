@@ -47,6 +47,9 @@ func NewPlaintextAccountStore() *PlaintextAccountStore {
 }
 
 func (a *PlaintextAccountStore) Register(username, passwordPlain string) error {
+	if err := ValidateUsername(username); err != nil {
+		return err
+	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if _, ok := a.users[username]; ok {
@@ -140,6 +143,9 @@ func (f *FileAccountStore) load(username string) (AccountRecord, error) {
 }
 
 func (f *FileAccountStore) save(rec AccountRecord) error {
+	if err := ValidateUsername(rec.Username); err != nil {
+		return err
+	}
 	b, err := json.MarshalIndent(rec, "", "  ")
 	if err != nil {
 		return err
@@ -148,13 +154,11 @@ func (f *FileAccountStore) save(rec AccountRecord) error {
 }
 
 func (f *FileAccountStore) Register(username, passwordPlain string) error {
-	if username == "" || passwordPlain == "" {
-		return fmt.Errorf("portico: username and password required")
-	}
-	if _, err := f.load(username); err == nil {
-		return fmt.Errorf("portico: account %q already exists", username)
-	} else if !os.IsNotExist(err) {
+	if err := ValidateUsername(username); err != nil {
 		return err
+	}
+	if passwordPlain == "" {
+		return fmt.Errorf("portico: username and password required")
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(passwordPlain), bcryptCost)
 	if err != nil {
@@ -162,6 +166,11 @@ func (f *FileAccountStore) Register(username, passwordPlain string) error {
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if _, err := f.load(username); err == nil {
+		return fmt.Errorf("portico: account %q already exists", username)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
 	if err := f.save(AccountRecord{Username: username, PasswordHash: string(hash)}); err != nil {
 		return err
 	}

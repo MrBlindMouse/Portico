@@ -206,7 +206,7 @@ func identityExportCmd(args []string) {
 
 func scaffoldCmd(args []string) {
 	if len(args) == 0 {
-		log.Fatal("usage: portico scaffold <landing|guestbook|chat|register|nickname>")
+		log.Fatal("usage: portico scaffold <landing|guestbook|chat|register|nickname|form|blog|lobby|recipe>")
 	}
 	switch args[0] {
 	case "landing":
@@ -218,7 +218,7 @@ func scaffoldCmd(args []string) {
 	case "register", "registration":
 		fmt.Println("portico.New().Merge(scaffold.Registration()) // enable opts.Accounts")
 	case "nickname":
-		fmt.Println(`portico.New().Merge(scaffold.NicknameCommands()) // add Inputs["nick"] to scenes`)
+		fmt.Println(`portico.New().Merge(scaffold.NicknameCommands()) // bind Inputs["nick"] = "reserve-nick"; RecipeAccountsSite does this`)
 	case "form":
 		fmt.Println("portico.New().Merge(scaffold.Form())")
 	case "blog":

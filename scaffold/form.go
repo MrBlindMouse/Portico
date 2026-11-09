@@ -12,11 +12,20 @@ func Form() *experience.Builder {
 	b := experience.NewBuilder()
 	b.Scene("form", experience.Scene{
 		Render: func(ctx experience.RenderContext) string {
-			return experience.RenderForm(ctx, "Contact")
+			var body strings.Builder
+			if flash, ok := ctx.Local("flash"); ok {
+				if s, ok := flash.(string); ok && s != "" {
+					body.WriteString(s)
+					body.WriteString("\n\n")
+				}
+			}
+			body.WriteString("Commands: start | next <value> | cancel\n\n")
+			body.WriteString(experience.FormText(ctx))
+			return render.Box("Contact", strings.TrimRight(body.String(), "\n"), 48)
 		},
 		Inputs: map[string]experience.ActionID{
-			"start": "form-start",
-			"next":  "form-next",
+			"start":  "form-start",
+			"next":   "form-next",
 			"cancel": "form-cancel",
 		},
 	})
@@ -46,7 +55,7 @@ func Form() *experience.Builder {
 	b.Scene("form-menu", experience.Scene{
 		Render: func(ctx experience.RenderContext) string {
 			_ = ctx
-			return render.Box("Form demo", "Commands:\n  start — begin form\n  (in form scene) next <value>\n  cancel", 48)
+			return render.Box("Form demo", "Commands:\n  go-form — open the form", 48)
 		},
 		Inputs: map[string]experience.ActionID{"go-form": "go-form"},
 	})

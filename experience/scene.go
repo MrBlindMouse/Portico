@@ -32,6 +32,7 @@ type RenderContext interface {
 	Identity() identity.Identity
 	Local(key string) (any, bool)
 	Asset(name string) (string, bool)
+	Assets() map[string]string
 	Persisted(key string) (any, bool)
 	Members(space SpaceID) []identity.Identity
 	SpaceLocal(space SpaceID, key string) (any, bool)
@@ -43,4 +44,11 @@ type SceneContext interface {
 	RenderContext
 	SetLocal(key string, value any) Effect
 	Transition(to SceneID) Effect
+}
+
+// SessionView is the session surface available to action hooks.
+type SessionView interface {
+	ID() string
+	Identity() identity.Identity
+	CurrentScene() SceneID
 }

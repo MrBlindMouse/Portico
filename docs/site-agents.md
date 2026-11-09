@@ -83,20 +83,26 @@ Scene `Inputs` map **keys** to `ActionID`:
 
 ## Scaffolds
 
-Merge with `portico.New().Merge(scaffold.Guestbook())` etc. Later merges win on ID collisions.
+Merge with `portico.New().Merge(scaffold.Guestbook())` etc. Later merges win on ID collisions. Session start and end hooks append.
 
 | Function | Adds |
 |----------|------|
 | `Landing(destinations)` | Root menu, `go-*` transitions |
 | `Guestbook`, `Chat` | Shared spaces |
 | `Registration` | Needs `Options.Accounts` |
-| `NicknameCommands` | Wire `nick` into scene inputs |
+| `NicknameCommands` | Bind `nick` on your scenes. `RecipeAccountsSite` does this |
 | `Form`, `Blog`, `Lobby` | Demos / assets |
 | `RecipeCommunity`, `RecipeAccountsSite` | Pre-wired graphs |
 
 Hints: `portico scaffold <name>` prints merge snippets. See `scaffold/AGENTS.md` in the module at your tag.
 
 `Guestbook` and `Chat` read the rest of the line (`sign hello`, `send hello`) via `InputLine()`. To change a scaffold, copy it into the site and edit that copy (`examples/notes`). Do not patch the module.
+
+## Identity
+
+A session that connects with no credentials is a guest. That path stays open when the site has no key allow/deny list, no password accounts, and `RequireAccount` is false, so `ssh` with no key still works.
+
+SSH clients stop when "none" succeeds, so a key or password is only used once that path is off. Turning on accounts, a key list, or `RequireAccount` does that. A public key stays a key identity unless the fingerprint is linked to an account. A password login is the account named by the SSH user. `RequireAccount` rejects guests and keys that are not linked.
 
 ## Testing
 
@@ -105,7 +111,7 @@ Site integration tests can use **`testkit`** (`testkit.New(exp)`) for an in-memo
 ## Production notes
 
 - Dev: SSH **:2222**. Production may use `:22` + `setcap` (see README).
-- Dev `Accounts` store is plaintext; production should use `identity.FileAccountStore` (bcrypt).
+- Dev `Accounts` store is plaintext; production should use `identity.FileAccountStore` (bcrypt), or `HashedAccounts` with `DataDir`. Account store precedence is `AccountBackend`, then hashed files, then `AccountStore`, then `Accounts.Accounts`.
 
 ## Framework vs site docs
 

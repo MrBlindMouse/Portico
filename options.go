@@ -5,38 +5,46 @@ import (
 	"time"
 
 	"github.com/MrBlindMouse/Portico/config"
+	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
 	"github.com/MrBlindMouse/Portico/runtime"
 )
 
 // Options configures Serve.
 type Options struct {
-	DataDir        string
-	HostKeyPath    string
-	InspectAddr    string
-	StatusAddr     string
-	IdleTimeout    time.Duration
-	MaxConns       int
-	MaxConnsPerIP  int
-	AllowKeys      []string
-	DenyKeys       []string
+	DataDir       string
+	HostKeyPath   string
+	InspectAddr   string
+	StatusAddr    string
+	IdleTimeout   time.Duration
+	MaxConns      int
+	MaxConnsPerIP int
+	AllowKeys     []string
+	DenyKeys      []string
+	// ActionRate is actions per second per session. 0 uses the default (5/s, burst 10).
+	// A negative rate disables limiting. ActionBurst 0 uses the default burst when limiting is on.
 	ActionRate     float64
 	ActionBurst    float64
 	AssetDir       string
 	AssetPollEvery time.Duration
 	Logger         *slog.Logger
 	LogLevel       string
-	AccountStore     *runtime.AccountStore
-	AccountBackend   identity.AccountStore
-	IdentityStore    identity.Store
-	Accounts         *runtime.AccountConfig
-	AllowAccounts    []string
-	DenyAccounts     []string
-	RequireAccount   bool
-	HashedAccounts   bool
-	ShutdownGrace    time.Duration
+	// Account stores are chosen in order: AccountBackend, then HashedAccounts with
+	// DataDir (bcrypt files), then AccountStore, then Accounts.Accounts.
+	AccountStore      *runtime.AccountStore
+	AccountBackend    identity.AccountStore
+	IdentityStore     identity.Store
+	Accounts          *runtime.AccountConfig
+	AllowAccounts     []string
+	DenyAccounts      []string
+	RequireAccount    bool
+	HashedAccounts    bool
+	ShutdownGrace     time.Duration
 	KeepAliveInterval time.Duration
 	KeepAliveCountMax int
+	// ActionBefore and ActionAfter run around action dispatch without importing runtime.
+	ActionBefore func(experience.SessionView, experience.ActionID, string) (string, error)
+	ActionAfter  func(experience.SessionView, experience.ActionID, error)
 	// OnReady runs after the host is wired, before Serve returns (and before ListenAndServe in NewHost-only flows).
 	OnReady func(*Host)
 }
@@ -70,7 +78,7 @@ func (o Options) MergeConfig(cfg config.File) Options {
 	if len(cfg.DenyKeys) > 0 {
 		o.DenyKeys = cfg.DenyKeys
 	}
-	if cfg.ActionRate > 0 {
+	if cfg.ActionRate != 0 {
 		o.ActionRate = cfg.ActionRate
 	}
 	if cfg.ActionBurst > 0 {

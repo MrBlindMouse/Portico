@@ -1,6 +1,9 @@
 package scaffold
 
 import (
+	"sort"
+	"strings"
+
 	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/render"
 )
@@ -10,10 +13,8 @@ func Landing(destinations map[string]experience.SceneID) *experience.Builder {
 	b := experience.NewBuilder()
 	inputs := map[string]experience.ActionID{}
 	for name, scene := range destinations {
-		aid := experience.ActionID("go-" + name)
-		target := scene
-		sceneID := target
-		actionID := aid
+		sceneID := scene
+		actionID := experience.ActionID("go-" + name)
 		b.Action(actionID, experience.Action{
 			Run: func(ctx experience.ActionContext) []experience.Effect {
 				return []experience.Effect{experience.TransitionEffect(sceneID)}
@@ -24,12 +25,27 @@ func Landing(destinations map[string]experience.SceneID) *experience.Builder {
 	b.Root("landing")
 	b.Scene("landing", experience.Scene{
 		Render: func(ctx experience.RenderContext) string {
-			var body string
-			body = "Welcome, " + ctx.Identity().String() + "\n\nCommands:\n"
+			cmds := make([]string, 0, len(inputs))
 			for cmd := range inputs {
-				body += "  " + cmd + "\n"
+				cmds = append(cmds, cmd)
 			}
-			return render.Box("Portico", body, 48)
+			sort.Strings(cmds)
+			var body strings.Builder
+			if flash, ok := ctx.Local("flash"); ok {
+				if s, ok := flash.(string); ok && s != "" {
+					body.WriteString(s)
+					body.WriteString("\n\n")
+				}
+			}
+			body.WriteString("Welcome, ")
+			body.WriteString(ctx.Identity().String())
+			body.WriteString("\n\nCommands:\n")
+			for _, cmd := range cmds {
+				body.WriteString("  ")
+				body.WriteString(cmd)
+				body.WriteByte('\n')
+			}
+			return render.Box("Portico", strings.TrimRight(body.String(), "\n"), 48)
 		},
 		Inputs: inputs,
 	})

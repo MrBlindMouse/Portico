@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
@@ -18,18 +19,17 @@ type Applier struct {
 	spaces   *spaceRegistry
 	store    identity.Store
 	accounts identity.AccountStore
-	pending  []persistFlush
-}
-
-type persistFlush struct {
-	id  identity.Identity
-	key string
-	val any
+	log      *slog.Logger
 }
 
 // SetAccountStore enables RegisterAccount effects when password auth is enabled.
 func (a *Applier) SetAccountStore(s identity.AccountStore) {
 	a.accounts = s
+}
+
+// SetLogger records privileged account events. Nil keeps those events quiet.
+func (a *Applier) SetLogger(l *slog.Logger) {
+	a.log = l
 }
 
 // NewApplier constructs an effect applier.
@@ -68,15 +68,16 @@ func (a *Applier) Apply(sess *Session, exp *experience.Experience, effects []exp
 			sess.mu.Unlock()
 			res.Transitioned = true
 		case experience.Persist:
-			idn := sess.Identity()
-			a.pending = append(a.pending, persistFlush{id: idn, key: e.Key, val: e.Value})
-			if err := a.store.Set(idn, e.Key, e.Value); err != nil {
+			if err := a.store.Set(sess.Identity(), e.Key, e.Value); err != nil {
 				return res, err
 			}
 		case experience.JoinSpace:
 			sp, ok := exp.Space(e.Space)
 			if !ok {
 				return res, fmt.Errorf("portico: undefined space %q", e.Space)
+			}
+			if sess.InSpace(e.Space) {
+				break
 			}
 			sess.mu.Lock()
 			sess.spaces[e.Space] = struct{}{}
@@ -95,6 +96,13 @@ func (a *Applier) Apply(sess *Session, exp *experience.Experience, effects []exp
 			if !ok {
 				return res, fmt.Errorf("portico: undefined space %q", e.Space)
 			}
+			if !sess.InSpace(e.Space) {
+				break
+			}
+			sess.mu.Lock()
+			delete(sess.spaces, e.Space)
+			sess.mu.Unlock()
+			a.spaces.leave(e.Space, sess)
 			if len(sp.OnLeave) > 0 {
 				leaveRes, err := a.Apply(sess, exp, sp.OnLeave)
 				if err != nil {
@@ -103,10 +111,6 @@ func (a *Applier) Apply(sess *Session, exp *experience.Experience, effects []exp
 				res.Transitioned = res.Transitioned || leaveRes.Transitioned
 				res.Broadcast = append(res.Broadcast, leaveRes.Broadcast...)
 			}
-			sess.mu.Lock()
-			delete(sess.spaces, e.Space)
-			sess.mu.Unlock()
-			a.spaces.leave(e.Space, sess)
 		case experience.SpaceSet:
 			sp, ok := exp.Space(e.Space)
 			if !ok {
@@ -121,7 +125,10 @@ func (a *Applier) Apply(sess *Session, exp *experience.Experience, effects []exp
 			a.spaces.set(e.Space, e.Key, e.Value)
 		case experience.SpaceCAS:
 			sp, ok := exp.Space(e.Space)
-			if ok && sp.ValidateSet != nil {
+			if !ok {
+				return res, fmt.Errorf("portico: undefined space %q", e.Space)
+			}
+			if sp.ValidateSet != nil {
 				old, _ := a.spaces.getValue(e.Space, e.Key)
 				if err := sp.ValidateSet(e.Key, old, e.Value); err != nil {
 					return res, err
@@ -131,6 +138,9 @@ func (a *Applier) Apply(sess *Session, exp *experience.Experience, effects []exp
 				return res, fmt.Errorf("portico: space cas failed for %q", e.Key)
 			}
 		case experience.AppendSpaceList:
+			if _, ok := exp.Space(e.Space); !ok {
+				return res, fmt.Errorf("portico: undefined space %q", e.Space)
+			}
 			a.spaces.appendList(e.Space, e.Key, e.Value)
 		case experience.Broadcast:
 			res.Broadcast = append(res.Broadcast, e.Space)
@@ -151,6 +161,9 @@ func (a *Applier) Apply(sess *Session, exp *experience.Experience, effects []exp
 			}
 			if err := a.accounts.Register(e.Username, e.Password); err != nil {
 				return res, err
+			}
+			if a.log != nil {
+				a.log.Info("account_registered", "account", e.Username)
 			}
 		default:
 			return res, fmt.Errorf("portico: unknown effect %T", eff)

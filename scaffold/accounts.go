@@ -1,9 +1,11 @@
 package scaffold
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/MrBlindMouse/Portico/experience"
+	"github.com/MrBlindMouse/Portico/identity"
 	"github.com/MrBlindMouse/Portico/render"
 )
 
@@ -11,18 +13,14 @@ import (
 // Works with plaintext dev stores and identity.FileAccountStore (bcrypt). Mail verification is an external extension point.
 func Registration() *experience.Builder {
 	b := experience.NewBuilder()
+	inputs := map[string]experience.ActionID{
+		"register": "register-submit",
+	}
 	b.Scene("register", experience.Scene{
 		Render: func(ctx experience.RenderContext) string {
-			flash, _ := ctx.Local("flash")
-			body := "Commands:\n  register <username> <password>"
-			if s, ok := flash.(string); ok && s != "" {
-				body = s + "\n\n" + body
-			}
-			return render.Box("Register", body, 48)
+			return render.Box("Register", registerBody(ctx, inputs), 48)
 		},
-		Inputs: map[string]experience.ActionID{
-			"register": "register-submit",
-		},
+		Inputs: inputs,
 	})
 	b.Action("register-submit", experience.Action{
 		Run: func(ctx experience.ActionContext) []experience.Effect {
@@ -34,13 +32,48 @@ func Registration() *experience.Builder {
 					experience.SetLocalEffect("flash", "usage: register <username> <password>"),
 				}
 			}
+			if err := identity.ValidateUsername(user); err != nil {
+				return []experience.Effect{
+					experience.SetLocalEffect("flash", "username: letters, digits, _ or -"),
+				}
+			}
 			return []experience.Effect{
+				experience.SetLocalEffect("flash", ""),
 				experience.RegisterAccountEffect(user, pass),
-				experience.SetLocalEffect("flash", "account created"),
+				experience.SetLocalEffect("flash", "account created — reconnect to sign in"),
 			}
 		},
 	})
 	return b
+}
+
+func registerBody(ctx experience.RenderContext, inputs map[string]experience.ActionID) string {
+	var b strings.Builder
+	if flash, ok := ctx.Local("flash"); ok {
+		if s, ok := flash.(string); ok && s != "" {
+			b.WriteString(s)
+			b.WriteString("\n\n")
+		}
+	}
+	cmds := make([]string, 0, len(inputs))
+	for c := range inputs {
+		cmds = append(cmds, c)
+	}
+	sort.Strings(cmds)
+	b.WriteString("Commands:\n")
+	for _, c := range cmds {
+		switch c {
+		case "register":
+			b.WriteString("  register <username> <password>\n")
+		case "nick":
+			b.WriteString("  nick <name>\n")
+		default:
+			b.WriteString("  ")
+			b.WriteString(c)
+			b.WriteByte('\n')
+		}
+	}
+	return strings.TrimRight(b.String(), "\n")
 }
 
 func parseTwoFields(s string) (string, string) {

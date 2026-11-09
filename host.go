@@ -42,14 +42,32 @@ func NewHost(addr string, exp *experience.Experience, opts Options) (*Host, erro
 
 	eng := runtime.NewEngine(exp, applier)
 	eng.SetLogger(opts.Logger)
-	rate, burst := opts.ActionRate, opts.ActionBurst
-	if rate == 0 {
-		rate = 5
+	if opts.ActionRate >= 0 {
+		rate, burst := opts.ActionRate, opts.ActionBurst
+		if rate == 0 {
+			rate = 5
+		}
+		if burst == 0 {
+			burst = 10
+		}
+		eng.EnableRateLimit(rate, burst)
 	}
-	if burst == 0 {
-		burst = 10
+	if opts.ActionBefore != nil || opts.ActionAfter != nil {
+		before, after := opts.ActionBefore, opts.ActionAfter
+		eng.SetActionHooks(runtime.ActionHooks{
+			Before: func(sess *runtime.Session, action experience.ActionID, line string) (string, error) {
+				if before == nil {
+					return line, nil
+				}
+				return before(sess, action, line)
+			},
+			After: func(sess *runtime.Session, action experience.ActionID, _ runtime.ApplyResult, err error) {
+				if after != nil {
+					after(sess, action, err)
+				}
+			},
+		})
 	}
-	eng.EnableRateLimit(rate, burst)
 
 	var actions atomic.Uint64
 	eng.SetOnAction(func() { actions.Add(1) })

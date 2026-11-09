@@ -2,6 +2,7 @@ package experience
 
 import (
 	"fmt"
+	"sort"
 )
 
 // Experience is a validated site definition.
@@ -34,10 +35,13 @@ func (e *Experience) OnSessionEnd() []Effect {
 // Root returns the entry scene.
 func (e *Experience) Root() SceneID { return e.root }
 
-// Scene returns a scene by id.
+// Scene returns a copy of a scene by id. The Inputs map is not shared with the experience.
 func (e *Experience) Scene(id SceneID) (Scene, bool) {
 	s, ok := e.scenes[id]
-	return s, ok
+	if !ok {
+		return Scene{}, false
+	}
+	return cloneScene(s), true
 }
 
 // Action returns an action by id.
@@ -46,36 +50,42 @@ func (e *Experience) Action(id ActionID) (Action, bool) {
 	return a, ok
 }
 
-// Space returns a space definition by id.
+// Space returns a copy of a space definition by id. Hook slices are not shared.
 func (e *Experience) Space(id SpaceID) (Space, bool) {
 	s, ok := e.spaces[id]
-	return s, ok
+	if !ok {
+		return Space{}, false
+	}
+	return cloneSpace(s), true
 }
 
-// Scenes returns all scene ids.
+// Scenes returns all scene ids in lexical order.
 func (e *Experience) Scenes() []SceneID {
 	out := make([]SceneID, 0, len(e.scenes))
 	for id := range e.scenes {
 		out = append(out, id)
 	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
 	return out
 }
 
-// Actions returns all action ids.
+// Actions returns all action ids in lexical order.
 func (e *Experience) Actions() []ActionID {
 	out := make([]ActionID, 0, len(e.actions))
 	for id := range e.actions {
 		out = append(out, id)
 	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
 	return out
 }
 
-// Spaces returns all space ids.
+// Spaces returns all space ids in lexical order.
 func (e *Experience) Spaces() []SpaceID {
 	out := make([]SpaceID, 0, len(e.spaces))
 	for id := range e.spaces {
 		out = append(out, id)
 	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
 	return out
 }
 
@@ -85,15 +95,30 @@ func (e *Experience) Asset(name string) (string, bool) {
 	return v, ok
 }
 
+// Assets returns a copy of the named asset contents.
+func (e *Experience) Assets() map[string]string {
+	if e == nil {
+		return nil
+	}
+	out := make(map[string]string, len(e.assets))
+	for k, v := range e.assets {
+		out[k] = v
+	}
+	return out
+}
+
 // CloneWithAssets returns a copy of e with assets replaced.
 func (e *Experience) CloneWithAssets(assets map[string]string) *Experience {
+	if e == nil {
+		return nil
+	}
 	cpAssets := make(map[string]string, len(assets))
 	for k, v := range assets {
 		cpAssets[k] = v
 	}
 	cpScenes := make(map[SceneID]Scene, len(e.scenes))
 	for k, v := range e.scenes {
-		cpScenes[k] = v
+		cpScenes[k] = cloneScene(v)
 	}
 	cpActions := make(map[ActionID]Action, len(e.actions))
 	for k, v := range e.actions {
@@ -101,7 +126,7 @@ func (e *Experience) CloneWithAssets(assets map[string]string) *Experience {
 	}
 	cpSpaces := make(map[SpaceID]Space, len(e.spaces))
 	for k, v := range e.spaces {
-		cpSpaces[k] = v
+		cpSpaces[k] = cloneSpace(v)
 	}
 	return &Experience{
 		root:           e.root,
@@ -123,6 +148,7 @@ type Builder struct {
 	assets         map[string]string
 	onSessionStart []Effect
 	onSessionEnd   []Effect
+	err            error
 }
 
 // NewBuilder starts an experience definition.
@@ -153,6 +179,23 @@ func (b *Builder) Action(id ActionID, a Action) *Builder {
 	return b
 }
 
+// BindInput adds a command key on an existing scene. A missing scene fails Build.
+func (b *Builder) BindInput(scene SceneID, input string, action ActionID) *Builder {
+	sc, ok := b.scenes[scene]
+	if !ok {
+		if b.err == nil {
+			b.err = fmt.Errorf("portico: bind input scene %q not registered", scene)
+		}
+		return b
+	}
+	if sc.Inputs == nil {
+		sc.Inputs = make(map[string]ActionID)
+	}
+	sc.Inputs[input] = action
+	b.scenes[scene] = sc
+	return b
+}
+
 // Space registers a space.
 func (b *Builder) Space(id SpaceID, s Space) *Builder {
 	b.spaces[id] = s
@@ -177,10 +220,14 @@ func (b *Builder) OnSessionEnd(effects ...Effect) *Builder {
 	return b
 }
 
-// Merge incorporates another builder's registrations (later wins on conflict).
+// Merge incorporates another builder's registrations (later wins on id conflict).
+// Session hooks append. Build snapshots scene inputs and space hooks so later edits do not change a built experience.
 func (b *Builder) Merge(other *Builder) *Builder {
 	if other == nil {
 		return b
+	}
+	if b.err == nil {
+		b.err = other.err
 	}
 	if other.root != "" {
 		b.root = other.root
@@ -198,16 +245,19 @@ func (b *Builder) Merge(other *Builder) *Builder {
 		b.assets[name] = c
 	}
 	if len(other.onSessionStart) > 0 {
-		b.onSessionStart = append([]Effect(nil), other.onSessionStart...)
+		b.onSessionStart = append(append([]Effect(nil), b.onSessionStart...), other.onSessionStart...)
 	}
 	if len(other.onSessionEnd) > 0 {
-		b.onSessionEnd = append([]Effect(nil), other.onSessionEnd...)
+		b.onSessionEnd = append(append([]Effect(nil), b.onSessionEnd...), other.onSessionEnd...)
 	}
 	return b
 }
 
 // Build validates and returns the experience.
 func (b *Builder) Build() (*Experience, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
 	if b.root == "" {
 		return nil, fmt.Errorf("portico: root scene is required")
 	}
@@ -257,7 +307,7 @@ func (b *Builder) Build() (*Experience, error) {
 	}
 	cpScenes := make(map[SceneID]Scene, len(b.scenes))
 	for k, v := range b.scenes {
-		cpScenes[k] = v
+		cpScenes[k] = cloneScene(v)
 	}
 	cpActions := make(map[ActionID]Action, len(b.actions))
 	for k, v := range b.actions {
@@ -265,7 +315,7 @@ func (b *Builder) Build() (*Experience, error) {
 	}
 	cpSpaces := make(map[SpaceID]Space, len(b.spaces))
 	for k, v := range b.spaces {
-		cpSpaces[k] = v
+		cpSpaces[k] = cloneSpace(v)
 	}
 	cpAssets := make(map[string]string, len(b.assets))
 	for k, v := range b.assets {
@@ -325,4 +375,21 @@ func (b *Builder) validateEffectSceneRefs() error {
 		return err
 	}
 	return checkEffects(b.onSessionEnd)
+}
+
+func cloneScene(s Scene) Scene {
+	if s.Inputs != nil {
+		in := make(map[string]ActionID, len(s.Inputs))
+		for k, v := range s.Inputs {
+			in[k] = v
+		}
+		s.Inputs = in
+	}
+	return s
+}
+
+func cloneSpace(s Space) Space {
+	s.OnJoin = append([]Effect(nil), s.OnJoin...)
+	s.OnLeave = append([]Effect(nil), s.OnLeave...)
+	return s
 }

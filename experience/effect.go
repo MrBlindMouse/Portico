@@ -78,7 +78,7 @@ type ReserveNickname struct {
 	Name string
 }
 
-// RegisterAccount creates a dev account when the runtime account store is enabled.
+// RegisterAccount creates an account when the runtime account store is enabled.
 type RegisterAccount struct {
 	effect
 	Username string
@@ -109,6 +109,10 @@ func LeaveSpaceEffect(space SpaceID) Effect {
 
 func SpaceSetEffect(space SpaceID, key string, value any) Effect {
 	return SpaceSet{Space: space, Key: key, Value: value}
+}
+
+func SpaceCASEffect(space SpaceID, key string, expect, value any) Effect {
+	return SpaceCAS{Space: space, Key: key, Expect: expect, Value: value}
 }
 
 func BroadcastEffect(space SpaceID) Effect {

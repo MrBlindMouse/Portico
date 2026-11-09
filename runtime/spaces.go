@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"reflect"
 	"sync"
 
 	"github.com/MrBlindMouse/Portico/experience"
@@ -96,7 +97,7 @@ func (r *spaceRegistry) cas(space experience.SpaceID, key string, expect, value 
 		st.values[key] = value
 		return true
 	}
-	if ok && cur == expect {
+	if ok && reflect.DeepEqual(cur, expect) {
 		st.values[key] = value
 		return true
 	}

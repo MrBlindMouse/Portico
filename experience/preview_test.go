@@ -43,3 +43,16 @@ func TestPreviewReloadOK(t *testing.T) {
 		t.Fatalf("%+v", preview)
 	}
 }
+
+func TestPreviewReloadStrandsRemovedSpace(t *testing.T) {
+	wire := experience.Wire{
+		Root:   "home",
+		Scenes: map[string]experience.WireScene{"home": {}},
+	}
+	preview := experience.PreviewReload(nil, wire, []experience.LiveSession{
+		{ID: "s1", Scene: "home", Spaces: []experience.SpaceID{"lobby"}},
+	})
+	if preview.OK || len(preview.StrandedSessions) != 1 {
+		t.Fatalf("%+v", preview)
+	}
+}

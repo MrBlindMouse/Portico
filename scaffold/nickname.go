@@ -16,7 +16,11 @@ func NicknameCommands() *experience.Builder {
 			if name == "" {
 				return []experience.Effect{experience.SetLocalEffect("flash", "usage: nick <name>")}
 			}
-			return []experience.Effect{experience.ReserveNicknameEffect(name)}
+			return []experience.Effect{
+				experience.SetLocalEffect("flash", ""),
+				experience.ReserveNicknameEffect(name),
+				experience.SetLocalEffect("flash", "nickname reserved"),
+			}
 		},
 	})
 	return b

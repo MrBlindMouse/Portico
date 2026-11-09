@@ -1,34 +1,38 @@
 package experience
 
-import "strings"
+import (
+	"strings"
+	"unicode/utf8"
+)
 
-// ParseFields splits line into at most n whitespace-separated fields.
+// ParseFields splits line into at most n fields. The last field is the remainder of the line.
 func ParseFields(line string, n int) []string {
 	line = strings.TrimSpace(line)
 	if line == "" || n <= 0 {
 		return nil
 	}
 	var out []string
-	for len(out) < n && line != "" {
+	for len(out) < n-1 && line != "" {
 		var field string
 		field, line, _ = strings.Cut(line, " ")
 		field = strings.TrimSpace(field)
+		line = strings.TrimSpace(line)
 		if field == "" {
 			continue
 		}
 		out = append(out, field)
-		line = strings.TrimSpace(line)
 	}
-	if len(out) == n-1 && line != "" {
+	if line != "" {
 		out = append(out, line)
 	}
 	return out
 }
 
-// Masked shows stars for each rune (display only).
+// Masked shows one star per rune (display only).
 func Masked(secret string) string {
-	if secret == "" {
+	n := utf8.RuneCountInString(secret)
+	if n == 0 {
 		return ""
 	}
-	return strings.Repeat("*", len(secret))
+	return strings.Repeat("*", n)
 }

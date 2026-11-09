@@ -61,9 +61,28 @@ func (e *Engine) SetExperience(exp *experience.Experience) error {
 		if _, ok := exp.Scene(sess.CurrentScene()); !ok {
 			return fmt.Errorf("portico: session %s in scene %q not in new experience", sess.ID(), sess.CurrentScene())
 		}
+		for _, sp := range sess.Spaces() {
+			if _, ok := exp.Space(sp); !ok {
+				return fmt.Errorf("portico: session %s in space %q not in new experience", sess.ID(), sp)
+			}
+		}
 	}
 	e.exp = exp
 	return nil
+}
+
+// RedrawSessions paints the current scene for every session that has a terminal.
+func (e *Engine) RedrawSessions() {
+	for _, sess := range e.Sessions() {
+		term := memberTerminal(sess)
+		if _, skip := term.(noopTerminal); skip {
+			continue
+		}
+		_ = e.Render(sess, term)
+		if ed, ok := term.(LineEditor); ok {
+			ed.RestoreInputLine()
+		}
+	}
 }
 
 // UpdateAssets replaces asset content on the live experience.
@@ -105,6 +124,9 @@ func (e *Engine) NoteReloadFailure() { e.reloadFailures.Add(1) }
 func (e *Engine) SetLogger(l *slog.Logger) {
 	if l != nil {
 		e.log = l
+		if e.applier != nil {
+			e.applier.SetLogger(l)
+		}
 	}
 }
 
@@ -178,8 +200,8 @@ func (e *Engine) HandleInput(sess *Session, input string) error {
 	aid, err := ResolveInput(exp, sess.CurrentScene(), line)
 	if err != nil {
 		if e.log != nil {
-			preview, n := logInputAttrs(line)
-			e.log.Warn("dispatch_failed", "session", sess.ID(), "scene", sess.CurrentScene(), "input_len", n, "input_preview", preview, "error", err)
+			e.log.Warn("dispatch_failed", "session", sess.ID(), "scene", sess.CurrentScene(), "input_len", len(line), "error", err)
+			e.log.Debug("dispatch_failed_input", "session", sess.ID(), "input_preview", logInputPreview(line))
 		}
 		return err
 	}
@@ -230,18 +252,17 @@ func (e *Engine) HandleInput(sess *Session, input string) error {
 		broadcastMs = time.Since(bStart).Milliseconds()
 	}
 	if e.log != nil {
-		preview, n := logInputAttrs(line)
 		e.log.Info("action",
 			"session", sess.ID(),
 			"action", aid,
 			"scene", sess.CurrentScene(),
 			"transitioned", res.Transitioned,
-			"input_len", n,
-			"input_preview", preview,
+			"input_len", len(line),
 			"apply_ms", applyMs,
 			"broadcast_ms", broadcastMs,
 			"broadcast_sessions", broadcastN,
 		)
+		e.log.Debug("action_input", "session", sess.ID(), "input_preview", logInputPreview(line))
 	}
 	return nil
 }
@@ -406,16 +427,15 @@ func (e *Engine) RunLoop(sess *Session, term Terminal, activity chan<- struct{})
 		handleMs := time.Since(handleStart).Milliseconds()
 		if handleErr != nil {
 			if e.log != nil {
-				preview, n := logInputAttrs(in)
 				e.log.Warn("input_error",
 					"session", sess.ID(),
 					"scene", scene,
-					"input_len", n,
-					"input_preview", preview,
+					"input_len", len(in),
 					"read_ms", readMs,
 					"handle_ms", handleMs,
 					"error", handleErr,
 				)
+				e.log.Debug("input_error_preview", "session", sess.ID(), "input_preview", logInputPreview(in))
 			}
 			_ = term.WriteFrame("Error: " + handleErr.Error() + "\n")
 		}

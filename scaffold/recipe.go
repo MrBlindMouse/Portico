@@ -20,5 +20,7 @@ func RecipeAccountsSite() *experience.Builder {
 		Merge(NicknameCommands()).
 		Merge(Landing(map[string]experience.SceneID{
 			"register": "register",
-		}))
+		})).
+		BindInput("landing", "nick", "reserve-nick").
+		BindInput("register", "nick", "reserve-nick")
 }

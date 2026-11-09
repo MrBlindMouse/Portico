@@ -91,3 +91,18 @@ func ValidateNickname(name string) error {
 	}
 	return nil
 }
+
+// ValidateUsername checks account names used as store keys and filenames.
+func ValidateUsername(name string) error {
+	if name == "" || len(name) > 32 {
+		return fmt.Errorf("portico: invalid username")
+	}
+	for _, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_':
+		default:
+			return fmt.Errorf("portico: invalid username")
+		}
+	}
+	return nil
+}

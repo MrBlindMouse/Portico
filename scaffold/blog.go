@@ -2,6 +2,7 @@ package scaffold
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/MrBlindMouse/Portico/experience"
@@ -11,12 +12,9 @@ import (
 // Blog adds blog-list and blog-post scenes. Load assets named post-<id>.
 func Blog() *experience.Builder {
 	b := experience.NewBuilder()
-	b.Space("blog", experience.Space{})
 	b.Scene("blog-list", experience.Scene{
 		Render: func(ctx experience.RenderContext) string {
-			body := "Posts (assets post-<id>):\n  open <id>\n  back home via your site wiring"
-			_ = ctx
-			return render.Box("Blog", body, 48)
+			return render.Box("Blog", blogListBody(ctx), 48)
 		},
 		Inputs: map[string]experience.ActionID{
 			"open": "blog-open",
@@ -62,4 +60,34 @@ func Blog() *experience.Builder {
 		},
 	})
 	return b
+}
+
+func blogListBody(ctx experience.RenderContext) string {
+	var b strings.Builder
+	if flash, ok := ctx.Local("flash"); ok {
+		if s, ok := flash.(string); ok && s != "" {
+			b.WriteString(s)
+			b.WriteString("\n\n")
+		}
+	}
+	b.WriteString("Posts:\n")
+	var ids []string
+	for name := range ctx.Assets() {
+		rest, ok := strings.CutPrefix(name, "post-")
+		if ok && rest != "" {
+			ids = append(ids, rest)
+		}
+	}
+	sort.Strings(ids)
+	if len(ids) == 0 {
+		b.WriteString("  (none)\n")
+	} else {
+		for _, id := range ids {
+			b.WriteString("  ")
+			b.WriteString(id)
+			b.WriteByte('\n')
+		}
+	}
+	b.WriteString("\nCommands: open <id>")
+	return b.String()
 }

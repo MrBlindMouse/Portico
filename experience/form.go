@@ -2,10 +2,12 @@ package experience
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/MrBlindMouse/Portico/render"
 )
 
+// These local keys are reserved while StartForm, AdvanceFormValue, or RenderForm are in use.
 const (
 	LocalFormStep   = "form_step"
 	LocalFormFields = "form_fields"
@@ -16,6 +18,7 @@ const (
 // StartForm returns effects that begin a multi-step form in session-local state.
 func StartForm(fields []string) []Effect {
 	return []Effect{
+		SetLocalEffect("flash", ""),
 		SetLocalEffect(LocalFormStep, 0),
 		SetLocalEffect(LocalFormFields, fields),
 		SetLocalEffect(LocalFormValues, map[string]string{}),
@@ -30,22 +33,29 @@ func AdvanceFormValue(ctx ActionContext, value string) []Effect {
 	values, _ := ctx.Local(LocalFormValues)
 	i, _ := step.(int)
 	names := stringFields(fields)
+	if len(names) == 0 || i < 0 {
+		return []Effect{SetLocalEffect("flash", "start the form first")}
+	}
 	vals := map[string]string{}
 	if m, ok := values.(map[string]string); ok {
-		vals = m
+		for k, v := range m {
+			vals[k] = v
+		}
 	}
-	if i >= 0 && i < len(names) {
+	if i < len(names) {
 		vals[names[i]] = value
 	}
 	next := i + 1
 	if next >= len(names) {
 		return []Effect{
+			SetLocalEffect("flash", ""),
 			SetLocalEffect(LocalFormValues, vals),
 			SetLocalEffect(LocalFormPrompt, ""),
 			SetLocalEffect(LocalFormStep, -1),
 		}
 	}
 	return []Effect{
+		SetLocalEffect("flash", ""),
 		SetLocalEffect(LocalFormValues, vals),
 		SetLocalEffect(LocalFormStep, next),
 		SetLocalEffect(LocalFormPrompt, promptFor(names, next)),
@@ -55,6 +65,7 @@ func AdvanceFormValue(ctx ActionContext, value string) []Effect {
 // CancelForm clears form local state.
 func CancelForm() []Effect {
 	return []Effect{
+		SetLocalEffect("flash", ""),
 		SetLocalEffect(LocalFormStep, nil),
 		SetLocalEffect(LocalFormFields, nil),
 		SetLocalEffect(LocalFormValues, nil),
@@ -62,21 +73,31 @@ func CancelForm() []Effect {
 	}
 }
 
-// RenderForm draws the active form prompt in a box (read-only render helper).
-func RenderForm(ctx RenderContext, title string) string {
+// FormText is the current prompt, finished answers, or the idle line.
+func FormText(ctx RenderContext) string {
 	prompt, _ := ctx.Local(LocalFormPrompt)
 	if p, ok := prompt.(string); ok && p != "" {
-		return render.Box(title, p, 48)
+		return p
 	}
 	vals, _ := ctx.Local(LocalFormValues)
 	if m, ok := vals.(map[string]string); ok && len(m) > 0 {
-		body := "Done:\n"
-		for k, v := range m {
-			body += fmt.Sprintf("  %s: %s\n", k, v)
+		keys := make([]string, 0, len(m))
+		for k := range m {
+			keys = append(keys, k)
 		}
-		return render.Box(title, body, 48)
+		sort.Strings(keys)
+		body := "Done:\n"
+		for _, k := range keys {
+			body += fmt.Sprintf("  %s: %s\n", k, m[k])
+		}
+		return body
 	}
-	return render.Box(title, "(no active form)", 48)
+	return "(no active form)"
+}
+
+// RenderForm draws the active form prompt in a box (read-only render helper).
+func RenderForm(ctx RenderContext, title string) string {
+	return render.Box(title, FormText(ctx), 48)
 }
 
 func stringFields(v any) []string {

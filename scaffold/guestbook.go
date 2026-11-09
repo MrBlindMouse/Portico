@@ -15,6 +15,7 @@ const guestbookListKey = "entries"
 func Guestbook() *experience.Builder {
 	b := experience.NewBuilder()
 	b.Space(guestbookSpace, experience.Space{})
+	b.OnSessionStart(experience.JoinSpaceEffect(guestbookSpace))
 	b.Root("guestbook")
 	b.Action("sign", experience.Action{
 		Run: func(ctx experience.ActionContext) []experience.Effect {

@@ -21,6 +21,9 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 )
 
+// passwordAuthKey is set on the SSH context only after password verification succeeds.
+type passwordAuthKey struct{}
+
 // ServerConfig configures the SSH server.
 type ServerConfig struct {
 	Addr              string
@@ -83,14 +86,35 @@ func NewServer(cfg ServerConfig, engine *Engine) (*Server, error) {
 		return nil, err
 	}
 	s.ssh = &ssh.Server{
-		Addr:    cfg.Addr,
-		Handler: s.handleSession,
+		Addr:             cfg.Addr,
+		Handler:          s.handleSession,
+		PublicKeyHandler: s.publicKeyHandler,
 	}
 	s.ssh.AddHostKey(hostKey)
 	if cfg.Accounts != nil && cfg.Accounts.Enabled {
 		s.ssh.PasswordHandler = s.passwordHandler
 	}
+	// SSH clients probe "none" first and stop when it succeeds, so key and
+	// password auth only run when none is disabled.
+	if cfg.allowsNoAuth() {
+		s.ssh.ServerConfigCallback = func(ssh.Context) *gossh.ServerConfig {
+			return &gossh.ServerConfig{NoClientAuth: true}
+		}
+	}
 	return s, nil
+}
+
+// allowsNoAuth is the README dev loop: ssh with no key. It is off when a key
+// list, password accounts, or RequireAccount is set, because a successful
+// "none" probe would skip those methods.
+func (cfg ServerConfig) allowsNoAuth() bool {
+	if cfg.RequireAccount || len(cfg.AllowKeys) > 0 || len(cfg.DenyKeys) > 0 {
+		return false
+	}
+	if cfg.Accounts != nil && cfg.Accounts.Enabled {
+		return false
+	}
+	return true
 }
 
 func (s *Server) loadOrGenerateHostKey() (gossh.Signer, error) {
@@ -118,6 +142,13 @@ func (s *Server) loadOrGenerateHostKey() (gossh.Signer, error) {
 	return gossh.NewSignerFromKey(key)
 }
 
+func (s *Server) publicKeyHandler(_ ssh.Context, key ssh.PublicKey) bool {
+	if key == nil {
+		return false
+	}
+	return !s.denied(identity.FromPublicKey(key).Fingerprint())
+}
+
 func (s *Server) passwordHandler(ctx ssh.Context, pass string) bool {
 	if s.cfg.Accounts == nil || !s.cfg.Accounts.Enabled {
 		return false
@@ -125,14 +156,25 @@ func (s *Server) passwordHandler(ctx ssh.Context, pass string) bool {
 	user := ctx.User()
 	if s.cfg.Accounts.Users != nil {
 		if want, ok := s.cfg.Accounts.Users[user]; ok && want == pass {
+			s.acceptPassword(ctx, user)
 			return true
 		}
 	}
 	if s.cfg.Accounts.Accounts != nil {
 		ok, err := s.cfg.Accounts.Accounts.Verify(user, pass)
-		return err == nil && ok
+		if err == nil && ok {
+			s.acceptPassword(ctx, user)
+			return true
+		}
 	}
 	return false
+}
+
+func (s *Server) acceptPassword(ctx ssh.Context, user string) {
+	ctx.SetValue(passwordAuthKey{}, true)
+	if s.cfg.Logger != nil {
+		s.cfg.Logger.Info("account_login", "account", user)
+	}
 }
 
 // Draining reports whether the server is shutting down.
@@ -165,34 +207,8 @@ func (s *Server) handleSession(sess ssh.Session) {
 	}
 	defer s.releaseConn(remote)
 
-	var idn identity.Identity
-	sshUser := sess.User()
-	usedPassword := sshUser != "" && s.cfg.Accounts != nil && s.cfg.Accounts.Enabled
-	if usedPassword {
-		if s.accountDenied(sshUser) {
-			s.cfg.Logger.Warn("connection_denied", "account", sshUser, "remote", remote)
-			_, _ = ioWriteString(sess, "access denied\n")
-			return
-		}
-		idn = identity.FromAccount(sshUser)
-	} else if pk := sess.PublicKey(); pk != nil {
-		idn = identity.FromPublicKey(pk)
-		if s.denied(idn.Fingerprint()) {
-			s.cfg.Logger.Warn("connection_denied", "fingerprint", idn.Fingerprint(), "remote", remote)
-			_, _ = ioWriteString(sess, "access denied\n")
-			return
-		}
-		if s.cfg.Accounts != nil && s.cfg.Accounts.Accounts != nil {
-			if rec, ok, _ := s.cfg.Accounts.Accounts.LookupByFingerprint(idn.Fingerprint()); ok {
-				idn = identity.FromAccount(rec.Username)
-			}
-		}
-	} else {
-		idn = identity.Anonymous()
-	}
-	if s.cfg.RequireAccount && idn.Account() == "" {
-		s.cfg.Logger.Warn("connection_denied", "reason", "require_account", "remote", remote)
-		_, _ = ioWriteString(sess, "account required\n")
+	idn, ok := s.identify(sess)
+	if !ok {
 		return
 	}
 
@@ -209,21 +225,32 @@ func (s *Server) handleSession(sess ssh.Session) {
 	s.cfg.Logger.Info("session_connected", "session", id, "identity", idn.String(), "remote", sess.RemoteAddr().String())
 	exp := s.engine.Experience()
 	if hooks := exp.OnSessionStart(); len(hooks) > 0 {
-		_, _ = s.engine.Applier().Apply(child, exp, hooks)
+		if _, err := s.engine.Applier().Apply(child, exp, hooks); err != nil && s.cfg.Logger != nil {
+			s.cfg.Logger.Error("session_start_failed", "session", id, "error", err)
+		}
 	}
 	defer func() {
 		exp := s.engine.Experience()
 		if hooks := exp.OnSessionEnd(); len(hooks) > 0 {
-			_, _ = s.engine.Applier().Apply(child, exp, hooks)
+			if _, err := s.engine.Applier().Apply(child, exp, hooks); err != nil && s.cfg.Logger != nil {
+				s.cfg.Logger.Error("session_end_failed", "session", id, "error", err)
+			}
 		}
 		for _, sp := range child.Spaces() {
-			_, _ = s.engine.Applier().Apply(child, s.engine.Experience(), []experience.Effect{
+			if _, err := s.engine.Applier().Apply(child, s.engine.Experience(), []experience.Effect{
 				experience.LeaveSpaceEffect(sp),
-			})
+			}); err != nil && s.cfg.Logger != nil {
+				s.cfg.Logger.Error("session_leave_failed", "session", id, "space", string(sp), "error", err)
+			}
 		}
 		s.engine.UnregisterSession(id)
-		s.cfg.Logger.Info("session_disconnected", "session", id, "identity", idn.String())
+		if s.cfg.Logger != nil {
+			s.cfg.Logger.Info("session_disconnected", "session", id, "identity", idn.String())
+		}
 	}()
+	if s.cfg.KeepAliveInterval > 0 {
+		go s.keepAlive(sess)
+	}
 
 	term := NewSSHTerminal(sess)
 	var lastW, lastH int
@@ -280,6 +307,84 @@ func (s *Server) releaseConn(remote string) {
 		s.connsByIP[host]--
 		if s.connsByIP[host] <= 0 {
 			delete(s.connsByIP, host)
+		}
+	}
+}
+
+// identify chooses key, then a verified password, then anonymous.
+// A linked fingerprint becomes the account. RequireAccount rejects guests and unlinked keys.
+func (s *Server) identify(sess ssh.Session) (identity.Identity, bool) {
+	remote := ""
+	if sess.RemoteAddr() != nil {
+		remote = sess.RemoteAddr().String()
+	}
+	deny := func(msg string, args ...any) (identity.Identity, bool) {
+		if s.cfg.Logger != nil {
+			s.cfg.Logger.Warn(msg, args...)
+		}
+		_, _ = ioWriteString(sess, "access denied\n")
+		return identity.Identity{}, false
+	}
+	if pk := sess.PublicKey(); pk != nil {
+		idn := identity.FromPublicKey(pk)
+		if s.denied(idn.Fingerprint()) {
+			return deny("connection_denied", "fingerprint", idn.Fingerprint(), "remote", remote)
+		}
+		if s.cfg.Accounts != nil && s.cfg.Accounts.Accounts != nil {
+			if rec, ok, _ := s.cfg.Accounts.Accounts.LookupByFingerprint(idn.Fingerprint()); ok {
+				idn = identity.FromAccount(rec.Username)
+			}
+		}
+		if s.cfg.RequireAccount && idn.Account() == "" {
+			if s.cfg.Logger != nil {
+				s.cfg.Logger.Warn("connection_denied", "reason", "require_account", "remote", remote)
+			}
+			_, _ = ioWriteString(sess, "account required\n")
+			return identity.Identity{}, false
+		}
+		return idn, true
+	}
+	if sess.Context().Value(passwordAuthKey{}) != nil {
+		user := sess.User()
+		if s.accountDenied(user) {
+			return deny("connection_denied", "account", user, "remote", remote)
+		}
+		return identity.FromAccount(user), true
+	}
+	if s.cfg.RequireAccount {
+		if s.cfg.Logger != nil {
+			s.cfg.Logger.Warn("connection_denied", "reason", "require_account", "remote", remote)
+		}
+		_, _ = ioWriteString(sess, "account required\n")
+		return identity.Identity{}, false
+	}
+	return identity.Anonymous(), true
+}
+
+func (s *Server) keepAlive(sess ssh.Session) {
+	t := time.NewTicker(s.cfg.KeepAliveInterval)
+	defer t.Stop()
+	raw := sess.Context().Value(ssh.ContextKeyConn)
+	conn, ok := raw.(gossh.Conn)
+	if !ok || conn == nil {
+		return
+	}
+	misses := 0
+	for {
+		select {
+		case <-sess.Context().Done():
+			return
+		case <-t.C:
+			_, _, err := conn.SendRequest("keepalive@openssh.com", true, nil)
+			if err != nil {
+				misses++
+				if s.cfg.KeepAliveCountMax > 0 && misses >= s.cfg.KeepAliveCountMax {
+					_ = sess.Close()
+					return
+				}
+				continue
+			}
+			misses = 0
 		}
 	}
 }
@@ -399,6 +504,7 @@ func (s *Server) ReloadExperience(b *experience.Builder) error {
 		s.engine.NoteReloadFailure()
 		return err
 	}
+	s.engine.RedrawSessions()
 	return nil
 }
 

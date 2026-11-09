@@ -26,7 +26,7 @@ type ReloadPreview struct {
 	Warnings         []string          `json:"warnings,omitempty"`
 }
 
-// PreviewReload validates proposed wiring against live sessions (same scene rule as runtime hot-reload).
+// PreviewReload validates proposed wiring against live sessions (same scene and space rule as runtime hot-reload).
 func PreviewReload(current *Experience, proposed Wire, live []LiveSession) ReloadPreview {
 	var out ReloadPreview
 	if err := ValidateWire(proposed); err != nil {

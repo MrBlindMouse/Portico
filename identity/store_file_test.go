@@ -49,3 +49,16 @@ func TestFileStoreRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestFileStoreRejectsPathFingerprint(t *testing.T) {
+	store, err := identity.OpenFileStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Set(identity.ForFingerprint(".."), "k", "v"); err == nil {
+		t.Fatal("expected invalid fingerprint")
+	}
+	if err := store.Set(identity.ForFingerprint("../outside"), "k", "v"); err == nil {
+		t.Fatal("expected invalid fingerprint")
+	}
+}
