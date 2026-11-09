@@ -6,13 +6,13 @@ import (
 
 // Experience is a validated site definition.
 type Experience struct {
-	root            SceneID
-	scenes          map[SceneID]Scene
-	actions         map[ActionID]Action
-	spaces          map[SpaceID]Space
-	assets          map[string]string
-	onSessionStart  []Effect
-	onSessionEnd    []Effect
+	root           SceneID
+	scenes         map[SceneID]Scene
+	actions        map[ActionID]Action
+	spaces         map[SpaceID]Space
+	assets         map[string]string
+	onSessionStart []Effect
+	onSessionEnd   []Effect
 }
 
 // OnSessionStart returns effects run when a session connects.
@@ -116,13 +116,13 @@ func (e *Experience) CloneWithAssets(assets map[string]string) *Experience {
 
 // Builder constructs an Experience with validation at Build().
 type Builder struct {
-	root            SceneID
-	scenes          map[SceneID]Scene
-	actions         map[ActionID]Action
-	spaces          map[SpaceID]Space
-	assets          map[string]string
-	onSessionStart  []Effect
-	onSessionEnd    []Effect
+	root           SceneID
+	scenes         map[SceneID]Scene
+	actions        map[ActionID]Action
+	spaces         map[SpaceID]Space
+	assets         map[string]string
+	onSessionStart []Effect
+	onSessionEnd   []Effect
 }
 
 // NewBuilder starts an experience definition.
@@ -224,9 +224,15 @@ func (b *Builder) Build() (*Experience, error) {
 		if sc.Render == nil {
 			return nil, fmt.Errorf("portico: scene %q has nil Render", id)
 		}
+		if sc.Keys && len(sc.Inputs) == 0 {
+			return nil, fmt.Errorf("portico: scene %q has Keys set and no inputs", id)
+		}
 		for input, aid := range sc.Inputs {
 			if err := aid.validate(); err != nil {
 				return nil, fmt.Errorf("portico: scene %q input %q: %w", id, input, err)
+			}
+			if sc.Keys && !SingleKeyInput(input) {
+				return nil, fmt.Errorf("portico: scene %q key %q must be one character or up/down/left/right", id, input)
 			}
 			if _, ok := b.actions[aid]; !ok {
 				return nil, fmt.Errorf("portico: undefined action %q referenced from scene %q input %q", aid, id, input)

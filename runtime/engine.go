@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
@@ -12,16 +13,16 @@ import (
 
 // Engine runs the session loop against a Terminal.
 type Engine struct {
-	mu        sync.RWMutex
-	exp       *experience.Experience
-	spaces    *spaceRegistry
-	applier   *Applier
-	sessions  map[string]*Session
-	nextID    atomic.Uint64
-	onAction  func()
-	hooks     ActionHooks
-	limits    *rateLimiter
-	log       *slog.Logger
+	mu             sync.RWMutex
+	exp            *experience.Experience
+	spaces         *spaceRegistry
+	applier        *Applier
+	sessions       map[string]*Session
+	nextID         atomic.Uint64
+	onAction       func()
+	hooks          ActionHooks
+	limits         *rateLimiter
+	log            *slog.Logger
 	reloadFailures atomic.Uint64
 }
 
@@ -173,18 +174,19 @@ func (e *Engine) HandleInput(sess *Session, input string) error {
 	e.mu.RLock()
 	exp := e.exp
 	e.mu.RUnlock()
-	if e.limits != nil {
-		if err := e.limits.allow(sess.ID()); err != nil {
-			return err
-		}
-	}
 	line := input
 	aid, err := ResolveInput(exp, sess.CurrentScene(), line)
 	if err != nil {
 		if e.log != nil {
-			e.log.Warn("dispatch_failed", "session", sess.ID(), "input", input, "error", err)
+			preview, n := logInputAttrs(line)
+			e.log.Warn("dispatch_failed", "session", sess.ID(), "scene", sess.CurrentScene(), "input_len", n, "input_preview", preview, "error", err)
 		}
 		return err
+	}
+	if e.limits != nil {
+		if err := e.limits.allow(sess.ID()); err != nil {
+			return err
+		}
 	}
 	act, ok := exp.Action(aid)
 	if !ok {
@@ -197,9 +199,11 @@ func (e *Engine) HandleInput(sess *Session, input string) error {
 			return err
 		}
 	}
+	applyStart := time.Now()
 	ctx := newActionContext(sess, exp, e.spaces, e.applier.Store(), line)
 	effects := act.Run(ctx)
 	res, err := e.applier.Apply(sess, exp, effects)
+	applyMs := time.Since(applyStart).Milliseconds()
 	if e.hooks.After != nil {
 		e.hooks.After(sess, aid, res, err)
 	}
@@ -212,17 +216,98 @@ func (e *Engine) HandleInput(sess *Session, input string) error {
 	if e.onAction != nil {
 		e.onAction()
 	}
-	if e.log != nil {
-		e.log.Info("action", "session", sess.ID(), "action", aid, "scene", sess.CurrentScene(), "transitioned", res.Transitioned)
-	}
+	var broadcastMs int64
+	broadcastN := 0
 	if len(res.Broadcast) > 0 {
+		bStart := time.Now()
 		for _, space := range res.Broadcast {
-			for _, member := range e.spaces.members(space) {
+			members := e.spaces.members(space)
+			broadcastN += len(members)
+			for _, member := range members {
 				_ = e.Render(member, memberTerminal(member))
 			}
 		}
+		broadcastMs = time.Since(bStart).Milliseconds()
+	}
+	if e.log != nil {
+		preview, n := logInputAttrs(line)
+		e.log.Info("action",
+			"session", sess.ID(),
+			"action", aid,
+			"scene", sess.CurrentScene(),
+			"transitioned", res.Transitioned,
+			"input_len", n,
+			"input_preview", preview,
+			"apply_ms", applyMs,
+			"broadcast_ms", broadcastMs,
+			"broadcast_sessions", broadcastN,
+		)
 	}
 	return nil
+}
+
+func (e *Engine) sceneKeys(sess *Session) bool {
+	sc, ok := e.Experience().Scene(sess.CurrentScene())
+	return ok && sc.Keys
+}
+
+func (e *Engine) syncKeys(sess *Session, term Terminal) {
+	setter, ok := term.(KeyMode)
+	if !ok {
+		return
+	}
+	sc, ok := e.Experience().Scene(sess.CurrentScene())
+	if !ok || !sc.Keys {
+		setter.SetKeys(nil)
+		return
+	}
+	keys := make([]string, 0, len(sc.Inputs))
+	for k := range sc.Inputs {
+		keys = append(keys, k)
+	}
+	setter.SetKeys(keys)
+}
+
+func (e *Engine) attachLineEditor(sess *Session, term Terminal) {
+	ed, ok := term.(LineEditor)
+	if !ok {
+		return
+	}
+	ed.SetRedraw(func() {
+		_ = e.Render(sess, term)
+	})
+	ed.SetComplete(func(prefix string) string {
+		e.mu.RLock()
+		exp := e.exp
+		e.mu.RUnlock()
+		return completeSceneInput(exp, sess.CurrentScene(), prefix)
+	})
+}
+
+func (e *Engine) rejectInput(term Terminal, msg string) {
+	if p, ok := term.(InputPrompter); ok {
+		if err := p.RejectInput(msg); err != nil && e.log != nil {
+			e.log.Debug("input_prompt_failed", "error", err)
+		}
+		return
+	}
+	e.beginInputLine(term)
+}
+
+func (e *Engine) beginInputLine(term Terminal) {
+	if p, ok := term.(InputPrompter); ok {
+		if err := p.BeginInputLine(); err != nil && e.log != nil {
+			e.log.Debug("input_prompt_failed", "error", err)
+		}
+	}
+}
+
+func (e *Engine) commitInputLine(term Terminal, line string) {
+	if p, ok := term.(InputPrompter); ok {
+		if err := p.CommitInputLine(line); err != nil && e.log != nil {
+			e.log.Debug("input_prompt_failed", "error", err)
+		}
+	}
 }
 
 func notifyActivity(ch chan<- struct{}) {
@@ -251,12 +336,13 @@ func memberTerminal(sess *Session) Terminal {
 
 type noopTerminal struct{}
 
-func (noopTerminal) WriteFrame(string) error                      { return nil }
-func (noopTerminal) ReadInput() (string, error)                   { return "", fmt.Errorf("no terminal") }
-func (noopTerminal) OnResize(func(int, int))                      {}
-func (noopTerminal) Close() error                                 { return nil }
+func (noopTerminal) WriteFrame(string) error    { return nil }
+func (noopTerminal) ReadInput() (string, error) { return "", fmt.Errorf("no terminal") }
+func (noopTerminal) OnResize(func(int, int))    {}
+func (noopTerminal) Close() error               { return nil }
 
 // RunLoop drives read input → action → render until terminal closes.
+// Input filtering layers are documented in terminalinput.go.
 // activity, when non-nil, receives a signal on each non-empty input (for idle timeouts).
 func (e *Engine) RunLoop(sess *Session, term Terminal, activity chan<- struct{}) error {
 	setSessionTerminal(sess, term)
@@ -264,23 +350,106 @@ func (e *Engine) RunLoop(sess *Session, term Terminal, activity chan<- struct{})
 	if err := e.Render(sess, term); err != nil {
 		return err
 	}
+	e.attachLineEditor(sess, term)
+	e.syncKeys(sess, term)
+	if !e.sceneKeys(sess) {
+		e.beginInputLine(term)
+	}
 	for {
+		e.syncKeys(sess, term)
+		readStart := time.Now()
 		in, err := term.ReadInput()
+		readMs := time.Since(readStart).Milliseconds()
 		if err != nil {
 			return err
 		}
 		if in == "" {
+			if e.log != nil {
+				e.log.Debug("input_empty", "session", sess.ID(), "read_ms", readMs)
+			}
+			continue
+		}
+		if IsTerminalProtocolLine(in) {
+			if e.log != nil {
+				preview, n := logInputAttrs(in)
+				e.log.Debug("input_protocol",
+					"session", sess.ID(),
+					"kind", protocolLineKind(in),
+					"input_len", n,
+					"input_preview", preview,
+					"read_ms", readMs,
+				)
+			}
+			continue
+		}
+		e.mu.RLock()
+		exp := e.exp
+		e.mu.RUnlock()
+		scene := sess.CurrentScene()
+		if !InputEligible(exp, scene, in) {
+			if e.log != nil {
+				preview, n := logInputAttrs(in)
+				e.log.Debug("input_ineligible",
+					"session", sess.ID(),
+					"scene", scene,
+					"input_len", n,
+					"input_preview", preview,
+					"read_ms", readMs,
+				)
+			}
+			e.rejectInput(term, "no such command")
 			continue
 		}
 		notifyActivity(activity)
-		if err := e.HandleInput(sess, in); err != nil {
+		handleStart := time.Now()
+		handleErr := e.HandleInput(sess, in)
+		handleMs := time.Since(handleStart).Milliseconds()
+		if handleErr != nil {
 			if e.log != nil {
-				e.log.Warn("input_error", "session", sess.ID(), "input", in, "error", err)
+				preview, n := logInputAttrs(in)
+				e.log.Warn("input_error",
+					"session", sess.ID(),
+					"scene", scene,
+					"input_len", n,
+					"input_preview", preview,
+					"read_ms", readMs,
+					"handle_ms", handleMs,
+					"error", handleErr,
+				)
 			}
-			_ = term.WriteFrame("Error: " + err.Error() + "\n")
+			_ = term.WriteFrame("Error: " + handleErr.Error() + "\n")
 		}
+		renderStart := time.Now()
 		if err := e.Render(sess, term); err != nil {
 			return err
+		}
+		if !e.sceneKeys(sess) {
+			e.commitInputLine(term, in)
+		}
+		renderMs := time.Since(renderStart).Milliseconds()
+		if e.log != nil {
+			totalMs := readMs + handleMs + renderMs
+			attrs := []any{
+				"session", sess.ID(),
+				"scene", sess.CurrentScene(),
+				"read_ms", readMs,
+				"handle_ms", handleMs,
+				"render_ms", renderMs,
+				"total_ms", totalMs,
+			}
+			if handleErr != nil {
+				attrs = append(attrs, "error", handleErr)
+			}
+			if tr, ok := term.(LineEndTracer); ok {
+				attrs = append(attrs, "line_end", tr.LineEndReason())
+				if csi := tr.SubmitCSI(); csi != "" {
+					attrs = append(attrs, "submit_csi", csi)
+				}
+				if skip := tr.SkippedCSI(); skip != "" {
+					attrs = append(attrs, "skipped_csi", skip)
+				}
+			}
+			e.log.Debug("input_cycle", attrs...)
 		}
 	}
 }

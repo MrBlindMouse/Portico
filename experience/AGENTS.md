@@ -29,4 +29,5 @@ DESIGN “emit events” = write domain data with `SpaceSetEffect` / `AppendSpac
 
 - Prefer builder methods, typed IDs, and `Merge` for scaffolds.
 - Prefer `InputLine()` for multi-word commands when using prefix dispatch.
+- `Scene.Keys` dispatches one bound key per action (one rune, or `up`/`down`/`left`/`right`). Leave it unset for line entry.
 - Avoid importing `runtime`, `scaffold`, or `examples` from reusable site packages (your `main` may import scaffolds).

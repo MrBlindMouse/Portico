@@ -2,9 +2,7 @@ package portico
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
-	"os"
 	"os/signal"
 	"sync/atomic"
 	"syscall"
@@ -20,9 +18,6 @@ import (
 
 // ServeDev listens on :2222 with dev-friendly inspect/status defaults.
 func ServeDev(exp *experience.Experience, opts Options) error {
-	if opts.Logger == nil {
-		opts.Logger = slog.Default()
-	}
 	if opts.InspectAddr == "" {
 		opts.InspectAddr = "127.0.0.1:9922"
 	}
@@ -48,7 +43,7 @@ func (o Options) withDefaults() Options {
 		if o.LogLevel != "" {
 			o.Logger = config.NewLogger(o.LogLevel)
 		} else {
-			o.Logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+			o.Logger = config.NewLogger("info")
 		}
 	}
 	return o

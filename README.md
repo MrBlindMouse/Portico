@@ -1,14 +1,22 @@
 # Portico
 
-Go framework for building your own interactive, multi-user terminal sites over SSH. You own the experience definition (scenes, actions, spaces); Portico owns SSH, sessions, dispatch, shared state, and persistence.
+Build interactive, multi-user terminal sites over SSH.
 
-Vision and layer model: [DESIGN.md](DESIGN.md). Maintainer/agent ops: [AGENTS.md](AGENTS.md).
+You write the experience (scenes, actions, spaces). Portico handles SSH, sessions, input, shared state, and persistence.
 
-## Build a site
+## Create a site
 
-A Portico site is a normal Go program: compose an `experience`, then call `Serve`.
+A Portico site is an ordinary Go program that imports Portico as a library.
+
+```bash
+mkdir my-site
+cd my-site
+go mod init github.com/yourname/my-site
+go get github.com/MrBlindMouse/Portico
+```
 
 ```go
+// main.go
 package main
 
 import (
@@ -23,7 +31,7 @@ func main() {
 		Root("home").
 		Scene("home", experience.Scene{
 			Render: func(ctx experience.RenderContext) string {
-				return "Hello, " + ctx.Identity().String() + "\n\nType: greet"
+				return "Hello, " + ctx.Identity().String() + "\n\nType: greet\n"
 			},
 			Inputs: map[string]experience.ActionID{"greet": "greet"},
 		}).
@@ -38,119 +46,94 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	if err := portico.ServeDev(exp, portico.Options{DataDir: ".portico-data"}); err != nil {
 		log.Fatal(err)
 	}
 }
 ```
 
-Reference implementation with scaffolds: [examples/hello](examples/hello).
+```bash
+go run .
+# in another terminal
+ssh -p 2222 localhost
+```
 
-### Rules site code must follow
+That’s the whole loop: `go get` the framework, compose an experience, call `ServeDev` (or `Serve`).
 
-1. **Actions return effects** — use `SetLocalEffect`, `TransitionEffect`, `PersistEffect`, space effects, etc. Do not mutate session or space state yourself.
-2. **Scenes render only** — `Render` receives `RenderContext` (read-only). Use actions for state changes.
-3. **Typed IDs** — `experience.SceneID`, `ActionID`, `SpaceID` in builder and maps.
-4. **Validate at `Build()`** — dangling action/scene refs fail before listen.
+## Rules
 
-### Compose scaffolds
+1. **Actions return effects.** Use `SetLocalEffect`, `TransitionEffect`, `PersistEffect`, space effects, etc. Do not mutate session or space state yourself.
+2. **Scenes only render.** `Render` receives a read-only context. State changes happen in actions.
+3. **Use typed IDs.** `experience.SceneID`, `ActionID`, and `SpaceID`.
+4. **`Build()` validates.** Missing scenes or actions fail before the server starts.
+
+## Scaffolds
+
+Start from a working pattern instead of a blank file:
 
 ```go
-portico.New().
+import "github.com/MrBlindMouse/Portico/scaffold"
+
+exp, err := portico.New().
 	Merge(scaffold.Guestbook()).
-	Merge(scaffold.Landing(map[string]experience.SceneID{"guestbook": "guestbook"})).
+	Merge(scaffold.Landing(map[string]experience.SceneID{
+		"guestbook": "guestbook",
+	})).
 	Build()
 ```
 
-Hints: `go run ./cmd/portico scaffold guestbook`
+Available scaffolds include guestbook, chat, landing, registration, and nickname.
 
-### Serve options
+## Options
 
 | Field | Purpose |
 |-------|---------|
-| `DataDir` | File-backed identity KV + host key |
-| `InspectAddr` / `StatusAddr` | Localhost HTTP for agents (`127.0.0.1` defaults in `ServeDev`) |
-| `IdleTimeout` | Disconnect after idle (resets on input) |
+| `DataDir` | Where identity data and the host key are stored |
+| `IdleTimeout` | Disconnect idle sessions |
 | `MaxConns` / `MaxConnsPerIP` | Connection limits |
-| `AllowKeys` / `DenyKeys` | SSH key allow/deny (fingerprints) |
-| `ActionRate` / `ActionBurst` | Per-session action throttle |
-| `AssetDir` | Load files into live assets at startup; poll for hot swap |
-| `AssetPollEvery` | Poll interval (default 1s) |
-| `OnReady` | Hook with `*portico.Host` before `Serve` listens (hot reload, admin hooks) |
-| `ShutdownGrace` | After SIGTERM: wait for idle sessions, then hard-close after timeout |
-| `HashedAccounts` | Use file-backed bcrypt account store under `DataDir/accounts/` |
-| `IdentityStore` | Replace default file KV with a custom `identity.Store` |
+| `AllowKeys` / `DenyKeys` | Key fingerprint allow/deny lists |
+| `ActionRate` / `ActionBurst` | Per-session action throttling |
+| `AssetDir` | Directory of assets to load and watch |
+| `Accounts` | Enable password-based accounts (development) |
+| `InspectAddr` / `StatusAddr` | Localhost HTTP endpoints for inspection and health |
+| `LogLevel` | `debug`, `info`, `warn`, or `error` — use **debug** to log Kitty/protocol line discards, ineligible PTY lines, and per-command `read_ms` / `render_ms` (`input_cycle`) |
 
-JSON config: `config.Load` + `opts.MergeConfig(cfg)` — see `config.File`.
+You can also load options from a JSON config file (`log_level`). Timestamps use sub-second precision on the default logger.
 
-### Hot reload
+## Going further
 
-`Serve` blocks, so obtain a `*portico.Host` with `NewHost`, or use `OnReady`:
+- **Hot reload** — Obtain a `*portico.Host` (via `NewHost` or the `OnReady` hook) and call `HotReload` with a new builder. Reloads that would strand live sessions are rejected.
+- **Accounts** — Opt-in. Use the registration scaffold and `RegisterAccountEffect`. The built-in store is for development; production sites should use hashed passwords.
+- **Input** — Scene inputs match exact lines or the first word of a line. Actions can read the full line with `ctx.InputLine()`.
+- **Inspection** — When using `ServeDev`, an HTTP inspect endpoint is available on localhost (default `:9922`). Example: `curl http://127.0.0.1:9922/inspect/snapshot`.
 
-```go
-host, err := portico.NewHost(":2222", exp, portico.Options{
-    OnReady: func(h *portico.Host) {
-        go func() {
-            // e.g. on SIGHUP or admin HTTP: h.HotReload(patch)
-        }()
-    },
-})
-if err != nil { log.Fatal(err) }
-ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-defer cancel()
-return host.Server.ListenAndServe(ctx)
-```
+## Packages
 
-Or: `portico.HotReload(host.Server, patchedBuilder)`. Reload rejects definitions that would leave live sessions on removed scenes. Agents can **preview** impact with `POST /inspect/reload-preview` (wire JSON) or `portico inspect -resource reload-preview -file site.wire.json`. Validate wiring with `POST /inspect/validate` or `portico wire validate -file site.wire.json`. Go remains the source of truth; optional `portico wire codegen -file site.wire.json -out stub.go`.
+| Import | Use for |
+|--------|---------|
+| `github.com/MrBlindMouse/Portico` | `New`, `Serve`, `ServeDev`, `Options`, `NewHost` |
+| `.../experience` | Scenes, actions, spaces, effects |
+| `.../scaffold` | Ready-made starting definitions |
+| `.../render` | Simple layout helpers (`Box`, `Columns`) |
+| `.../asset` | Loading assets into a builder |
 
-### Accounts (development)
+Do not import `internal/...` from site code.
 
-Password SSH auth is opt-in (`Options.Accounts` / `accounts_enabled` in config). Sessions get `identity.FromAccount(username)`. Registration scaffold: `scaffold.Registration()` plus `RegisterAccountEffect`. **Dev:** `runtime.NewAccountStore()` (plaintext). **Production:** `Options.HashedAccounts` or `Options.AccountBackend` with `identity.OpenFileAccountStore(dataDir)` (bcrypt on disk). Export/import: `portico account-export` / `account-import`.
+## Production
 
-### Input commands
-
-Scene `Inputs` map **exact lines** or **prefix** (first word): `register alice secret` matches input key `register`. Actions can read the full line with `ctx.InputLine()`.
-
-## Quick start (demo)
+Dev mode listens on port 2222. For port 22 on Linux:
 
 ```bash
-go run ./examples/hello
-ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null localhost
+go build -o my-site
+sudo setcap 'cap_net_bind_service=+ep' ./my-site
+./my-site
 ```
 
-Inspect: `curl http://127.0.0.1:9922/inspect/snapshot`  
-Reload preview: `curl -X POST http://127.0.0.1:9922/inspect/reload-preview -d @site.wire.json`  
-Readiness: `curl http://127.0.0.1:9923/ready` · Metrics: `curl http://127.0.0.1:9923/metrics`
+Do not expose the inspect or status HTTP endpoints without authentication.
 
-The `portico` CLI is for operators (`inspect`, `wire`, `identity-export`, `account-export`, scaffold hints). To run the bundled demo only: `go run ./cmd/portico serve -demo`.
+## More
 
-## Package map (for site authors)
-
-| Import | Use |
-|--------|-----|
-| `github.com/.../Portico` (`portico`) | `New()`, `Serve()`, `ServeDev()`, `NewHost()`, `Options`, `HotReload` |
-| `.../experience` | Scenes, actions, spaces, effects, builder |
-| `.../scaffold` | Optional starter definitions to `Merge` |
-| `.../render` | `Box`, `Columns` layout helpers |
-| `.../asset` | `MergeAssetsIntoBuilder` |
-| `.../runtime` | Advanced: custom `Serve` wiring; most sites only need `HotReload` |
-
-Do **not** import `internal/*` from site code.
-
-## Test
-
-```bash
-go test ./...
-go vet ./...
-```
-
-## Production SSH (:22)
-
-Dev and CI use port **2222**. On Linux:
-
-```bash
-sudo setcap 'cap_net_bind_service=+ep' ./your-site-binary
-./your-site-binary   # listen with portico.Serve(":22", ...)
-```
-
-Do not expose inspect/status HTTP without auth.
+- Design and architecture: [DESIGN.md](DESIGN.md)
+- Framework contributor / agent notes: [AGENTS.md](AGENTS.md)
+- Reference site: [examples/hello](examples/hello)

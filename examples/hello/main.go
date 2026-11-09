@@ -26,7 +26,11 @@ func main() {
 	if v := os.Getenv("PORTICO_DATA"); v != "" {
 		dataDir = v
 	}
-	if err := portico.ServeDev(exp, portico.Options{DataDir: dataDir}); err != nil {
+	opts := portico.Options{DataDir: dataDir}
+	if v := os.Getenv("PORTICO_LOG_LEVEL"); v != "" {
+		opts.LogLevel = v
+	}
+	if err := portico.ServeDev(exp, opts); err != nil {
 		log.Fatal(err)
 	}
 }

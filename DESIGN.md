@@ -3,7 +3,7 @@
 ## Design Document
 
 **Status:** Draft  
-**Version:** 0.4  
+**Version:** 0.5  
 **Name:** Portico
 
 ---
@@ -190,6 +190,7 @@ The following capabilities belong in the core runtime so that sites and agents d
 - Structured session and space state with validation on write.
 - Simple conflict handling for shared state (last-write-wins by default, with an optional compare-and-set primitive).
 - Export and import of identity and account data.
+- A built-in SQLite store as the zero-config default for identity, accounts, and key-value data. The Store interface allows replacement with another backend when needed. Session-local and pure space state remain in memory unless explicitly snapshotted.
 
 ### Observability and agent support
 - Structured logs and basic metrics for connections, actions, and errors.
@@ -214,6 +215,19 @@ The following capabilities belong in the core runtime so that sites and agents d
 ### Included helpers
 - A simple built-in form scene pattern for registration, checkout, and similar flows.
 - An in-process event bus so background ticks or external signals can update spaces and sessions.
+
+### Testing
+Testing support is a base capability so that test-driven development is the low-friction path for both agents and humans.
+
+Portico ships a testkit (separate from the production runtime) that provides:
+
+- In-memory session fixtures that exercise the real effect-application path with no network and an in-memory store.
+- Helpers to send input or invoke actions and assert on the current scene, rendered output, local state, persisted values, transitions, and broadcasts.
+- Multi-session fixtures for testing spaces, presence, and shared state.
+- Exposure of the same definition validation used at load time, so tests fail fast on broken references.
+- Optional lightweight string snapshots for non-trivial scene output.
+
+Scaffolds may emit a starter test alongside generated definitions. The testkit reuses the real runtime apply logic and Store interface so tests remain honest. Full end-to-end tests over a live SSH port are possible but are not the default path.
 
 These capabilities stay inside the runtime and the identity layer. Payment providers, mail servers, search engines, media streaming, clustering, and unrestricted plugin execution remain outside the base framework and are reached only through explicit extension points when needed.
 
@@ -243,6 +257,8 @@ portico/
 │   ├── guestbook.go
 │   ├── chat.go
 │   └── landing.go
+├── testkit/
+│   └── testkit.go             // in-memory session fixtures and assertions
 └── internal/
     └── ...                    // shared unexported helpers
 ```
@@ -439,4 +455,3 @@ Portico applies the Rails methodology—convention over configuration, named lay
 Agents are the primary authors. They work with declarative definitions of scenes, actions, spaces, identity, and assets. The runtime owns session lifecycle, rendering, input dispatch, presence, and persistence. Common patterns are available as scaffolds. Custom logic attaches at explicit extension points when the declarative path is insufficient.
 
 The result is a system in which creating, iterating on, and maintaining an SSH site is predictable, inspectable, and fast, while remaining open to experiences that the original designers did not anticipate. The name Portico reflects its role as the structured entrance through which SSH sessions arrive and through which agents and humans build what lies beyond.
-

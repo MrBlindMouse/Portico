@@ -23,6 +23,38 @@ func TestResolveInputPrefixCommand(t *testing.T) {
 	}
 }
 
+func TestInputEligible(t *testing.T) {
+	exp, _ := experience.NewBuilder().
+		Root("home").
+		Scene("home", experience.Scene{
+			Render: func(experience.RenderContext) string { return "" },
+			Inputs: map[string]experience.ActionID{"go": "go", "OK": "ack"},
+		}).
+		Action("go", experience.Action{Run: func(experience.ActionContext) []experience.Effect { return nil }}).
+		Action("ack", experience.Action{Run: func(experience.ActionContext) []experience.Effect { return nil }}).
+		Build()
+	if !runtime.InputEligible(exp, "home", "go there") {
+		t.Fatal("prefix should be eligible")
+	}
+	if !runtime.InputEligible(exp, "home", "OK") {
+		t.Fatal("OK registered — should be eligible")
+	}
+	exp2, _ := experience.NewBuilder().
+		Root("landing").
+		Scene("landing", experience.Scene{
+			Render: func(experience.RenderContext) string { return "" },
+			Inputs: map[string]experience.ActionID{"greet": "g"},
+		}).
+		Action("g", experience.Action{Run: func(experience.ActionContext) []experience.Effect { return nil }}).
+		Build()
+	if runtime.InputEligible(exp2, "landing", "OK") {
+		t.Fatal("OK not registered on landing")
+	}
+	if runtime.InputEligible(exp2, "landing", "KITTY_DATA_START") {
+		t.Fatal("kitty marker not a command")
+	}
+}
+
 func TestResolveInputMissing(t *testing.T) {
 	exp, _ := experience.NewBuilder().
 		Root("home").

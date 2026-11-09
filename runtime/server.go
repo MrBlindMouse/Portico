@@ -23,13 +23,13 @@ import (
 
 // ServerConfig configures the SSH server.
 type ServerConfig struct {
-	Addr         string
-	DataDir      string
-	HostKeyPath  string
-	IdleTimeout   time.Duration
-	MaxConns      int
-	MaxConnsPerIP int
-	Logger        *slog.Logger
+	Addr              string
+	DataDir           string
+	HostKeyPath       string
+	IdleTimeout       time.Duration
+	MaxConns          int
+	MaxConnsPerIP     int
+	Logger            *slog.Logger
 	Accounts          *AccountConfig
 	AllowKeys         []string
 	DenyKeys          []string
@@ -226,8 +226,14 @@ func (s *Server) handleSession(sess ssh.Session) {
 	}()
 
 	term := NewSSHTerminal(sess)
+	var lastW, lastH int
 	term.OnResize(func(w, h int) {
+		if w == lastW && h == lastH {
+			return
+		}
+		lastW, lastH = w, h
 		_ = s.engine.Render(child, term)
+		term.RestoreInputLine()
 	})
 
 	var activity chan struct{}

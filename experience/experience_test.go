@@ -20,6 +20,21 @@ func TestBuildUndefinedAction(t *testing.T) {
 	}
 }
 
+func TestBuildKeySceneRejectsWords(t *testing.T) {
+	_, err := experience.NewBuilder().
+		Root("home").
+		Scene("home", experience.Scene{
+			Render: func(experience.RenderContext) string { return "hi" },
+			Keys:   true,
+			Inputs: map[string]experience.ActionID{"north": "go"},
+		}).
+		Action("go", experience.Action{Run: func(experience.ActionContext) []experience.Effect { return nil }}).
+		Build()
+	if err == nil || !strings.Contains(err.Error(), "one character") {
+		t.Fatalf("got err=%v", err)
+	}
+}
+
 func TestBuildRequiresRoot(t *testing.T) {
 	_, err := experience.NewBuilder().
 		Scene("home", experience.Scene{
