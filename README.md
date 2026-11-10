@@ -8,7 +8,7 @@ In a new directory (outside this repo):
 
 ```bash
 mkdir my-site && cd my-site
-go run github.com/MrBlindMouse/Portico/cmd/portico@v0.1.1 init -module github.com/you/my-site
+go run github.com/MrBlindMouse/Portico/cmd/portico@latest init -module github.com/you/my-site
 go run .
 ```
 
@@ -23,11 +23,31 @@ go run github.com/MrBlindMouse/Portico/cmd/portico generate landing
 go run github.com/MrBlindMouse/Portico/cmd/portico generate -list
 ```
 
-More for site authors: [docs/building-a-site.md](docs/building-a-site.md) and the [manual](docs/manual/README.md) (`go run github.com/MrBlindMouse/Portico/cmd/portico docs -tag v0.1.1`).
+More for site authors: [docs/building-a-site.md](docs/building-a-site.md) and the [manual](docs/manual/README.md) (`go run github.com/MrBlindMouse/Portico/cmd/portico@latest docs`).
 
 ---
 
-Contributors: vision in [DESIGN.md](DESIGN.md); rules for this tree in [AGENTS.md](AGENTS.md).
+## Contributing
+
+This repository is the **framework** ([DESIGN.md](DESIGN.md), [AGENTS.md](AGENTS.md)). Site-specific work belongs in your own module after `portico init`.
+
+| Need | Where |
+|------|--------|
+| Bug report | [Open a GitHub issue](https://github.com/MrBlindMouse/Portico/issues/new) — steps to reproduce, Portico version or `go.mod` tag, and what you expected |
+| Feature request | Same — describe the problem and proposed behavior; check [DESIGN.md](DESIGN.md) non-goals first |
+| Framework change | Fork, branch, open a **pull request** against `main`; keep the diff focused |
+
+Before opening a PR, run the same checks as CI:
+
+```bash
+go test ./...
+go vet ./...
+go test ./internal/archtest/...
+```
+
+For plan source edits, also run `go generate ./cmd/portico` and `go test ./cmd/portico/ -run TestPlanEmbedMatchesSource`. Do not open drive-by refactors unrelated to the issue.
+
+Questions and ideas are welcome on issues; there is no separate discussion forum.
 
 ## Verify
 

@@ -1,6 +1,6 @@
 # Hello
 
-Framework **smoke test** for CI and local verification. It is not a site to copy. Create a site with `go run github.com/MrBlindMouse/Portico/cmd/portico@v0.1.1 init`, then `go run github.com/MrBlindMouse/Portico/cmd/portico generate <name>` in that module for each plan you want to own and edit.
+Framework **smoke test** for CI and local verification. It is not a site to copy. Create a site with `go run github.com/MrBlindMouse/Portico/cmd/portico@latest init`, then `go run github.com/MrBlindMouse/Portico/cmd/portico@latest generate <name>` in that module for each plan you want to own and edit.
 
 `main` merges every plan (guestbook, chat, register, form, lobby, blog) behind a landing menu and serves them with `ServeDev`. A dev plaintext account store is on so `register` can create an account. One blog post is seeded as `post-1.md`.
 

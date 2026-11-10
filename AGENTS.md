@@ -6,6 +6,13 @@ Building an SSH site is a different job: import `github.com/MrBlindMouse/Portico
 
 **DESIGN.md is the vision contract; "Planned" there is not implemented until shipped.**
 
+## Contributing (framework repo)
+
+- **Bugs and feature requests:** open a [GitHub issue](https://github.com/MrBlindMouse/Portico/issues/new). Include repro steps, `go.mod` tag or commit, and expected vs actual behavior. Do not track site-only bugs here unless the framework API is wrong.
+- **Pull requests:** target `main`; one logical change per PR; run `go test ./...`, `go vet ./...`, and `go test ./internal/archtest/...` before push. Touch README or manual only when operators or site authors are affected.
+- **Plans:** after editing `internal/plans/*.go`, run `go generate ./cmd/portico` and `TestPlanEmbedMatchesSource`.
+- **Scope:** changes here are framework layers and `examples/hello` smoke coverage — not production sites (those live in separate modules).
+
 ## Audience
 
 | Who | Owns |
