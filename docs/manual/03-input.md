@@ -6,8 +6,10 @@ When `Scene.Keys` is **false** (default), the runtime reads a line of text and m
 
 1. **Exact match** on the full line (trimmed).
 2. Else **first word** prefix match (`register user pass` → input key `register`).
+3. Else optional **`OnLine`** action (non-empty line only). The full line is in `ctx.InputLine()`.
+4. Else optional **`OnEmpty`** action when the user submits an empty line (bare Enter).
 
-Unmatched lines print `no such command`.
+`OnLine` and `OnEmpty` are invalid on `Keys` scenes. Unmatched lines print `no such command` when no fallback is set.
 
 Use `ctx.InputLine()` in the action for the full line. Helpers: `components.ParseFields`, `components.Masked` (display only).
 

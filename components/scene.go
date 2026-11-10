@@ -11,6 +11,11 @@ import (
 type Scene struct {
 	Render func(ctx RenderContext) string
 	Inputs map[string]ActionID
+	// OnLine (line mode only) runs when a non-empty submitted line does not match Inputs.
+	// The full line is available via ActionContext.InputLine().
+	OnLine ActionID
+	// OnEmpty (line mode only) runs on an empty submit when set. Typical use: cancel.
+	OnEmpty ActionID
 	// Keys dispatches each bound key immediately. Input names must be one rune
 	// or a named key: enter, tab, backspace, delete, home, end, up, down, left, right.
 	// The line prompt is not used.

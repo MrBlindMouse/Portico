@@ -527,12 +527,6 @@ func (e *Engine) RunLoop(sess *Session, term Terminal, activity chan<- struct{})
 		if err != nil {
 			return err
 		}
-		if in == "" {
-			if e.log != nil {
-				e.log.Debug("input_empty", "session", sess.ID(), "read_ms", readMs)
-			}
-			continue
-		}
 		if IsTerminalProtocolLine(in) {
 			if e.log != nil {
 				preview, n := logInputAttrs(in)
@@ -551,6 +545,12 @@ func (e *Engine) RunLoop(sess *Session, term Terminal, activity chan<- struct{})
 		e.mu.RUnlock()
 		scene := sess.CurrentScene()
 		if !InputEligible(exp, scene, in) {
+			if in == "" {
+				if e.log != nil {
+					e.log.Debug("input_empty", "session", sess.ID(), "read_ms", readMs)
+				}
+				continue
+			}
 			if e.log != nil {
 				preview, n := logInputAttrs(in)
 				e.log.Debug("input_ineligible",

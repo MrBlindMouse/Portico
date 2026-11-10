@@ -21,8 +21,9 @@
 //     KITTY_DATA_END; OK and every other line in that window are absorbed. A line with
 //     a space ends the window early and is kept as a command. Short tokens such as
 //     "OK" outside that window may still reach scene eligibility.
-//  3. Scene eligibility (dispatcher InputEligible + engine RunLoop): dispatch only when
-//     the line matches the scene Inputs map. Any other line prints "no such command".
+//  3. Scene eligibility (dispatcher InputEligible + engine RunLoop): dispatch when the
+//     line matches Inputs, or line-mode OnLine / OnEmpty fallbacks. Other lines print
+//     "no such command". Empty lines are ignored unless OnEmpty is set on the scene.
 //
 // RunLoop repeats step 2 as a guard; step 1 never returns obvious protocol lines from
 // readUserCommand, but callers other than SSHTerminal may feed HandleInput directly.

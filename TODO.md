@@ -6,47 +6,13 @@ What is still missing inside the framework:
 
 ## 1. Process-driven effects (shipped)
 
-`Host.Submit`, `SubmitToSpace`, and `SubmitAll` apply effects and repaint. See `docs/manual/reference/effects.md`. No timer and no event bus. Item 6 is the optional loop on top of this.
+`Host.Submit`, `SubmitToSpace`, and `SubmitAll` apply effects and repaint. See `docs/manual/reference/effects.md`. `portico.Every` is the optional ticker loop on top (item 6, shipped). No event bus.
 
-## 2. Testkit assertion surface
+## 2. Testkit assertion surface (shipped)
 
-DESIGN §7 asks for helpers that send input or invoke an action and assert on scene, rendered output, local state, persisted values, transitions, and broadcasts, plus multi-session fixtures. `docs/manual/08-testing.md` already tells sites to "drive actions, assert on scene, local state, renders". The kit does not do that yet.
+`testkit.Harness` exposes `Register`, `Do`, `MustDo`, `AssertScene`, `AssertLocal`, `AssertPersisted`, `AssertRenderedContains`, `SessionsIn`, and `AssertMemberRenderedContains`. See `docs/manual/08-testing.md` and `testkit/harness_test.go`.
 
-**What exists.** `testkit.Harness` (`testkit/testkit.go`) holds `*runtime.Engine` and `identity.Store`, built with `NewApplier` and `NewEngine`, so apply is the real one. `Session` / `SessionWithIdentity` call `runtime.NewSessionForTest` and do **not** `RegisterSession`. `MustBuild` fails the test on `Build`. The only harness test (`testkit/testkit_test.go`) drives `Engine.RunLoop` with `internal/faketerm`. Site tests that want a one-shot action today call `Engine.HandleInput` or `Applier.Apply` and read `Session.CurrentScene`, `LocalCopy`, `LastRender`, and `Store.Get` themselves. `Engine` and `Session` are `runtime` types. A site file that only uses inferred types from `h.Session(...)` does not need its own `runtime` import; a file that names those types does. Assertions should keep the `runtime` names inside `testkit`.
-
-**What to add.** Methods on `Harness`. They call the engine; they do not reimplement apply.
-
-```go
-func (h *Harness) Do(sess *runtime.Session, line string) error
-func (h *Harness) MustDo(t *testing.T, sess *runtime.Session, line string)
-
-func (h *Harness) AssertScene(t *testing.T, sess *runtime.Session, want components.SceneID)
-func (h *Harness) AssertLocal(t *testing.T, sess *runtime.Session, key string, want any)
-func (h *Harness) AssertPersisted(t *testing.T, idn identity.Identity, key string, want any)
-func (h *Harness) AssertRenderedContains(t *testing.T, sess *runtime.Session, substr string)
-
-func (h *Harness) SessionsIn(space components.SpaceID) []*runtime.Session
-```
-
-`Do` is `Engine.HandleInput`. That runs rate limits and hooks when the test set them, and it records broadcasts by rendering members. It does not render the actor (`RunLoop` does). `AssertRenderedContains` should call `Engine.RenderText`, which fills `LastRender`, rather than requiring a prior `RunLoop`. Compare `want` with `reflect.DeepEqual`. Failure text includes session id, key, got, and want.
-
-`SessionsIn` reads space membership, which exists only after `JoinSpace` has been applied. `NewSessionForTest` does not register or join. Document that multi-session tests `RegisterSession` (already required for reload tests in `runtime/engine_reload_test.go`) and join via `Do` or apply. Add `Harness.Register(sess *runtime.Session)` as a one-liner over `Engine.RegisterSession` so the site test does not mention `runtime` for that step.
-
-**Broadcast assertion.** There is no broadcast log. `HandleInput` renders each member and moves on. Do not add a counter in the engine for tests. Assert the observable result: after `Do` on a session that returns `BroadcastEffect`, another joined session's `RenderText` contains the updated space data. A helper can wrap that:
-
-```go
-func (h *Harness) AssertMemberRenderedContains(t *testing.T, space components.SpaceID, substr string)
-```
-
-It renders each `SessionsIn` member. An empty member list fails the test with the space id. That is the honest check. A count of `ApplyResult.Broadcast` would mean returning the result from `Do` (`Do` returns `error` today because `HandleInput` does). Optional: `Do` stays `error`; tests that need the result call `HandleInput` only if we later export a result. Not required for the first cut.
-
-**Snapshots.** `LastRender()` is the lightweight snapshot store already. A helper that writes `LastRender` to `testdata/<name>.golden` and compares is enough. Gate updates on an env var the repo already would accept (`-update` flag on the test, or `PORTICO_UPDATE_GOLDEN`). Skip this until a plan starter test needs it. String compare via `AssertRenderedContains` covers the DESIGN bullet for most scenes.
-
-**Transitions.** `AssertScene` after `MustDo` is the transition check. No extra helper.
-
-**Starter tests.** DESIGN says a plan may include a starter test when a site copies it. Put one next to item 4, in the generated file's `_test.go`, using this harness. Do not add starter tests that import `runtime`.
-
-**Constraint.** `installation` still must not import `runtime` (`internal/archtest`). `testkit` already imports `runtime`; that stays.
+**Still out of scope (v1):** golden `testdata` helpers; `Do` returning `ApplyResult`; starter `_test.go` in generated plans until a plan needs it.
 
 ## 3. Asset model is text-only
 
@@ -104,29 +70,11 @@ Host key path is `Options.HostKeyPath`, not part of this format.
 
 **Out of scope.** Schema for values inside `values`. Migrations of site-level keys. Changing `ExportAll` / `ImportAll`.
 
-## 6. Background tick helper
+## 6. Background tick helper (shipped)
 
-This is a loop on top of `Host.Submit` (item 1, shipped). It is still unbuilt. It is not a scheduler inside `runtime`.
+`portico.Every(ctx, interval, submit)` in package `portico`. Site-owned context and callback (`Host.Submit`, `RepaintScene`, …). See `docs/manual/reference/effects.md` and `docs/manual/06-running.md`. Not wired to SSH shutdown; not part of `Builder`.
 
-**What exists.** `asset.Poll` is the only periodic helper, and it updates assets, not effects. `render.SpinnerFrame` tells the site to advance the index itself. `Options.ShutdownGrace` and `Server` drain do not cancel site goroutines. `Host` has no `context` of its own today; `NewHost` starts the asset poll with `context.Background()`.
-
-**What to add.** A function in package `portico`, not in `runtime`:
-
-```go
-func Every(ctx context.Context, interval time.Duration, submit func() error)
-```
-
-The site owns the body: build the effect slice (it may change every tick) and call `Host.Submit`, `SubmitToSpace`, or `SubmitAll`. `Every` is `time.NewTicker`, call `submit`, stop the ticker when `ctx` is done. Log or return submit errors through an optional `onErr func(error)` argument only if the first form is awkward to use; prefer the site checking the error inside `submit` so `Every` stays one loop. Document that a nil ctx panics the same way `context` usage usually does, and that `interval <= 0` is a programming error (panic or return). Pick one and test it.
-
-Cancellation: the site passes `ctx` and cancels it from the process signal path it already owns. Do not hook `Every` to SSH shutdown inside the runtime. Document that a tick in flight may still `Submit` once after cancel, and item 1's draining check rejects it.
-
-Do not register ticks on `Builder`. A tick is process machinery, like the asset poll, not part of the installation graph.
-
-**Tests.** A short test with a cancellable context: `submit` runs at least once, and after cancel it stops. Use a tiny interval. No SSH.
-
-**Docs.** Same manual section as `Submit`. Example: ticker increments a spinner index with `SetLocalEffect` on one session, or `SpaceSetEffect` plus `BroadcastEffect` through the fan-out rule in item 1.
-
-**Out of scope.** Cron expressions, per-session timers stored in the installation, a hidden runtime loop.
+**Out of scope:** cron, per-session timers in the installation, a hidden `runtime` loop.
 
 ## 7. Wire and codegen docs
 

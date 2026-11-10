@@ -5,6 +5,7 @@
 //   - Build an installation with New() (components: scenes, actions, spaces; effects in installation); actions return effects only.
 //   - Call Serve or ServeDev with Options (data dir, limits, inspect HTTP).
 //   - Call NewHost when you need HotReload or OnReady before ListenAndServe.
+//   - Call Every from OnReady for periodic Host.Submit / RepaintScene (site-owned context).
 //
 // Do not import runtime or inspect from site code. After portico init, read AGENTS.md in the site repo;
 // use docs/manual and docs/site-agents.md at your go.mod tag (portico docs -tag <version>).

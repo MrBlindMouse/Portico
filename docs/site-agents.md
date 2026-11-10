@@ -119,6 +119,7 @@ Scene `Inputs` map **keys** to `ActionID`:
 
 - Exact line match, or **first word** prefix (`register user pass` → key `register`).
 - Multi-word commands: use `ctx.InputLine()` in the action.
+- Line mode only: `Scene.OnLine` runs for any other non-empty line; `Scene.OnEmpty` runs on bare Enter. Not valid with `Keys`.
 - `Scene.Keys` dispatches one bound key with no line prompt. Named keys are `enter`, `tab`, `backspace`, `delete`, `home`, `end`, `up`, `down`, `left`, and `right`. Anything else is one rune. `enter` confirms or opens. `backspace` goes back. `tab` moves to the next item. Bind `right` or space as well if you want those.
 
 ## Rendering
@@ -200,7 +201,7 @@ SSH clients stop when "none" succeeds, so a key or password is only used once th
 
 ## Testing
 
-Site integration tests can use **`testkit`** (`testkit.New(exp)`) for an in-memory engine and store. Prefer testing pure helpers and `Build()` validation when that is enough; full SSH e2e is optional.
+Site integration tests can use **`testkit`** (`testkit.New(exp)`) for an in-memory engine and store. Call `Register`, `MustDo`, and the `Assert*` helpers (see `docs/manual/08-testing.md`). Prefer testing pure helpers and `Build()` validation when that is enough; full SSH e2e is optional.
 
 ## Production notes
 

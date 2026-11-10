@@ -68,3 +68,60 @@ func TestResolveInputMissing(t *testing.T) {
 		t.Fatalf("err=%v", err)
 	}
 }
+
+func TestResolveInputOnLineOnEmpty(t *testing.T) {
+	var gotLine string
+	exp, err := installation.NewBuilder().
+		Root("home").
+		Scene("home", components.Scene{
+			Render:  func(components.RenderContext) string { return "" },
+			OnLine:  "submit-line",
+			OnEmpty: "cancel",
+			Inputs:  map[string]components.ActionID{"go": "go"},
+		}).
+		Action("go", components.Action{Run: func(components.ActionContext) []components.Effect { return nil }}).
+		Action("submit-line", components.Action{Run: func(ctx components.ActionContext) []components.Effect {
+			gotLine = ctx.InputLine()
+			return nil
+		}}).
+		Action("cancel", components.Action{Run: func(components.ActionContext) []components.Effect { return nil }}).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	aid, err := runtime.ResolveInput(exp, "home", "anything")
+	if err != nil || aid != "submit-line" {
+		t.Fatalf("onLine aid=%q err=%v", aid, err)
+	}
+	aid, err = runtime.ResolveInput(exp, "home", "")
+	if err != nil || aid != "cancel" {
+		t.Fatalf("onEmpty aid=%q err=%v", aid, err)
+	}
+	aid, err = runtime.ResolveInput(exp, "home", "go north")
+	if err != nil || aid != "go" {
+		t.Fatalf("prefix aid=%q err=%v", aid, err)
+	}
+	_ = gotLine
+	if !runtime.InputEligible(exp, "home", "free text") {
+		t.Fatal("OnLine should make free text eligible")
+	}
+	if !runtime.InputEligible(exp, "home", "") {
+		t.Fatal("OnEmpty should make empty eligible")
+	}
+}
+
+func TestBuildRejectsKeysWithOnLine(t *testing.T) {
+	_, err := installation.NewBuilder().
+		Root("home").
+		Scene("home", components.Scene{
+			Render: func(components.RenderContext) string { return "" },
+			Keys:   true,
+			OnLine: "x",
+			Inputs: map[string]components.ActionID{"a": "x"},
+		}).
+		Action("x", components.Action{Run: func(components.ActionContext) []components.Effect { return nil }}).
+		Build()
+	if err == nil || !strings.Contains(err.Error(), "OnLine") {
+		t.Fatalf("err=%v", err)
+	}
+}

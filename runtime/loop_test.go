@@ -123,3 +123,45 @@ func TestLoopIgnoresTerminalProtocolLines(t *testing.T) {
 		}
 	}
 }
+
+func TestLoopOnLineOnEmpty(t *testing.T) {
+	var (
+		lastLine string
+		emptyN   int
+	)
+	exp, err := installation.NewBuilder().
+		Root("home").
+		Scene("home", components.Scene{
+			Render:  func(ctx components.RenderContext) string { return "home" },
+			OnLine:  "submit",
+			OnEmpty: "cancel",
+		}).
+		Action("submit", components.Action{
+			Run: func(ctx components.ActionContext) []components.Effect {
+				lastLine = ctx.InputLine()
+				return nil
+			},
+		}).
+		Action("cancel", components.Action{
+			Run: func(ctx components.ActionContext) []components.Effect {
+				emptyN++
+				return nil
+			},
+		}).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := testkit.New(exp)
+	sess := h.Session("t", "home")
+	term := faketerm.New("", "typed blob")
+	if err := h.Engine.RunLoop(sess, term, nil); err == nil || !strings.Contains(err.Error(), "no more inputs") {
+		t.Logf("RunLoop err=%v", err)
+	}
+	if emptyN != 1 {
+		t.Fatalf("emptyN=%d", emptyN)
+	}
+	if lastLine != "typed blob" {
+		t.Fatalf("lastLine=%q", lastLine)
+	}
+}

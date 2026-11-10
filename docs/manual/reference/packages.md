@@ -2,7 +2,7 @@
 
 | Import | Use |
 |--------|-----|
-| `github.com/MrBlindMouse/Portico` | `New`, `Serve`, `ServeDev`, `Options`, `NewHost`, `Host` |
+| `github.com/MrBlindMouse/Portico` | `New`, `Serve`, `ServeDev`, `Options`, `NewHost`, `Host`, `Every` |
 | `.../components` | Scenes, actions, spaces, IDs, effects, contexts |
 | `.../installation` | Builder, `Build()`, `Installation`, wire, form/list helpers |
 | `.../render` | Terminal layout and theme |

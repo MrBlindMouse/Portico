@@ -14,9 +14,30 @@ if err != nil { t.Fatal(err) }
 Package `github.com/MrBlindMouse/Portico/testkit` provides an in-memory engine and store:
 
 ```go
-eng := testkit.New(exp)
-// drive actions, assert on scene, local state, renders
+h := testkit.New(exp)
+sess := h.Session("s", exp.Root())
+h.Register(sess)
+h.MustDo(t, sess, "go")
+h.AssertScene(t, sess, "other")
+h.AssertRenderedContains(t, sess, "welcome")
 ```
+
+`Harness` methods call the real engine apply path; they do not reimplement dispatch.
+
+| Method | Purpose |
+|--------|---------|
+| `Register(sess)` | Add session to the engine registry (needed for `Submit` and many multi-session tests) |
+| `Do` / `MustDo` | Run one input line (`HandleInput`) |
+| `AssertScene` | Current scene id |
+| `AssertLocal` | Session-local key (`reflect.DeepEqual`) |
+| `AssertPersisted` | Identity store value |
+| `AssertRenderedContains` | `Engine.RenderText` contains substring |
+| `SessionsIn(space)` | Registered sessions that have joined the space |
+| `AssertMemberRenderedContains` | At least one member's render contains substring (broadcast checks) |
+
+`Session` / `SessionWithIdentity` do not register or join spaces. Call `Register` before `Do`. Join spaces via effects in actions or `h.Applier().Apply`. Use `SessionsIn` only after join.
+
+`Do` does not repaint the actor the way `RunLoop` does; use `AssertRenderedContains` or `faketerm` + `Engine.Render` when you need terminal output.
 
 Use this for integration-style tests of actions and effects without opening a TCP port. Sites may import `testkit`; framework `runtime` tests use `fakessh` internally.
 

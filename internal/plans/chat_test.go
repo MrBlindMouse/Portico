@@ -55,17 +55,9 @@ func TestGuestbookSignPostsMessage(t *testing.T) {
 	}
 	h := testkit.New(exp)
 	sess := h.Session("s", exp.Root())
-	term := faketerm.New()
-	h.Engine.RegisterSession(sess)
-	if err := h.Engine.HandleInput(sess, "sign ships ahoy"); err != nil {
-		t.Fatal(err)
-	}
-	if err := h.Engine.Render(sess, term); err != nil {
-		t.Fatal(err)
-	}
-	if !term.Contains("guest: ships ahoy") {
-		t.Fatalf("frame=%q", term.LastFrame())
-	}
+	h.Register(sess)
+	h.MustDo(t, sess, "sign ships ahoy")
+	h.AssertRenderedContains(t, sess, "guest: ships ahoy")
 }
 
 func TestChatNickAndLeave(t *testing.T) {

@@ -40,6 +40,23 @@ host.HotReload(builder) // rejects invalid graphs or stranded sessions
 
 Use `Options.OnReady` to capture `*portico.Host` from `Serve` wiring. Details: [Hot reload](appendices/hot-reload.md).
 
+## Periodic updates
+
+Clocks, spinners, and other time-driven UI use the same `Host.Submit` helpers as one-off goroutines. Start a ticker from `OnReady` (or your own setup):
+
+```go
+portico.Options{
+    OnReady: func(h *portico.Host) {
+        ctx := signalCtx // cancellable context your main owns
+        go portico.Every(ctx, time.Second, func() error {
+            return h.RepaintScene("clock")
+        })
+    },
+}
+```
+
+`Every` is not tied to SSH shutdown; the site owns `ctx` and the interval. See [Effects](reference/effects.md#submit-from-the-process).
+
 ## Demo CLI (not your site entry)
 
 ```bash

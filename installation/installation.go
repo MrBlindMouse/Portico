@@ -278,6 +278,20 @@ func (b *Builder) Build() (*Installation, error) {
 		if sc.Keys && len(sc.Inputs) == 0 {
 			return nil, fmt.Errorf("portico: scene %q has Keys set and no inputs", id)
 		}
+		if sc.Keys && (sc.OnLine != "" || sc.OnEmpty != "") {
+			return nil, fmt.Errorf("portico: scene %q has Keys set with OnLine or OnEmpty", id)
+		}
+		for _, aid := range []components.ActionID{sc.OnLine, sc.OnEmpty} {
+			if aid == "" {
+				continue
+			}
+			if err := aid.Validate(); err != nil {
+				return nil, fmt.Errorf("portico: scene %q: %w", id, err)
+			}
+			if _, ok := b.actions[aid]; !ok {
+				return nil, fmt.Errorf("portico: undefined action %q referenced from scene %q", aid, id)
+			}
+		}
 		for input, aid := range sc.Inputs {
 			if err := aid.Validate(); err != nil {
 				return nil, fmt.Errorf("portico: scene %q input %q: %w", id, input, err)

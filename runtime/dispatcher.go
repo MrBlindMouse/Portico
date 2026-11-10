@@ -9,7 +9,8 @@ import (
 	"github.com/MrBlindMouse/Portico/installation"
 )
 
-// InputEligible reports whether input could dispatch in scene (exact key or first token).
+// InputEligible reports whether input could dispatch in scene (exact key, first token,
+// or line-mode OnLine / OnEmpty fallbacks).
 // Lines that fail this check are not user commands for the current scene—for example
 // terminal acknowledgements such as "OK" when the scene only defines greet/go/….
 func InputEligible(exp *installation.Installation, scene components.SceneID, input string) bool {
@@ -17,6 +18,42 @@ func InputEligible(exp *installation.Installation, scene components.SceneID, inp
 	if !ok {
 		return false
 	}
+	if inputMatchesSceneInputs(sc, input) {
+		return true
+	}
+	if input == "" && sc.OnEmpty != "" {
+		return true
+	}
+	if input != "" && sc.OnLine != "" {
+		return true
+	}
+	return false
+}
+
+// ResolveInput maps a raw input token to an action id for the current scene.
+func ResolveInput(exp *installation.Installation, scene components.SceneID, input string) (components.ActionID, error) {
+	sc, ok := exp.Scene(scene)
+	if !ok {
+		return "", fmt.Errorf("portico: no action for input %q in scene %q", input, scene)
+	}
+	if aid, ok := sc.Inputs[input]; ok {
+		return aid, nil
+	}
+	if head, _, found := strings.Cut(input, " "); found {
+		if aid, ok := sc.Inputs[head]; ok {
+			return aid, nil
+		}
+	}
+	if input == "" && sc.OnEmpty != "" {
+		return sc.OnEmpty, nil
+	}
+	if input != "" && sc.OnLine != "" {
+		return sc.OnLine, nil
+	}
+	return "", fmt.Errorf("portico: no action for input %q in scene %q", input, scene)
+}
+
+func inputMatchesSceneInputs(sc components.Scene, input string) bool {
 	if _, ok := sc.Inputs[input]; ok {
 		return true
 	}
@@ -26,19 +63,6 @@ func InputEligible(exp *installation.Installation, scene components.SceneID, inp
 		}
 	}
 	return false
-}
-
-// ResolveInput maps a raw input token to an action id for the current scene.
-func ResolveInput(exp *installation.Installation, scene components.SceneID, input string) (components.ActionID, error) {
-	if !InputEligible(exp, scene, input) {
-		return "", fmt.Errorf("portico: no action for input %q in scene %q", input, scene)
-	}
-	sc, _ := exp.Scene(scene)
-	if aid, ok := sc.Inputs[input]; ok {
-		return aid, nil
-	}
-	head, _, _ := strings.Cut(input, " ")
-	return sc.Inputs[head], nil
 }
 
 // completeSceneInput extends a command prefix using the scene's input keys.
