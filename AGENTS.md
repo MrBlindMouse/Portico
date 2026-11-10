@@ -2,7 +2,7 @@
 
 Ops contract for agents changing **this repository** (the Portico framework).
 
-Building an SSH site is a different job: import `github.com/MrBlindMouse/Portico` in **your** module. Run `portico init` (writes **AGENTS.md** + **README.md** in the site); extend with [docs/site-agents.md](docs/site-agents.md) and the manual at your module tag. Do not add site scenes to this tree. `examples/hello` is a framework CI/capability probe only.
+Building an SSH site is a different job: import `github.com/MrBlindMouse/Portico` in **your** module. Run `portico init` (writes **AGENTS.md** + **README.md** in the site); extend with [docs/site-agents.md](docs/site-agents.md) and the manual at your module tag. Do not add site scenes to this tree. `examples/hello` is the framework smoke test (merges every plan; `TestEveryPlanFromLanding` in CI).
 
 **DESIGN.md is the vision contract; "Planned" there is not implemented until shipped.**
 
@@ -21,7 +21,7 @@ These commands are for **this repo** (framework CI and the bundled examples). A 
 ```bash
 go test ./...
 go vet ./...
-go run ./examples/hello   # capability probe, SSH on :2222
+go run ./examples/hello   # smoke test: every plan behind landing, SSH on :2222
 ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null localhost
 ```
 

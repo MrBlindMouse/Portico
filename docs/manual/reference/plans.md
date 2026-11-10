@@ -26,9 +26,14 @@ Later `Merge` wins when scene, action, or space **ids** collide. Merge landing l
 
 ## Commands (examples)
 
-- Guestbook: `sign <message>` (uses `InputLine()`)
-- Chat: `send <message>`, `join-chat`
+- Guestbook: `sign <message>` (shared list plus `Persist` of the signer's last line when they have a key or account)
+- Chat: `join-chat`, `leave`, `nick <name>`, `send <message>`
+- Lobby: `join`, `leave`, `ready`, `unready`, `start` (`ready` uses `SpaceCAS`)
+- Form: `start`, `next <value>`, `cancel` (finished answers are `Persist`ed for a key or account)
+- Blog: `open <id>`, `back` (last opened id is `Persist`ed for a key or account)
 - Registration: `register user pass`
+
+Each generated file opens with a **How to change this plan** comment. That comment is the editing guide for the copy.
 
 ```bash
 portico generate guestbook

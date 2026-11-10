@@ -1,6 +1,6 @@
 # Production and operations
 
-This chapter matches the [README Production](../../README.md#production) section with operational detail.
+Production guidance for sites that import Portico. Pair with [reference/options.md](reference/options.md).
 
 ## Listen addresses
 

@@ -4,8 +4,6 @@ A Portico site is a normal Go program: compose an **installation** from **compon
 
 ## Quick start
 
-Same flow as the [README](../README.md#create-a-site).
-
 ```bash
 mkdir my-site && cd my-site
 go run github.com/MrBlindMouse/Portico/cmd/portico@latest init -module github.com/you/my-site
@@ -95,5 +93,5 @@ curl -s http://127.0.0.1:9922/inspect/session/<id>
 ## More
 
 - [manual/README.md](manual/README.md) — operator and reference manual
-- [README.md](../README.md) — API tables and production
+- [manual/07-production.md](manual/07-production.md) — deploy and listen addresses
 - [DESIGN.md](../DESIGN.md) — architecture vision (not all items are shipped)

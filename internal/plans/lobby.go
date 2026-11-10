@@ -10,20 +10,38 @@ import (
 	"github.com/MrBlindMouse/Portico/render"
 )
 
-// Lobby adds a multiplayer-ready lobby space.
+// How to change this plan
+//
+// portico generate copies this file into the site. Edit the copy.
+//
+// Shape: one Space, one Scene, actions for join / leave / ready / unready / start,
+// Root "lobby". Inputs keys are the words typed. Render only reads.
+//
+// "ready" is one map on the space, not a field on the session. SpaceCAS
+// writes it only when the stored value still equals what this action read.
+// Copy the map before changing it (readyMap); the expect value must be the
+// old map, not the one you just edited. A lost race returns an error from
+// apply. Two sessions whose Identity.String() matches share one map entry
+// (two guests, or the same SSH login).
+//
+// leave sets this identity's entry to false, then LeaveSpace. A dropped
+// connection only runs LeaveSpace and OnLeave, so the map can still say
+// "ready" for someone who is gone until the next ready or unready.
+// "started" is a single flag; SpaceSet is enough there.
+
+// Lobby is a room that starts when every current member is ready.
 func Lobby() *installation.Builder {
 	b := installation.NewBuilder()
 	b.Space("lobby", components.Space{
-		OnJoin: []components.Effect{
-			components.BroadcastEffect("lobby"),
-		},
+		OnJoin:  []components.Effect{components.BroadcastEffect("lobby")},
+		OnLeave: []components.Effect{components.BroadcastEffect("lobby")},
 	})
 	b.Scene("lobby", components.Scene{
 		Render: func(ctx components.RenderContext) string {
 			members := ctx.Members("lobby")
 			ready, _ := ctx.SpaceLocal("lobby", "ready")
 			var body strings.Builder
-			body.WriteString("Commands: join | ready | unready | start\n\n")
+			body.WriteString("Commands: join | leave | ready | unready | start\n\n")
 			if flash, ok := ctx.Local("flash"); ok {
 				if s, ok := flash.(string); ok && s != "" {
 					body.WriteString(s)
@@ -40,6 +58,7 @@ func Lobby() *installation.Builder {
 		},
 		Inputs: map[string]components.ActionID{
 			"join":    "lobby-join",
+			"leave":   "lobby-leave",
 			"ready":   "lobby-ready",
 			"unready": "lobby-unready",
 			"start":   "lobby-start",
@@ -47,7 +66,25 @@ func Lobby() *installation.Builder {
 	})
 	b.Action("lobby-join", components.Action{
 		Run: func(ctx components.ActionContext) []components.Effect {
-			return []components.Effect{components.JoinSpaceEffect("lobby")}
+			return []components.Effect{
+				components.SetLocalEffect("flash", ""),
+				components.JoinSpaceEffect("lobby"),
+			}
+		},
+	})
+	b.Action("lobby-leave", components.Action{
+		Run: func(ctx components.ActionContext) []components.Effect {
+			if !ctx.Space().In("lobby") {
+				return []components.Effect{components.SetLocalEffect("flash", "not in the lobby")}
+			}
+			// lobbySetReady clears flash. The later SetLocal replaces it.
+			// Apply runs the slice in order; it is not rolled back on a later error.
+			effects := lobbySetReady(ctx, false)
+			effects = append(effects,
+				components.SetLocalEffect("flash", "left the lobby"),
+				components.LeaveSpaceEffect("lobby"),
+			)
+			return effects
 		},
 	})
 	b.Action("lobby-ready", components.Action{
@@ -71,6 +108,8 @@ func Lobby() *installation.Builder {
 			if !ctx.Space().In("lobby") {
 				return []components.Effect{components.SetLocalEffect("flash", "join the lobby first")}
 			}
+			// Members, not the map, decide who must be ready. A leftover map
+			// entry for someone who left does not block start.
 			ready := readyMap(ctx)
 			for _, m := range ctx.Space().Members("lobby") {
 				if !ready[m.String()] {
@@ -88,17 +127,24 @@ func Lobby() *installation.Builder {
 	return b
 }
 
+// lobbySetReady publishes a new ready map if the stored map is unchanged.
+// expect is nil when the key has never been set (CAS treats that as empty).
 func lobbySetReady(ctx components.ActionContext, ready bool) []components.Effect {
-	// ponytail: last write of the whole ready map wins; concurrent ready clicks can drop one update. Keys are Identity.String, so two sessions with the same SSH login (or both "guest") share one entry. Upgrade path is SpaceCAS plus a stable per-session id.
+	cur, ok := ctx.Space().Local("lobby", "ready")
+	var expect any
+	if ok {
+		expect = cur
+	}
 	m := readyMap(ctx)
 	m[ctx.Identity().String()] = ready
 	return []components.Effect{
+		components.SpaceCASEffect("lobby", "ready", expect, m),
 		components.SetLocalEffect("flash", ""),
-		components.SpaceSetEffect("lobby", "ready", m),
 		components.BroadcastEffect("lobby"),
 	}
 }
 
+// readyMap copies the space map so callers can edit the copy without changing expect.
 func readyMap(ctx components.ActionContext) map[string]bool {
 	out := map[string]bool{}
 	v, ok := ctx.Space().Local("lobby", "ready")

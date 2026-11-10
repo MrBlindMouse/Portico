@@ -10,6 +10,7 @@ import (
 	"github.com/MrBlindMouse/Portico/components"
 	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/MrBlindMouse/Portico/internal/plans"
+	"github.com/MrBlindMouse/Portico/runtime"
 )
 
 func main() {
@@ -21,7 +22,12 @@ func main() {
 	if v := os.Getenv("PORTICO_DATA"); v != "" {
 		dataDir = v
 	}
-	opts := portico.Options{DataDir: dataDir}
+	accounts := runtime.NewAccountStore()
+	opts := portico.Options{
+		DataDir:      dataDir,
+		AccountStore: accounts,
+		Accounts:     &runtime.AccountConfig{Enabled: true, Accounts: accounts},
+	}
 	if v := os.Getenv("PORTICO_LOG_LEVEL"); v != "" {
 		opts.LogLevel = v
 	}
@@ -34,9 +40,18 @@ func build() (*installation.Installation, error) {
 	return portico.New().
 		Merge(plans.Guestbook()).
 		Merge(plans.Chat()).
+		Merge(plans.Registration()).
+		Merge(plans.Form()).
+		Merge(plans.Lobby()).
+		Merge(plans.Blog()).
+		Asset("post-1.md", "hello post").
 		Merge(plans.Landing(map[string]components.SceneID{
 			"guestbook": "guestbook",
 			"chat":      "chat",
+			"register":  "register",
+			"form":      "form",
+			"lobby":     "lobby",
+			"blog":      "blog-list",
 		})).
 		Build()
 }

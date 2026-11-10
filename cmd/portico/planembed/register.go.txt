@@ -10,8 +10,21 @@ import (
 	"github.com/MrBlindMouse/Portico/render"
 )
 
-// Registration adds scenes for account registration when password auth is enabled.
-// Works with plaintext dev stores and identity.FileAccountStore (bcrypt). Mail verification is an external extension point.
+// How to change this plan
+//
+// portico generate copies this file into the site. Edit the copy.
+//
+// Root scene is "register". The command is "register <username> <password>".
+// RegisterAccountEffect writes the account store configured in portico.Options
+// (dev AccountStore, or HashedAccounts + DataDir for bcrypt files). If no
+// store is set, apply returns an error and the flash in this slice may
+// already have been cleared: effects are not a transaction.
+// Creating an account does not sign this SSH session in. The visitor
+// reconnects with that username and password. Checking mail is not this plan.
+// ValidateUsername allows letters, digits, "_" and "-". The password is the
+// rest of the line after the first space (it may contain spaces).
+
+// Registration creates a password account.
 func Registration() *installation.Builder {
 	b := installation.NewBuilder()
 	inputs := map[string]components.ActionID{
@@ -41,6 +54,7 @@ func Registration() *installation.Builder {
 			return []components.Effect{
 				components.SetLocalEffect("flash", ""),
 				components.RegisterAccountEffect(user, pass),
+				// Replaces the empty flash when registration succeeds.
 				components.SetLocalEffect("flash", "account created — reconnect to sign in"),
 			}
 		},
@@ -76,6 +90,7 @@ func registerBody(ctx components.RenderContext, inputs map[string]components.Act
 	return strings.TrimRight(b.String(), "\n")
 }
 
+// parseTwoFields splits "user secret words" into user and "secret words".
 func parseTwoFields(s string) (string, string) {
 	a, b, found := strings.Cut(s, " ")
 	if !found {

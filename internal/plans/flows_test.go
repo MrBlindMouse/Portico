@@ -129,6 +129,18 @@ func TestLobbyReadyAndStart(t *testing.T) {
 	if !term.Contains("Started.") {
 		t.Fatalf("frame=%q", term.LastFrame())
 	}
+	if err := eng.HandleInput(sess, "leave"); err != nil {
+		t.Fatal(err)
+	}
+	if err := eng.Render(sess, term); err != nil {
+		t.Fatal(err)
+	}
+	if !term.Contains("left the lobby") || !term.Contains("No one in lobby") {
+		t.Fatalf("frame=%q", term.LastFrame())
+	}
+	if term.Contains("Ready: guest") {
+		t.Fatalf("ready survived leave: %q", term.LastFrame())
+	}
 }
 
 func TestFormStepsAndMenu(t *testing.T) {

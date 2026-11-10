@@ -2,7 +2,7 @@
 
 Operator and reference documentation for **site authors** who import `github.com/MrBlindMouse/Portico`. Pin this tree to the **same git tag** as the `require` line in your site's `go.mod`.
 
-**Normative contract:** If a feature is not described here, in [building-a-site.md](../building-a-site.md), [site-agents.md](../site-agents.md), the [README](../../README.md), or `go doc`, treat it as **not shipped**—even if it appears in [DESIGN.md](../../DESIGN.md).
+**Normative contract:** If a feature is not described here, in [building-a-site.md](../building-a-site.md), [site-agents.md](../site-agents.md), or `go doc`, treat it as **not shipped**—even if it appears in [DESIGN.md](../../DESIGN.md) or the framework [README](../../README.md).
 
 ## How to use this manual
 
@@ -58,5 +58,5 @@ portico docs -tag vX.Y.Z
 | **AGENTS.md** in site repo (from `portico init`) | Primary AI agent entry |
 | [site-agents.md](../site-agents.md) | Extended agent contract (same tag as `go.mod`) |
 | [building-a-site.md](../building-a-site.md) | Short human how-to |
-| [README.md](../../README.md) | Framework entry + options summary |
+| [README.md](../../README.md) | Framework repository (contributors) |
 | [AGENTS.md](../../AGENTS.md) | Framework contributors only |

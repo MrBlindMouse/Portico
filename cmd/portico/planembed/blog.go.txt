@@ -10,7 +10,22 @@ import (
 	"github.com/MrBlindMouse/Portico/render"
 )
 
-// Blog adds blog-list and blog-post scenes. Load assets named post-<id>.
+// How to change this plan
+//
+// portico generate copies this file into the site. Edit the copy.
+//
+// Root is "blog-list". "open <id>" transitions to "blog-post"; "back" returns.
+// Posts are assets whose names start with "post-". Load them with
+// builder.Asset in main, or Options.AssetDir (files the runtime watches).
+// Anything that does not start with "post-" is ignored by the list.
+// The id the visitor types is the part after "post-" ("open 1.md" loads
+// asset "post-1.md"). A missing asset is a render string, not an error effect.
+//
+// post_id is session-local so the post scene can read it after Transition.
+// blog_last is Persist of that same id, only when the identity has a
+// fingerprint, so the list can show "Last opened" on a later connection.
+
+// Blog lists post assets and opens one.
 func Blog() *installation.Builder {
 	b := installation.NewBuilder()
 	b.Scene("blog-list", components.Scene{
@@ -48,10 +63,15 @@ func Blog() *installation.Builder {
 					components.SetLocalEffect("flash", "usage: open <post-id>"),
 				}
 			}
-			return []components.Effect{
+			effects := []components.Effect{
+				components.SetLocalEffect("flash", ""),
 				components.SetLocalEffect("post_id", id[0]),
 				components.TransitionEffect("blog-post"),
 			}
+			if ctx.Identity().Fingerprint() != "" {
+				effects = append(effects, components.PersistEffect("blog_last", id[0]))
+			}
+			return effects
 		},
 	})
 	b.Action("blog-back", components.Action{
@@ -72,6 +92,11 @@ func blogListBody(ctx components.RenderContext) string {
 			b.WriteString("\n\n")
 		}
 	}
+	if last, ok := ctx.Persisted("blog_last"); ok {
+		b.WriteString("Last opened: ")
+		b.WriteString(fmt.Sprint(last))
+		b.WriteString("\n\n")
+	}
 	b.WriteString("Posts:\n")
 	var ids []string
 	for name := range ctx.Assets() {
@@ -80,7 +105,7 @@ func blogListBody(ctx components.RenderContext) string {
 			ids = append(ids, rest)
 		}
 	}
-	sort.Strings(ids)
+	sort.Strings(ids) // map iteration order is random; the list should not be
 	if len(ids) == 0 {
 		b.WriteString("  (none)\n")
 	} else {

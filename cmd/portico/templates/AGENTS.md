@@ -23,7 +23,7 @@ The CLI prints a merge line, e.g. `portico.New().Merge(Guestbook()).Build()`. Ad
 | `blog` | List and open post assets (`AssetDir`) |
 | `lobby` | Ready / start multiplayer room |
 
-Prefer adapting a plan over building a feature from scratch. Combine plans (e.g. `guestbook` + `chat` + `landing`) when the site needs more than one surface.
+Prefer adapting a plan over building a feature from scratch. Each generated file starts with **How to change this plan** — read that before editing. Combine plans (e.g. `guestbook` + `chat` + `landing`) when the site needs more than one surface. Chat shows `nick` and `leave`; lobby shows `SpaceCAS`; guestbook, form, and blog show `Persist` for a key or account.
 
 ## Pin the framework version
 
@@ -36,7 +36,7 @@ Replace `<tag>` below with your module version (e.g. `v0.2.0`).
 | Full reference | `https://github.com/MrBlindMouse/Portico/blob/<tag>/docs/manual/README.md` |
 | Extended agent notes | `https://github.com/MrBlindMouse/Portico/blob/<tag>/docs/site-agents.md` |
 | Human how-to | `https://github.com/MrBlindMouse/Portico/blob/<tag>/docs/building-a-site.md` |
-| Production / SSH on :22 | `https://github.com/MrBlindMouse/Portico/blob/<tag>/README.md` (Production) |
+| Production / SSH on :22 | `https://github.com/MrBlindMouse/Portico/blob/<tag>/docs/manual/07-production.md` |
 | Offline API | `go doc github.com/MrBlindMouse/Portico`, `…/components`, `…/installation` |
 
 ## Mental model

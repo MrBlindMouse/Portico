@@ -109,7 +109,7 @@ sudo setcap 'cap_net_bind_service=+ep' ./my-site
 
 Running as root works but is discouraged.
 
-More detail at your Portico version: [README#Production](https://github.com/MrBlindMouse/Portico/blob/<tag>/README.md#production) and [manual — Production](https://github.com/MrBlindMouse/Portico/blob/<tag>/docs/manual/07-production.md) (replace `<tag>` in `go.mod`).
+More detail: [Production](https://github.com/MrBlindMouse/Portico/blob/<tag>/docs/manual/07-production.md) and [Options](https://github.com/MrBlindMouse/Portico/blob/<tag>/docs/manual/reference/options.md) (replace `<tag>` in `go.mod`).
 
 ## Agents
 

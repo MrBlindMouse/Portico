@@ -40,6 +40,8 @@ Do not import plan sources from the framework module; only the copies in your re
 
 `Guestbook` and `Chat` read the rest of the line (`sign hello`, `send hello`) via `InputLine()`. Later `Merge` calls win on id collision. Session start/end hook slices append.
 
+Each generated file starts with **How to change this plan**. Read that before editing the copy. Chat includes `nick` and `leave`. Lobby ready uses `SpaceCAS`. Guestbook, form, and blog `Persist` only when the identity has a fingerprint.
+
 ## Hard rules
 
 1. **Actions return effects only** (`[]components.Effect`). Never mutate session or space state in site code.
