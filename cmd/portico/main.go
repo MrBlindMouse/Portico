@@ -54,8 +54,9 @@ func main() {
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: portico <init|generate|docs|inspect|wire|identity-export|account-export|account-import|serve -demo> [flags]\n")
 	fmt.Fprintf(os.Stderr, "  A site is your own Go module that imports this library.\n")
-	fmt.Fprintf(os.Stderr, "  Create one: portico init -module <module-path>   then: go run .\n")
-	fmt.Fprintf(os.Stderr, "  Guides: portico docs    (portico serve is only a -demo smoke test)\n")
+	fmt.Fprintf(os.Stderr, "  Create one: go run github.com/MrBlindMouse/Portico/cmd/portico@<tag> init -module <path>\n")
+	fmt.Fprintf(os.Stderr, "  Then in the site: go run github.com/MrBlindMouse/Portico/cmd/portico generate <plan>\n")
+	fmt.Fprintf(os.Stderr, "  Docs: go run …/cmd/portico docs -tag <version>   (portico serve is only -demo)\n")
 }
 
 func docsCmd(args []string) {

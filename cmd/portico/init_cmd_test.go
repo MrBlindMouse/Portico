@@ -1,35 +1,52 @@
 package main
 
 import (
+	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
-func TestWriteTemplateSkipExists(t *testing.T) {
+func TestInitCmdStdoutHints(t *testing.T) {
 	dir := t.TempDir()
-	if err := writeTemplate(dir, "AGENTS.md", "AGENTS.md", false); err != nil {
+	modRoot := filepath.Join(dir, "site")
+	if err := os.MkdirAll(modRoot, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := writeTemplate(dir, "AGENTS.md", "AGENTS.md", false); err == nil {
-		t.Fatal("expected error when file exists")
-	}
-}
-
-func TestWriteTemplateForce(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "main.go")
-	if err := os.WriteFile(path, []byte("old"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := writeTemplate(dir, "main.go", "main.tmpl", true); err != nil {
-		t.Fatal(err)
-	}
-	b, err := os.ReadFile(path)
+	// go mod init + go get need a module; init creates it via -module.
+	oldOut, oldErr := os.Stdout, os.Stderr
+	rOut, wOut, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(b) < 50 {
-		t.Fatalf("short main.go: %q", b)
+	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = wOut
+	os.Stderr = devNull
+	defer func() {
+		_ = devNull.Close()
+		os.Stdout = oldOut
+		os.Stderr = oldErr
+	}()
+
+	done := make(chan []byte)
+	go func() {
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, rOut)
+		done <- buf.Bytes()
+	}()
+
+	initCmd([]string{"-dir", modRoot, "-module", "example.com/init-hint-test"})
+	_ = wOut.Close()
+	out := <-done
+
+	if !bytes.Contains(out, []byte("go run github.com/MrBlindMouse/Portico/cmd/portico generate")) {
+		t.Fatalf("stdout missing generate hint: %q", out)
+	}
+	if bytes.Contains(out, []byte("Next: portico generate")) {
+		t.Fatalf("stdout still has bare portico generate: %q", out)
 	}
 }

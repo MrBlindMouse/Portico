@@ -110,7 +110,7 @@ Empty name and path separators fail at `Build` or at `AssetAny`, using the same 
 
 ## 4. Plan extraction (shipped)
 
-`portico generate <name> [-dir .] [-pkg name] [-force]` writes one plan into `-dir`. Names: `landing`, `guestbook`, `chat`, `register`, `form`, `blog`, `lobby`. Each plan builds on its own. `-list` prints them. `-pkg` defaults to the package clause already in `-dir`, otherwise `main`. The file is ordinary Go (`// Copied from Portico plan <name>. Edit freely.`). `guestbook` and `chat` also write `rest.go`, and a second plan that needs `rest.go` requires `-force` if that file is already there. There is no importable plans package for sites. Sources live in `internal/plans`. Plan sets are not part of this command. `portico init` stderr lists plan names; run `generate` after `init`.
+`portico generate <name> [-dir .] [-pkg name] [-force]` writes one plan into `-dir`. Names: `landing`, `guestbook`, `chat`, `register`, `form`, `blog`, `lobby`. Each plan builds on its own. `-list` prints them. `-pkg` defaults to the package clause already in `-dir`, otherwise `main`. The file is ordinary Go (`// Copied from Portico plan <name>. Edit freely.`). `guestbook` and `chat` also write `rest.go`, and a second plan that needs `rest.go` requires `-force` if that file is already there. There is no importable plans package for sites. Sources live in `internal/plans`. Plan sets are not part of this command. `portico init` stdout lists plan names; run `generate` after `init`.
 
 ## 5. Identity store version and migration
 

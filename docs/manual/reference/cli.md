@@ -42,7 +42,7 @@ In examples below, `portico` means whichever of the above you use.
 portico init [-dir .] [-module path] [-force]
 ```
 
-Runs `go mod init` when needed, `go get` Portico, writes `main.go`, `AGENTS.md`, and `README.md`. `main.go` is one scene and a `greet` action. Stderr prints the `go run … generate` line and lists plan names.
+Runs `go mod init` when needed, `go get` Portico, writes `main.go`, `AGENTS.md`, and `README.md`. `main.go` is one scene and a `greet` action. Stdout prints the `go run … generate` line and lists plan names.
 
 ## generate
 
