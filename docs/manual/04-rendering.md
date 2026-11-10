@@ -39,7 +39,7 @@ Store selected index in session-local state:
 - `installation.RenderList(ctx, key, items, visible)` draws the window as one string; selected row uses `>` and inverse role.
 - `installation.DrawList` / `render.Screen.DrawList` for lists inside a `Screen` layout.
 
-Bind `up`/`down` with `Scene.Keys: true`. Keys scenes use `WriteGrid` at paint time.
+Bind `up`/`down` with `Scene.Keys: true`. Bind `enter` to confirm or open, `backspace` to go back, and `tab` to move to the next item. `home`, `end`, and `delete` are named keys too. Keys scenes use `WriteGrid` at paint time.
 
 ## Forms
 

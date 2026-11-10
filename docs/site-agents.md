@@ -119,7 +119,7 @@ Scene `Inputs` map **keys** to `ActionID`:
 
 - Exact line match, or **first word** prefix (`register user pass` → key `register`).
 - Multi-word commands: use `ctx.InputLine()` in the action.
-- `Scene.Keys` dispatches one bound key (`up`, `down`, `left`, `right`, or one rune) with no line prompt. Use it for a list selection.
+- `Scene.Keys` dispatches one bound key with no line prompt. Named keys are `enter`, `tab`, `backspace`, `delete`, `home`, `end`, `up`, `down`, `left`, and `right`. Anything else is one rune. `enter` confirms or opens. `backspace` goes back. `tab` moves to the next item. Bind `right` or space as well if you want those.
 
 ## Rendering
 

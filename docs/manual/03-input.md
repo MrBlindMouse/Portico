@@ -15,8 +15,9 @@ Use `ctx.InputLine()` in the action for the full line. Helpers: `components.Pars
 
 When `Scene.Keys` is **true**:
 
-- Input names must be a **single rune** or `up`, `down`, `left`, `right` (`components.SingleKeyInput`).
+- Input names must be a **single rune** or a named key: `enter`, `tab`, `backspace`, `delete`, `home`, `end`, `up`, `down`, `left`, `right` (`components.SingleKeyInput`).
 - Keys dispatch immediately; there is no `>` line editor on that scene.
+- `enter` confirms or opens. `backspace` is the usual back. `tab` moves to the next item. Bind `right` or a rune such as space when you want those too.
 - Typical pattern: list navigation bound to `up`/`down` actions that return `installation.MoveList`.
 
 A scene with `Keys: true` **cannot** place a custom caret via `PlaceInput` during render (render fails).

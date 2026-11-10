@@ -283,7 +283,7 @@ func (b *Builder) Build() (*Installation, error) {
 				return nil, fmt.Errorf("portico: scene %q input %q: %w", id, input, err)
 			}
 			if sc.Keys && !components.SingleKeyInput(input) {
-				return nil, fmt.Errorf("portico: scene %q key %q must be one character or up/down/left/right", id, input)
+				return nil, fmt.Errorf("portico: scene %q key %q must be one character or a named key", id, input)
 			}
 			if _, ok := b.actions[aid]; !ok {
 				return nil, fmt.Errorf("portico: undefined action %q referenced from scene %q input %q", aid, id, input)

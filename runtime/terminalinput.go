@@ -857,6 +857,16 @@ func (ir *inputReader) readKey() (string, error) {
 			if ir.redraw != nil {
 				ir.redraw()
 			}
+		case 0x08, 0x7f:
+			if ir.namedKeyBlocked() || !ir.hasKey("backspace") {
+				continue
+			}
+			return "backspace", nil
+		case '\t':
+			if ir.namedKeyBlocked() || !ir.hasKey("tab") {
+				continue
+			}
+			return "tab", nil
 		case '\n', '\r':
 			if b == '\r' && ir.r.Buffered() > 0 {
 				if peek, _ := ir.r.Peek(1); len(peek) > 0 && peek[0] == '\n' {
@@ -865,7 +875,12 @@ func (ir *inputReader) readKey() (string, error) {
 			}
 			if len(ir.keyWire) > 0 || ir.kittyBootstrap || ir.conductor {
 				ir.finishKeyWireLine(string(ir.keyWire))
+				continue
 			}
+			if ir.namedKeyBlocked() || !ir.hasKey("enter") {
+				continue
+			}
+			return "enter", nil
 		case 0x1b:
 			if len(ir.keyWire) > 0 || ir.kittyBootstrap || ir.conductor {
 				ir.keyWire = append(ir.keyWire, b)
@@ -964,6 +979,9 @@ func (ir *inputReader) readKeyEscape() (string, error) {
 		if err != nil {
 			return "", err
 		}
+		if b == 'M' {
+			return "enter", nil
+		}
 		return arrowName(b), nil
 	default:
 		if b >= 0x20 && b <= 0x2f {
@@ -993,8 +1011,21 @@ func (ir *inputReader) readKeyCSI() (string, error) {
 			if ir.pasting {
 				return "", nil
 			}
-			if b == 'A' || b == 'B' || b == 'C' || b == 'D' {
-				return arrowName(b), nil
+			if csiSubmitsLine(b, params) {
+				return "enter", nil
+			}
+			if name := arrowName(b); name != "" {
+				return name, nil
+			}
+			if b == '~' {
+				switch csiFirstParam(params) {
+				case 1, 7:
+					return "home", nil
+				case 3:
+					return "delete", nil
+				case 4, 8:
+					return "end", nil
+				}
 			}
 			return "", nil
 		}
@@ -1014,9 +1045,18 @@ func arrowName(b byte) string {
 		return "right"
 	case 'D':
 		return "left"
+	case 'H':
+		return "home"
+	case 'F':
+		return "end"
 	default:
 		return ""
 	}
+}
+
+// namedKeyBlocked reports a key-mode read that must not dispatch a named key.
+func (ir *inputReader) namedKeyBlocked() bool {
+	return ir.pasting || len(ir.keyWire) > 0 || ir.kittyBootstrap || ir.conductor
 }
 
 // IsTerminalProtocolLine reports transport-level noise (not scene dispatch policy).

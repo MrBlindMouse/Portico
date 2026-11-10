@@ -98,6 +98,83 @@ func TestRunLoopKeyScene(t *testing.T) {
 	}
 }
 
+func TestRunLoopKeySceneEnter(t *testing.T) {
+	exp, err := installation.NewBuilder().
+		Root("home").
+		Scene("home", components.Scene{
+			Render: func(ctx components.RenderContext) string { return "home" },
+			Keys:   true,
+			Inputs: map[string]components.ActionID{"enter": "go"},
+		}).
+		Scene("other", components.Scene{
+			Render: func(ctx components.RenderContext) string { return "other" },
+		}).
+		Action("go", components.Action{
+			Run: func(ctx components.ActionContext) []components.Effect {
+				return []components.Effect{components.TransitionEffect("other")}
+			},
+		}).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, in := range []string{"\r", "\x1b[13~", "\x1bOM"} {
+		t.Run(in, func(t *testing.T) {
+			eng := NewEngine(exp, NewApplier(nil, identity.NewMemoryStore()))
+			sess := NewSessionForTest("t", identity.Anonymous(), "home")
+			term := newScriptTerminal(strings.NewReader(in))
+			if err := eng.RunLoop(sess, term, nil); err != nil && err != io.EOF {
+				t.Fatal(err)
+			}
+			if sess.CurrentScene() != "other" {
+				t.Fatalf("scene=%s frames=%v", sess.CurrentScene(), term.frames)
+			}
+		})
+	}
+}
+
+func TestRunLoopNamedKeys(t *testing.T) {
+	inputs := map[string]components.ActionID{
+		"tab":       "go",
+		"backspace": "go",
+		"delete":    "go",
+		"home":      "go",
+		"end":       "go",
+	}
+	exp, err := installation.NewBuilder().
+		Root("home").
+		Scene("home", components.Scene{
+			Render: func(ctx components.RenderContext) string { return "home" },
+			Keys:   true,
+			Inputs: inputs,
+		}).
+		Scene("other", components.Scene{
+			Render: func(ctx components.RenderContext) string { return "other" },
+		}).
+		Action("go", components.Action{
+			Run: func(ctx components.ActionContext) []components.Effect {
+				return []components.Effect{components.TransitionEffect("other")}
+			},
+		}).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, in := range []string{"\t", "\x7f", "\x08", "\x1b[3~", "\x1b[H", "\x1b[1~", "\x1bOH", "\x1b[F", "\x1b[4~", "\x1bOF"} {
+		t.Run(in, func(t *testing.T) {
+			eng := NewEngine(exp, NewApplier(nil, identity.NewMemoryStore()))
+			sess := NewSessionForTest("t", identity.Anonymous(), "home")
+			term := newScriptTerminal(strings.NewReader(in))
+			if err := eng.RunLoop(sess, term, nil); err != nil && err != io.EOF {
+				t.Fatal(err)
+			}
+			if sess.CurrentScene() != "other" {
+				t.Fatalf("scene=%s frames=%v", sess.CurrentScene(), term.frames)
+			}
+		})
+	}
+}
+
 func TestRunLoopEnterSequences(t *testing.T) {
 	exp, err := installation.NewBuilder().
 		Root("home").

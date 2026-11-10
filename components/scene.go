@@ -12,7 +12,8 @@ type Scene struct {
 	Render func(ctx RenderContext) string
 	Inputs map[string]ActionID
 	// Keys dispatches each bound key immediately. Input names must be one rune
-	// or up, down, left, right. The line prompt is not used.
+	// or a named key: enter, tab, backspace, delete, home, end, up, down, left, right.
+	// The line prompt is not used.
 	Keys bool
 	// ValidateLocal optionally rejects session-local writes in apply.
 	ValidateLocal func(key string, value any) error
@@ -21,7 +22,7 @@ type Scene struct {
 // SingleKeyInput reports whether name is legal on a Scene with Keys set.
 func SingleKeyInput(name string) bool {
 	switch name {
-	case "up", "down", "left", "right":
+	case "enter", "tab", "backspace", "delete", "home", "end", "up", "down", "left", "right":
 		return true
 	default:
 		return utf8.RuneCountInString(name) == 1 && name != ""

@@ -33,7 +33,7 @@ portico.New().
 - Missing root scene
 - Scene `Inputs` referencing unknown actions
 - Effects in space hooks referencing unknown scenes/spaces
-- `Keys: true` scenes with illegal input names (must be one rune or `up`/`down`/`left`/`right`)
+- `Keys: true` scenes with illegal input names (must be one rune or a named key: `enter`, `tab`, `backspace`, `delete`, `home`, `end`, arrows)
 
 Fix builder errors before debugging SSH behavior.
 
