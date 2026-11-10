@@ -205,7 +205,8 @@ var spinnerFrames = []string{"|", "/", "-", `\`}
 
 // SpinnerFrame returns one glyph for index i.
 // It does not advance. Store i in session-local state and change it with
-// SetLocalEffect when the site decides time has passed. Portico does not run a clock.
+// SetLocalEffect from an action, or from Host.Submit, which also repaints.
+// Portico does not run a clock.
 func SpinnerFrame(i int) string {
 	n := len(spinnerFrames)
 	i %= n

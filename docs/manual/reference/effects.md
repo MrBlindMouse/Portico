@@ -34,3 +34,27 @@ SpaceSetEffect / AppendSpaceListEffect → BroadcastEffect
 ```
 
 No in-process event bus.
+
+## Submit from the process
+
+Actions are not the only caller. A site goroutine (from `Options.OnReady`, or one the site starts) may apply the same effect values through `portico.Host`:
+
+| Method | Targets |
+|--------|---------|
+| `Submit(sessionID, effects)` | That registered session. Unknown id returns `no such session`. |
+| `SubmitToSpace(space, effects)` | Current members of the space. |
+| `SubmitAll(effects)` | Every registered session. |
+
+The site owns the trigger. Portico does not run a timer.
+
+`SpaceSet`, `SpaceCAS`, `AppendSpaceList`, and `Broadcast` run **once**. `SetLocal`, `Transition`, `Persist`, `JoinSpace`, `LeaveSpace`, `ReserveNickname`, and `RegisterAccount` run **once per target**. Applying the whole slice once per session would append a list many times.
+
+An empty member list or an empty session list applies nothing. To write a space nobody has joined, call `Submit` on any live session and include the space effects in that slice.
+
+After a successful apply, each target is repainted, and so is every member named by `Broadcast`. The line editor is restored. Action hooks, the action rate limiter, and the action counter are not used.
+
+Calls return `portico: shutting down` once the server is draining.
+
+A `Transition` that turns `Keys` on or off is noticed on the next read. The read already in progress is not interrupted.
+
+Apply is still not a transaction. If a later session rejects `ValidateLocal`, earlier sessions in that call are already updated. Those earlier sessions are repainted before the error is returned. The session that failed is repainted too, so any effect in its slice that applied before the failure is visible.

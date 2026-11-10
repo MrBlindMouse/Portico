@@ -24,6 +24,40 @@ func (h *Host) HotReload(b *installation.Builder) error {
 	return HotReload(h.Server, b)
 }
 
+// Submit applies effects to one live session and repaints it.
+// The site owns the trigger. This is not an action: no hooks, no rate limit.
+func (h *Host) Submit(sessID string, effects []components.Effect) error {
+	if err := h.notDraining(); err != nil {
+		return err
+	}
+	return h.engine.Submit(sessID, effects)
+}
+
+// SubmitToSpace applies effects to members of space and repaints them.
+// Space effects run once. An empty space applies nothing.
+func (h *Host) SubmitToSpace(space components.SpaceID, effects []components.Effect) error {
+	if err := h.notDraining(); err != nil {
+		return err
+	}
+	return h.engine.SubmitToSpace(space, effects)
+}
+
+// SubmitAll applies effects to every live session and repaints them.
+// Space effects run once.
+func (h *Host) SubmitAll(effects []components.Effect) error {
+	if err := h.notDraining(); err != nil {
+		return err
+	}
+	return h.engine.SubmitAll(effects)
+}
+
+func (h *Host) notDraining() error {
+	if h.Server != nil && h.Server.Draining() {
+		return fmt.Errorf("portico: shutting down")
+	}
+	return nil
+}
+
 // NewHost prepares a site without listening. Starts inspect/status HTTP and asset polling.
 func NewHost(addr string, exp *installation.Installation, opts Options) (*Host, error) {
 	if exp == nil {

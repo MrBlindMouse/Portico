@@ -111,6 +111,8 @@ Common effects: `SetLocalEffect`, `TransitionEffect`, `PersistEffect`, `JoinSpac
 
 Cross-session “events”: update space data, then `BroadcastEffect`. There is no in-process event bus.
 
+Outside an action, call `Host.Submit`, `SubmitToSpace`, or `SubmitAll` with the same effect values. The runtime applies them and repaints. The site owns the trigger (`Options.OnReady` or its own goroutine). Do not import `runtime` to apply effects. Space effects run once; session effects run once per target. An empty member list applies nothing — write that space with `Submit` on a live session. Calls fail while the server is draining. A `Transition` that changes `Keys` is read on the next input; the blocked read is not interrupted.
+
 ## Input dispatch
 
 Scene `Inputs` map **keys** to `ActionID`:
@@ -155,7 +157,7 @@ Run: func(ctx components.ActionContext) []components.Effect {
 },
 ```
 
-`render.Progress(done, total, width)` is a static bar. `render.SpinnerFrame(i)` is one glyph. Store `i` yourself and change it with `SetLocalEffect`. The framework does not tick a clock.
+`render.Progress(done, total, width)` is a static bar. `render.SpinnerFrame(i)` is one glyph. Store `i` yourself and change it with `SetLocalEffect` from an action or `Host.Submit`. The framework does not tick a clock.
 
 ## Caret
 

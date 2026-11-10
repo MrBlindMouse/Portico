@@ -4,44 +4,9 @@ DESIGN.md describes the framework. Section 16 of that file is the list of system
 
 What is still missing inside the framework:
 
-## 1. Process-driven effects
+## 1. Process-driven effects (shipped)
 
-DESIGN §7 lists this as an included helper. DESIGN §16 points at the same hook: a clock or webhook in the site submits effects; there is no bus to add. `TODO` previously named it in one line. It is still unbuilt.
-
-**What exists.** An action's `Run` returns `[]components.Effect`. `runtime/apply.go` `Applier.Apply` is the only mutator of session and space state (`runtime/AGENTS.md`). The live path that reaches it is `Engine.HandleInput` (`runtime/engine.go`): resolve the line, optional rate limit, optional action hooks, `Apply`, `onAction` counter, then redraw members named by `Broadcast`. `Engine.RunLoop` redraws the acting session after `HandleInput` returns and restores the line editor. `portico.Host` (`host.go`) exposes `HotReload` only. `Host.engine` is unexported. A site cannot call `Apply`, and it must not import `runtime`.
-
-Sessions that can be targeted are those `Server` registered in `engine.RegisterSession` (`runtime/server.go`). Space membership is a different set: `spaceRegistry.members`, filled by `JoinSpace` during apply (`runtime/spaces.go`). Terminals live in `sessionTerminals` (`memberTerminal`). A session with no terminal gets `noopTerminal`. `RedrawSessions` already skips that and calls `RestoreInputLine` on a `LineEditor`.
-
-`render.SpinnerFrame` documents the ceiling: the site stores the index and changes it with `SetLocalEffect`. Nothing advances it.
-
-**What to add.** Public methods on `*portico.Host`, implemented by one method on `*runtime.Engine` so the lock and the current `Installation` stay in one place:
-
-```go
-func (h *Host) Submit(sessID string, effects []components.Effect) error
-func (h *Host) SubmitToSpace(space components.SpaceID, effects []components.Effect) error
-func (h *Host) SubmitAll(effects []components.Effect) error
-```
-
-`Submit` looks the session up under `engine.mu`, copies the current `*Installation`, drops the lock, then `Applier.Apply`. Unknown id returns an error. Do not hold `engine.mu` across `Apply` or `Render`: `renderScene` takes `RLock`, and `SetInstallation` needs the write lock. Snapshot the installation pointer the same way `HandleInput` does, so a concurrent `HotReload` cannot swap the definition mid-apply. `SetInstallation` already refuses a swap that would strand a live session, so a registered session's scene and joined spaces exist on the installation you just read. The error to return is "no such session", plus whatever `Apply` already returns (undefined scene or space, `ValidateLocal`, failed CAS, nickname taken).
-
-**Redraw.** `HandleInput` does not paint the actor; `RunLoop` does. `Submit` has no loop waiting, so after a successful apply it must paint the target the way `RedrawSessions` does: `Render` plus `RestoreInputLine`, and skip `noopTerminal`. If `ApplyResult.Broadcast` is non-empty, paint those members the same way `HandleInput` does. Log a distinct `slog` event (session id, effect count, transitioned, broadcast count). Do not call `onAction`, the action rate limiter, or `ActionHooks`. Those belong to the input path; a tick would inflate the status counter and trip the limiter.
-
-**Fan-out is not "Apply this slice once per session".** `Apply` runs every effect against one `*Session`. These effects touch that session: `SetLocal`, `Transition`, `Persist`, `JoinSpace`, `LeaveSpace`, `ReserveNickname`, `RegisterAccount`. These touch the space registry and ignore which session was passed, except that they still go through the same function: `SpaceSet`, `SpaceCAS`, `AppendSpaceList`, `Broadcast`. Calling `Apply` once per member with one slice duplicates list appends, registers the account twice, and broadcasts N times. `SpaceSet` of the same value happens to be idempotent; do not rely on that.
-
-Rule for `SubmitToSpace` and `SubmitAll`:
-
-- Split the slice. Apply space effects once, using any one target session as the `Apply` argument (the session is unused for those cases).
-- Apply session effects once per target.
-- `SubmitToSpace` targets `spaceRegistry.members`. An empty space is a successful no-op for session effects; space effects still apply once so a poll can fill a space nobody has joined. Pass a nil session only if `Apply` is taught to accept it for space effects. Smaller change: require the space-effect call to use a real session when one exists, and add a package-level apply of space effects when the member list is empty. Do that only if a site needs to publish into an empty space. Until then, document that space writes with no member are done with `Submit` on any live session.
-- `SubmitAll` targets `Engine.Sessions()`.
-- Same non-transaction rule as `Apply`: a later session's `ValidateLocal` failure leaves earlier sessions already updated. Return the first error.
-- `Server.draining` (`runtime/server.go`): `Submit` returns an error once shutdown has set that flag, so a ticker cannot mutate a session that is leaving.
-
-**Tests.** One engine test: two registered sessions, one joined to a space, `Submit` a `SetLocal` plus `Broadcast`, assert local state, one list append (not two) when the slice also contains `AppendSpaceList` issued through the once-path, and that `Broadcast` scheduled a render. One test that an unknown session id errors. One test that `Submit` during an installation whose scene rejects `ValidateLocal` returns that error. No scheduler in these tests.
-
-**Docs.** `docs/manual/reference/effects.md` and the manual section that will sit next to item 6. State that the site owns the trigger. `SpinnerFrame` can then say the index moves by `Submit` of `SetLocalEffect`.
-
-**Out of scope.** A new effect type. An event bus. A runtime timer. Action hooks on this path.
+`Host.Submit`, `SubmitToSpace`, and `SubmitAll` apply effects and repaint. See `docs/manual/reference/effects.md`. No timer and no event bus. Item 6 is the optional loop on top of this.
 
 ## 2. Testkit assertion surface
 
@@ -141,7 +106,7 @@ Host key path is `Options.HostKeyPath`, not part of this format.
 
 ## 6. Background tick helper
 
-This is item 1 plus a loop. It waits on item 1. It is not a scheduler inside `runtime`.
+This is a loop on top of `Host.Submit` (item 1, shipped). It is still unbuilt. It is not a scheduler inside `runtime`.
 
 **What exists.** `asset.Poll` is the only periodic helper, and it updates assets, not effects. `render.SpinnerFrame` tells the site to advance the index itself. `Options.ShutdownGrace` and `Server` drain do not cancel site goroutines. `Host` has no `context` of its own today; `NewHost` starts the asset poll with `context.Background()`.
 

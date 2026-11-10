@@ -119,14 +119,20 @@ func (e *Engine) SetInstallation(exp *installation.Installation) error {
 // RedrawSessions paints the current scene for every session that has a terminal.
 func (e *Engine) RedrawSessions() {
 	for _, sess := range e.Sessions() {
-		term := memberTerminal(sess)
-		if _, skip := term.(noopTerminal); skip {
-			continue
-		}
-		_ = e.Render(sess, term)
-		if ed, ok := term.(LineEditor); ok {
-			ed.RestoreInputLine()
-		}
+		e.paintSession(sess)
+	}
+}
+
+// paintSession renders one session and restores the line editor.
+// A session with no terminal is skipped.
+func (e *Engine) paintSession(sess *Session) {
+	term := memberTerminal(sess)
+	if _, skip := term.(noopTerminal); skip {
+		return
+	}
+	_ = e.Render(sess, term)
+	if ed, ok := term.(LineEditor); ok {
+		ed.RestoreInputLine()
 	}
 }
 
