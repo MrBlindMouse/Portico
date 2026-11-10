@@ -4,6 +4,46 @@ func ansi(code, s string) string { return "\x1b[" + code + "m" + s + "\x1b[0m" }
 
 func plain(s string) string { return s }
 
+// Role is emphasis stored on Screen cells. Show applies it. Cells stay plain runes.
+type Role int
+
+const (
+	RolePlain Role = iota
+	RoleBold
+	RoleMuted
+	RoleError
+	RoleAccent
+	RoleOK
+	RoleWarn
+	RoleInverse
+)
+
+func (t Theme) wrap(role Role, s string) string {
+	var fn func(string) string
+	switch role {
+	case RoleBold:
+		fn = t.Bold
+	case RoleMuted:
+		fn = t.Muted
+	case RoleError:
+		fn = t.Error
+	case RoleAccent:
+		fn = t.Accent
+	case RoleOK:
+		fn = t.OK
+	case RoleWarn:
+		fn = t.Warn
+	case RoleInverse:
+		fn = t.Inverse
+	default:
+		return s
+	}
+	if fn == nil {
+		return s
+	}
+	return fn(s)
+}
+
 // Theme is a fixed set of emphasis roles. Layout stays in the other helpers.
 // Copy Default or Plain and replace a field to change one role.
 // Do not nest calls: each role resets SGR at the end of the string.

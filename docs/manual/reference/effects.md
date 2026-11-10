@@ -45,7 +45,7 @@ Actions are not the only caller. A site goroutine (from `Options.OnReady`, or on
 | `SubmitToSpace(space, effects)` | Current members of the space. |
 | `SubmitAll(effects)` | Every registered session. |
 
-The site owns the trigger. Portico does not run a timer.
+The site owns the trigger. Portico does not run a timer. `SubmitAll(nil)` repaints every registered session and applies nothing. `portico.Every` is still unbuilt.
 
 `SpaceSet`, `SpaceCAS`, `AppendSpaceList`, and `Broadcast` run **once**. `SetLocal`, `Transition`, `Persist`, `JoinSpace`, `LeaveSpace`, `ReserveNickname`, and `RegisterAccount` run **once per target**. Applying the whole slice once per session would append a list many times.
 

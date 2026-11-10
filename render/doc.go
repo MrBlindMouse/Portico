@@ -9,8 +9,10 @@
 //
 // Screen is a grid plus one optional caret rectangle. Draw and DrawWithin store
 // plain runes only—do not draw Theme role output or other ANSI into the grid.
-// Use Screen.DrawList for a marked list; Show applies inverse on marked rows
-// when the target implements ThemeSource (the runtime render context does).
+// Use Screen.DrawList for a marked list. Show applies inverse only on that
+// column span when the target implements ThemeSource (the runtime render
+// context does). MarkRole does the same for bold, muted, and the other roles.
+// SubmitAll(nil) repaints live sessions. portico.Every is not built.
 // Fit text first, then theme, for standalone strings from List, Box, and Table.
 //
 // DrawWithin clips a region. BoxBody, ListRow, and TableCell report the

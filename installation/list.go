@@ -52,7 +52,7 @@ func RenderList(ctx components.RenderContext, key string, items []string, visibl
 	return render.List(items, ListIndex(ctx, key), visible, w, ctx.Theme().Inverse)
 }
 
-// DrawList draws items on s with plain grid cells and inverse on the selected row at emit.
+// DrawList draws items on s with plain grid cells and inverse on the selected line's column at emit.
 // Index key matches RenderList. width and height clip the list region.
 func DrawList(s *render.Screen, ctx components.RenderContext, row, col, width, height int, key string, items []string, visible int) {
 	s.DrawList(row, col, width, height, items, ListIndex(ctx, key), visible)

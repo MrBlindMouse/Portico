@@ -10,7 +10,7 @@ Each scene returns one **string**. After every applied action batch (and on term
 - When `Theme` is nil and `NO_COLOR` is non-empty, `render.Plain` is used.
 - Otherwise `render.Default` ANSI roles apply: bold, muted, error, accent, ok, warn, inverse.
 
-Use `ctx.Theme()` in `Render`; apply roles after fitting text (`render` does not strip ANSI for width). Theme output is for terminal strings. `Screen` grid cells must stay plain—use `Screen.DrawList` for a marked list in a layout.
+Use `ctx.Theme()` in `Render`; apply roles after fitting text (`render` does not strip ANSI for width). Theme output is for terminal strings. `Screen` grid cells must stay plain. `Screen.DrawList` marks the selected column. `Screen.MarkRole` marks bold, muted, error, accent, ok, warn, or inverse on plain cells. `Show` injects the theme. `Host.SubmitAll(nil)` repaints every live session. There is no `portico.Every` yet.
 
 ## Text helpers
 
@@ -62,7 +62,8 @@ return s.Show(ctx)
 ```
 
 - `DrawWithin` clips so regions do not overwrite neighbors. Do not draw ANSI into the grid.
-- `DrawList` writes list rows as plain cells and applies inverse on `Show(ctx)`.
+- `DrawList` writes list rows as plain cells. Inverse on `Show(ctx)` covers the list column of the selected line.
+- `MarkRole` stores a theme role on plain cells. `Show` wraps each contiguous run.
 - One `Input` per frame; second call replaces the first.
 - `Keys: true` + placed input → render error.
 

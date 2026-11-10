@@ -23,19 +23,20 @@ type SlotTarget interface {
 	PlaceInput(Input)
 }
 
-// ThemeSource is optional on the Show target. When Screen has inverse rows,
-// emit applies Theme().Inverse to those rows only in the terminal string.
+// ThemeSource is optional on the Show target. Marked cells use Theme roles
+// only in the terminal string.
 type ThemeSource interface {
 	Theme() Theme
 }
 
 // Screen is a grid of cells a scene draws, plus at most one input rectangle.
+// role is parallel to cell. RolePlain is the zero value.
 type Screen struct {
-	w, h         int
-	cell         []rune
-	inverseRows  []bool
-	slot         Input
-	has          bool
+	w, h int
+	cell []rune
+	role []Role
+	slot Input
+	has  bool
 }
 
 // NewScreen returns a grid of spaces. Non-positive dimensions become 0.
@@ -50,7 +51,7 @@ func NewScreen(width, height int) *Screen {
 	for i := range cell {
 		cell[i] = ' '
 	}
-	return &Screen{w: width, h: height, cell: cell}
+	return &Screen{w: width, h: height, cell: cell, role: make([]Role, width*height)}
 }
 
 // Draw writes text at row, col. A newline returns to col on the next row.
@@ -90,9 +91,36 @@ func (s *Screen) DrawWithin(row, col, width, height int, text string) Rect {
 	return clipRect(row, col, width, height, s.w, s.h)
 }
 
+// MarkRole sets the theme role on one row from col for width cells.
+// A width of 0 or less runs through the right edge. Last call wins per cell.
+// The cells stay plain. Show applies the role.
+func (s *Screen) MarkRole(row, col, width int, role Role) {
+	if s == nil || s.w == 0 || s.h == 0 || row < 0 || row >= s.h {
+		return
+	}
+	if col < 0 {
+		width += col
+		col = 0
+	}
+	if col >= s.w {
+		return
+	}
+	if width <= 0 {
+		width = s.w - col
+	}
+	end := col + width
+	if end > s.w {
+		end = s.w
+	}
+	for c := col; c < end; c++ {
+		s.role[row*s.w+c] = role
+	}
+}
+
 // DrawList writes a list window at row, col with plain cells.
-// The selected row is marked inverse on emit; pass Show a ThemeSource to apply inverse.
-// width and height clip like DrawWithin. Returns the same region as ListRow.
+// The selected line is marked inverse only on that column span.
+// Pass Show a ThemeSource to apply the role. width and height clip like DrawWithin.
+// Returns the same region as ListRow.
 func (s *Screen) DrawList(row, col, width, height int, items []string, selected, visible int) Rect {
 	if s == nil || s.w == 0 || s.h == 0 {
 		return Rect{}
@@ -100,11 +128,6 @@ func (s *Screen) DrawList(row, col, width, height int, items []string, selected,
 	start, end, selected, ok := listWindow(len(items), selected, visible)
 	if !ok {
 		return Rect{Row: row, Col: col}
-	}
-	if len(s.inverseRows) < s.h {
-		grow := make([]bool, s.h)
-		copy(grow, s.inverseRows)
-		s.inverseRows = grow
 	}
 	for i := start; i < end; i++ {
 		lineRow := row + i - start
@@ -123,28 +146,17 @@ func (s *Screen) DrawList(row, col, width, height int, items []string, selected,
 			line = Truncate(line, width)
 		}
 		s.DrawWithin(lineRow, col, width, 1, line)
-		s.setRowInverse(lineRow, i == selected)
+		span := width
+		if span <= 0 {
+			span = runeLen(line)
+		}
+		role := RolePlain
+		if i == selected {
+			role = RoleInverse
+		}
+		s.MarkRole(lineRow, col, span, role)
 	}
 	return ListRow(row, col, items, selected, visible, width)
-}
-
-func (s *Screen) setRowInverse(row int, on bool) {
-	if row < 0 || row >= s.h {
-		return
-	}
-	if len(s.inverseRows) < s.h {
-		grow := make([]bool, s.h)
-		copy(grow, s.inverseRows)
-		s.inverseRows = grow
-	}
-	s.inverseRows[row] = on
-}
-
-func (s *Screen) rowInverse(row int) bool {
-	if row < 0 || row >= len(s.inverseRows) {
-		return false
-	}
-	return s.inverseRows[row]
 }
 
 func paneExtent(origin, size, limit int) int {
@@ -207,9 +219,11 @@ func (s *Screen) Input(row, col, width int, prompt string) {
 	s.has = true
 }
 
-// Show returns the grid. Trailing spaces on each row are removed.
+// Show returns the grid. Trailing plain spaces on each row are removed.
+// A non-plain role keeps its cells, including spaces, so a selection bar stays wide.
 // When Input was called and target is non-nil, the caret is placed on target.
 // The prompt is not part of the grid. The runtime paints it in the rectangle.
+// Roles are applied only when target implements ThemeSource.
 func (s *Screen) Show(target SlotTarget) string {
 	if s == nil {
 		return ""
@@ -217,20 +231,21 @@ func (s *Screen) Show(target SlotTarget) string {
 	if target != nil && s.has {
 		target.PlaceInput(s.slot)
 	}
-	var mark func(string) string
+	var th *Theme
 	if ts, ok := target.(ThemeSource); ok {
-		mark = ts.Theme().Inverse
+		t := ts.Theme()
+		th = &t
 	}
-	return s.emit(mark)
+	return s.emit(th)
 }
 
-// String returns the grid without a caret. Trailing spaces on each row are removed.
-// Inverse row marks are not applied; use Show with a ThemeSource for terminal styling.
+// String returns the grid without a caret or roles.
+// Trailing spaces on each row are removed.
 func (s *Screen) String() string {
 	return s.emit(nil)
 }
 
-func (s *Screen) emit(mark func(string) string) string {
+func (s *Screen) emit(th *Theme) string {
 	if s == nil || s.h == 0 {
 		return ""
 	}
@@ -239,12 +254,49 @@ func (s *Screen) emit(mark func(string) string) string {
 		if r > 0 {
 			b.WriteByte('\n')
 		}
-		line := string(s.cell[r*s.w : (r+1)*s.w])
-		line = strings.TrimRight(line, " ")
-		if mark != nil && line != "" && s.rowInverse(r) {
-			line = mark(line)
+		end := s.rowEnd(r, th != nil)
+		if end == 0 {
+			continue
 		}
-		b.WriteString(line)
+		if th == nil {
+			b.WriteString(string(s.cell[r*s.w : r*s.w+end]))
+			continue
+		}
+		c := 0
+		for c < end {
+			role := s.roleAt(r, c)
+			n := c + 1
+			for n < end && s.roleAt(r, n) == role {
+				n++
+			}
+			run := string(s.cell[r*s.w+c : r*s.w+n])
+			if role == RolePlain {
+				b.WriteString(run)
+			} else {
+				b.WriteString(th.wrap(role, run))
+			}
+			c = n
+		}
 	}
 	return b.String()
+}
+
+// rowEnd is the exclusive end column. Styled emit keeps a trailing non-plain
+// role so inverse padding is not trimmed. Plain emit stops at the last glyph.
+func (s *Screen) rowEnd(r int, keepRole bool) int {
+	end := 0
+	base := r * s.w
+	for c := 0; c < s.w; c++ {
+		if s.cell[base+c] != ' ' || (keepRole && s.roleAt(r, c) != RolePlain) {
+			end = c + 1
+		}
+	}
+	return end
+}
+
+func (s *Screen) roleAt(row, col int) Role {
+	if s == nil || len(s.role) != s.w*s.h || row < 0 || col < 0 || row >= s.h || col >= s.w {
+		return RolePlain
+	}
+	return s.role[row*s.w+col]
 }

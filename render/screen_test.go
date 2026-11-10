@@ -79,6 +79,44 @@ func TestDrawListPaneWidthAndTheme(t *testing.T) {
 	}
 }
 
+func TestDrawListInverseStaysInColumn(t *testing.T) {
+	s := render.NewScreen(24, 1)
+	s.Draw(0, 0, "Left")
+	s.DrawList(0, 10, 8, 1, []string{"Menu"}, 0, 0)
+	got := s.Show(&themeRec{th: render.Default})
+	inv := strings.Index(got, "\x1b[7m")
+	left := strings.Index(got, "Left")
+	if left < 0 || inv < 0 || left > inv {
+		t.Fatalf("%q", got)
+	}
+	if strings.Contains(got[:inv], "\x1b[") {
+		t.Fatalf("left pane styled: %q", got)
+	}
+	if !strings.Contains(got, "\x1b[7m> Menu  \x1b[0m") {
+		t.Fatalf("span %q", got)
+	}
+}
+
+func TestMarkRoleDoesNotShiftBorder(t *testing.T) {
+	s := render.NewScreen(20, 1)
+	s.Draw(0, 0, "Hi")
+	s.MarkRole(0, 0, 2, render.RoleBold)
+	s.Draw(0, 10, "│")
+	plain := s.String()
+	got := s.Show(&themeRec{th: render.Default})
+	if strings.Index(plain, "│") != 10 {
+		t.Fatalf("plain %q", plain)
+	}
+	stripped := strings.ReplaceAll(got, "\x1b[1m", "")
+	stripped = strings.ReplaceAll(stripped, "\x1b[0m", "")
+	if strings.Index(stripped, "│") != 10 {
+		t.Fatalf("styled %q stripped %q", got, stripped)
+	}
+	if !strings.Contains(got, "\x1b[1mHi\x1b[0m") {
+		t.Fatalf("bold %q", got)
+	}
+}
+
 func TestDrawListTwoPanesStableWidth(t *testing.T) {
 	s := render.NewScreen(24, 3)
 	items := []string{"one", "two", "three", "four"}

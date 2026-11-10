@@ -44,7 +44,7 @@ type RenderContext interface {
 	// Theme is the site theme for this session.
 	// The runtime uses render.Default unless Options.Theme or NO_COLOR selects another.
 	// Roles produce terminal strings. Fit text first, then apply roles. On render.Screen,
-	// keep grid draws plain; use Screen.DrawList for a marked list (Show applies inverse).
+	// keep grid draws plain; use Screen.DrawList or Screen.MarkRole (Show applies the role on those cells).
 	Theme() render.Theme
 	// PlaceInput records the single caret rectangle for this frame.
 	// It does not change session state. A second call replaces the first.

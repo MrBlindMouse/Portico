@@ -130,7 +130,7 @@ Scene `Inputs` map **keys** to `ActionID`:
 
 Fit and draw with `render`: `Wrap`, `Truncate`, `Pad`, `AlignLeft`, `AlignRight`, `AlignCenter`, `Box`, `Columns`, `Table`, `List`, `Progress`, `SpinnerFrame`. Widths are rune counts. Style a string after you fit it. These helpers do not skip ANSI codes.
 
-On `render.Screen`, only plain runes go in the grid. Do not pass `ctx.Theme()` output into `Draw` or `DrawWithin` (CSI counts as cells and breaks pane width). Use a full string for a one-shot frame, or `Screen.DrawList` for a list inside a layout.
+On `render.Screen`, only plain runes go in the grid. Do not pass `ctx.Theme()` output into `Draw` or `DrawWithin` (CSI counts as cells and breaks pane width). Use a full string for a one-shot frame. Inside a layout, `Screen.DrawList` marks the selected line's column, and `Screen.MarkRole` marks any other role. `Show` applies the theme to those cells only. `Host.SubmitAll(nil)` repaints every session without effects. `portico.Every` is not built; the site owns the timer.
 
 Theme roles: bold, muted, error, accent, ok, warn, inverse. Copy `render.Default` or `render.Plain` and replace a field to change one role. Do not nest role calls.
 
@@ -139,7 +139,7 @@ A list selection is an `int` in session-local state:
 - `installation.LocalListIndex` (`list_index`) is the key when you pass `""`.
 - `installation.MoveList(ctx, key, delta, n)` returns a `SetLocal` effect clamped to `0..n-1`.
 - `installation.RenderList(ctx, key, items, visible)` draws that window as one string. The selected row starts with `>` and uses the inverse role. `visible <= 0` shows every row. Rows are cut to `Size` width. Use this for a full-frame `Keys` menu.
-- `installation.DrawList(s, ctx, row, col, width, height, key, items, visible)` (or `s.DrawList`) for a list inside a `Screen` layout; inverse is applied on `Show(ctx)`.
+- `installation.DrawList(s, ctx, row, col, width, height, key, items, visible)` (or `s.DrawList`) for a list inside a `Screen` layout. Inverse covers that column on the selected line, not the rest of the row. `s.MarkRole(row, col, width, render.RoleBold)` (and the other roles) styles a plain run the same way.
 - Bind `up` and `down` with `Keys: true`. The runtime paints `Keys` scenes with `WriteGrid` (no trailing newline).
 
 ```go
