@@ -5,7 +5,7 @@
 Test `Build()` validation and small pure functions in your site package without SSH:
 
 ```go
-exp, err := site.BuildExperience()
+inst, err := site.BuildInstallation()
 if err != nil { t.Fatal(err) }
 ```
 
@@ -30,4 +30,4 @@ Full SSH end-to-end is optional for most sites. Prefer:
 
 ## Reload preview
 
-Before hot reload in production, `POST /inspect/reload-preview` with a `experience.Wire` body. See [Hot reload](appendices/hot-reload.md).
+Before hot reload in production, `POST /inspect/reload-preview` with a `installation.Wire` body. See [Hot reload](appendices/hot-reload.md).

@@ -4,7 +4,7 @@
 // Widths are rune counts. Fit text first, then apply a Theme: these helpers
 // do not skip ANSI codes, and they do not measure wide-glyph display columns.
 //
-// A scene reads the window from experience.RenderContext.Size and the active
+// A scene reads the window from components.RenderContext.Size and the active
 // theme from RenderContext.Theme.
 //
 // Screen is a grid plus one optional caret rectangle. DrawWithin clips a

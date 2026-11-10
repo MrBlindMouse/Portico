@@ -3,20 +3,18 @@
 | Import | Use |
 |--------|-----|
 | `github.com/MrBlindMouse/Portico` | `New`, `Serve`, `ServeDev`, `Options`, `NewHost`, `Host` |
-| `.../experience` | Builder, scenes, actions, spaces, effects, wire |
-| `.../scaffold` | Starter `Merge` builders |
+| `.../components` | Scenes, actions, spaces, IDs, effects, contexts |
+| `.../installation` | Builder, `Build()`, `Installation`, wire, form/list helpers |
 | `.../render` | Terminal layout and theme |
 | `.../asset` | Loaders when using `AssetDir` |
 | `.../identity` | Public store types (site-chosen backends via Options) |
 | `.../config` | Optional JSON operator config |
 | `.../testkit` | In-memory tests |
 
-**Do not import** from site code:
+Plans are not an import. `portico generate` writes them into the site. See [Plans](plans.md).
 
-- `.../runtime`
-- `.../inspect`
-- `.../internal/...`
+Do not import `runtime` or `inspect` from site code.
 
 API details: `go doc` or [pkg.go.dev](https://pkg.go.dev/github.com/MrBlindMouse/Portico) at your module version.
 
-Framework contributors also use `runtime`, `internal/archtest`, etc. See root [AGENTS.md](../../AGENTS.md).
+Framework contributors: root [AGENTS.md](../../AGENTS.md).

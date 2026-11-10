@@ -18,12 +18,12 @@ go run .
 
 | Flag | Meaning |
 |------|---------|
-| `-style community` (default) | `RecipeCommunity()` starter |
-| `-style scratch` | One scene + `greet` action |
 | `-force` | Overwrite `main.go`, `AGENTS.md`, `README.md` |
 | `-module` | Required when `go.mod` is missing |
 
-**Or write manually:** `go mod init`, `go get github.com/MrBlindMouse/Portico`, then build an experience in `main.go` (see [examples/from-scratch](../../examples/from-scratch)).
+After `init`, add plans with `portico generate <name>` (`portico generate -list`) from the site directory. Agents: start with **AGENTS.md** in the site repo.
+
+**Or write manually:** `go mod init`, `go get github.com/MrBlindMouse/Portico`, then build an installation in `main.go`. `portico init` writes that same program.
 
 ## First SSH session
 
@@ -58,18 +58,7 @@ See [Inspect HTTP API](reference/inspect-http.md).
 
 | Variable | Purpose |
 |----------|---------|
-| `PORTICO_DATA` | Override data directory |
-| `PORTICO_LOG_LEVEL` | `debug`, `info`, `warn`, `error` (community template) |
-
-## Examples in the module repo
-
-| Example | Teaches |
-|---------|---------|
-| [from-scratch](../../examples/from-scratch) | Custom scene + action |
-| [hello](../../examples/hello) | Unchanged `RecipeCommunity` |
-| [notes](../../examples/notes) | Copied guestbook, edited in-repo |
-
-Use the examples at the **same tag** as your `go.mod` version.
+| `PORTICO_DATA` | Override data directory. The init `main` reads this. |
 
 ## Next steps
 

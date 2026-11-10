@@ -3,10 +3,11 @@ package runtime_test
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"github.com/MrBlindMouse/Portico/components"
 	"testing"
 
-	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
+	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/MrBlindMouse/Portico/runtime"
 	"github.com/MrBlindMouse/Portico/testkit"
 	gossh "golang.org/x/crypto/ssh"
@@ -14,10 +15,10 @@ import (
 
 func TestReconnectPersist(t *testing.T) {
 	store := identity.NewMemoryStore()
-	exp, err := experience.NewBuilder().
+	exp, err := installation.NewBuilder().
 		Root("home").
-		Scene("home", experience.Scene{
-			Render: func(ctx experience.RenderContext) string {
+		Scene("home", components.Scene{
+			Render: func(ctx components.RenderContext) string {
 				v, ok := ctx.Persisted("token")
 				if !ok {
 					return "no"
@@ -28,9 +29,9 @@ func TestReconnectPersist(t *testing.T) {
 				return "no"
 			},
 		}).
-		Action("prime", experience.Action{
-			Run: func(ctx experience.ActionContext) []experience.Effect {
-				return []experience.Effect{ctx.Persist("token", "abc")}
+		Action("prime", components.Action{
+			Run: func(ctx components.ActionContext) []components.Effect {
+				return []components.Effect{ctx.Persist("token", "abc")}
 			},
 		}).
 		Build()

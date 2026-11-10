@@ -179,6 +179,9 @@ func (f *FileAccountStore) Register(username, passwordPlain string) error {
 }
 
 func (f *FileAccountStore) Verify(username, passwordPlain string) (bool, error) {
+	if err := ValidateUsername(username); err != nil {
+		return false, err
+	}
 	rec, err := f.load(username)
 	if os.IsNotExist(err) {
 		return false, nil
@@ -194,6 +197,9 @@ func (f *FileAccountStore) Verify(username, passwordPlain string) (bool, error) 
 }
 
 func (f *FileAccountStore) LinkKey(username, fingerprint string) error {
+	if err := ValidateUsername(username); err != nil {
+		return err
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	rec, err := f.load(username)
@@ -214,6 +220,9 @@ func (f *FileAccountStore) LinkKey(username, fingerprint string) error {
 }
 
 func (f *FileAccountStore) Lookup(username string) (AccountRecord, bool, error) {
+	if err := ValidateUsername(username); err != nil {
+		return AccountRecord{}, false, err
+	}
 	rec, err := f.load(username)
 	if os.IsNotExist(err) {
 		return AccountRecord{}, false, nil

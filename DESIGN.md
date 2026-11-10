@@ -58,9 +58,9 @@ Only deviations from these conventions require explicit configuration. Following
 
 Every piece of a site belongs to a known layer. An agent that has seen one site can look at another and immediately understand where scenes, actions, spaces, identity data, and assets live. This shared shape reduces cognitive load and makes sites written by different agents mutually intelligible.
 
-### 4.3 Scaffolding as the Default Starting Point
+### 4.3 Plans as the Default Starting Point
 
-The most common patterns are available as high-level scaffolds. An agent’s first action is typically to scaffold one or more of these patterns and then refine the resulting definitions. Scaffolds produce real, inspectable, editable definitions rather than opaque generated artifacts.
+The most common patterns are available as **plans**. An agent's first action is `portico init`, then `portico generate`, which writes the pattern into the site as ordinary Go. The author then edits that file. Plans are not an imported library and not opaque generated artifacts.
 
 ### 4.4 Opinionated Defaults With Explicit Escape Hatches
 
@@ -97,7 +97,7 @@ Portico defines the following layers. Each has a single primary responsibility.
 
 | Layer | Responsibility |
 |-------|----------------|
-| **Experience** | The top-level definition of a site. Declares which scenes exist, which spaces exist, how identity and persistence are configured, and which assets are available. |
+| **Installation** | The top-level definition of a site. Declares which scenes exist, which spaces exist, how identity and persistence are configured, and which assets are available. |
 | **Scene** | A renderable state that a session can be in. Describes what is shown and which inputs are meaningful in that context. |
 | **Action** | A named operation that can be invoked from a scene. Actions may change session state, shared space state, or switch the current scene. |
 | **Space** | An optional multi-user context with shared state and presence. Sessions may join and leave spaces. Spaces handle broadcasting and conflict resolution. |
@@ -227,7 +227,7 @@ Portico ships a testkit (separate from the production runtime) that provides:
 - Exposure of the same definition validation used at load time, so tests fail fast on broken references.
 - Optional lightweight string snapshots for non-trivial scene output.
 
-Scaffolds may include a starter test when a site copies them. The testkit reuses the real runtime apply logic and `Store` interface so tests remain honest. Full end-to-end tests over a live SSH port are possible but are not the default path.
+Plans may include a starter test when a site copies them. The testkit reuses the real runtime apply logic and `Store` interface so tests remain honest. Full end-to-end tests over a live SSH port are possible but are not the default path.
 
 These capabilities stay inside the runtime and the identity layer.
 
@@ -235,44 +235,43 @@ These capabilities stay inside the runtime and the identity layer.
 
 ## 8. Package Layout and Key Types
 
-Portico is implemented in Go. The initial package layout keeps the public surface small while concentrating strictness in the runtime and experience packages.
+Portico is implemented in Go. The initial package layout keeps the public surface small while concentrating strictness in the runtime and installation packages.
 
 ```
 portico/
-├── portico.go                 // public entry points, Experience builder, Serve
+├── portico.go                 // public entry points, builder alias, Serve
+├── components/                // scenes, actions, spaces, IDs, effects, contexts
+├── installation/
+│   ├── installation.go        // builder and validated Installation
+│   ├── wire.go
+│   ├── form.go
+│   └── list.go
 ├── runtime/
 │   ├── server.go              // SSH server setup
 │   ├── session.go             // Session type and lifecycle
 │   ├── dispatcher.go          // input → action routing
 │   └── apply.go               // applies effects from actions
-├── experience/
-│   ├── experience.go          // Experience definition and builder
-│   ├── scene.go
-│   ├── action.go
-│   ├── space.go
-│   └── ids.go                 // SceneID, ActionID, SpaceID
 ├── identity/
 │   └── identity.go            // Identity, Store interface
-├── scaffold/
-│   ├── guestbook.go
-│   ├── chat.go
-│   └── landing.go
 ├── testkit/
 │   └── testkit.go             // in-memory session fixtures and assertions
 └── internal/
-    └── ...                    // shared unexported helpers
+    └── plans/                 // plan sources; portico generate copies these into a site
+        ├── guestbook.go
+        ├── chat.go
+        └── landing.go
 ```
 
 ### Key types (illustrative)
 
 ```go
-// experience/ids.go
+// components/ids.go
 type SceneID string
 type ActionID string
 type SpaceID string
 
-// experience/experience.go
-type Experience struct {
+// installation/installation.go
+type Installation struct {
     scenes  map[SceneID]Scene
     actions map[ActionID]Action
     spaces  map[SpaceID]Space
@@ -283,22 +282,15 @@ func New() *Builder
 func (b *Builder) Scene(id SceneID, s Scene) *Builder
 func (b *Builder) Action(id ActionID, a Action) *Builder
 func (b *Builder) Space(id SpaceID, s Space) *Builder
-func (b *Builder) Build() (*Experience, error)
+func (b *Builder) Build() (*Installation, error)
 
-// experience/scene.go
+// components/scene.go
 type Scene struct {
-    Render func(ctx SceneContext) string
+    Render func(ctx RenderContext) string
     Inputs map[string]ActionID
 }
 
-type SceneContext interface {
-    Identity() identity.Identity
-    Local(key string) (any, bool)
-    SetLocal(key string, value any)
-    Transition(to SceneID) Effect
-}
-
-// experience/action.go
+// components/action.go
 type Action struct {
     Run func(ctx ActionContext) []Effect
 }
@@ -315,9 +307,9 @@ type Effect interface{ isEffect() }
 type Session struct {
     id       string
     identity identity.Identity
-    current  experience.SceneID
+    current  components.SceneID
     local    map[string]any
-    spaces   map[experience.SpaceID]struct{}
+    spaces   map[components.SpaceID]struct{}
 }
 ```
 
@@ -350,13 +342,13 @@ This structure keeps the happy path short while ensuring that core state remains
 
 ## 9. Agent Interaction Model
 
-Agents building a site work in **that site's repository**, importing `github.com/MrBlindMouse/Portico`. They do not author the site inside the framework tree. There is no separate experience-file format: the definition is Go (`portico.New()`, scenes, actions, `Build`, `Serve` or `ServeDev`). Operational contract: `docs/site-agents.md`.
+Agents building a site work in **that site's repository**, importing `github.com/MrBlindMouse/Portico`. They do not author the site inside the framework tree. There is no separate experience-file format: the definition is Go (`portico.New()`, scenes, actions, `Build`, `Serve` or `ServeDev`). Operational contract: **AGENTS.md** in the site repo (`portico init`), extended by `docs/site-agents.md` and the manual at the module tag.
 
 Agents interact with a running site through three complementary mechanisms.
 
 ### 8.1 Declarative Definitions
 
-The primary artifact is the site's Go experience (scenes, actions, spaces, identity configuration, and asset references). Agents create and edit that code in the site module. The runtime loads the built `Experience` and can hot-reload a new one.
+The primary artifact is the site's Go installation (components, identity configuration, and asset references). Agents create and edit that code in the site module. The runtime loads the built `Installation` and can hot-reload a new one.
 
 The definition format is designed to be easy for an agent to generate, validate, and incrementally modify. It is also human-readable so that directors can review and adjust it.
 
@@ -364,7 +356,7 @@ The definition format is designed to be easy for an agent to generate, validate,
 
 The framework exposes operations that agents can invoke:
 
-- Scaffold a common pattern (guestbook, chat space, blog reader, multiplayer lobby, etc.).
+- Generate a common plan (guestbook, chat space, blog reader, multiplayer lobby, etc.).
 - Add or modify a scene, action, or space.
 - Query the current state of a running site or of a specific session.
 - Hot-reload definitions.
@@ -386,11 +378,11 @@ This inspection capability is what makes conversational iteration practical.
 
 ---
 
-## 10. Scaffolding and Recipes
+## 10. Plans and plan sets
 
-Scaffolds are the preferred way to begin. Each scaffold produces a complete, minimal, working set of definitions for a common pattern. The resulting definitions are ordinary definitions that the agent can continue to edit.
+Plans are the preferred way to begin after `portico init`. `portico generate <name>` writes one plan into the site as ordinary Go the author owns and edits.
 
-Example scaffolds (illustrative, not exhaustive):
+Example plans (illustrative, not exhaustive):
 
 - **Guestbook** — A scene that displays recent signatures and an action that appends a new signature with the visitor’s identity.
 - **Chat Space** — A space with shared message history, presence, and actions for sending messages and joining/leaving.
@@ -398,9 +390,9 @@ Example scaffolds (illustrative, not exhaustive):
 - **Simple Multiplayer Lobby** — A space that tracks participants and provides actions for signaling readiness or starting a shared activity.
 - **Personal Landing** — A root scene that presents a menu of available destinations and basic identity information.
 
-Scaffolds may be composed. An agent can scaffold a landing page, a guestbook, and a chat space, then wire them together by editing the resulting definitions.
+Plans may be composed by hand. An agent can generate a landing page, a guestbook, and a chat space, then wire them together by editing the resulting definitions.
 
-Recipes are higher-level compositions of scaffolds plus recommended wiring. They exist to capture complete, opinionated starting points for common site types.
+**Plan sets** would be higher-level bundles of plans plus recommended wiring. They are not shipped. See TODO.md.
 
 ---
 
@@ -410,7 +402,7 @@ The runtime is responsible for:
 
 - Accepting SSH connections and establishing sessions.
 - Deriving identity from presented keys.
-- Loading the experience definition and hot-reloading it when it changes.
+- Loading the installation definition and hot-reloading it when it changes.
 - Maintaining the current scene for each session.
 - Rendering scenes to the terminal and handling resize events.
 - Mapping input events to actions according to the current scene’s input map.
@@ -456,7 +448,7 @@ Portico does not mandate a particular hosting provider. It aims to make the resu
 
 Portico applies the Rails methodology—convention over configuration, named layers, scaffolding, opinionated defaults with escape hatches, structural strictness through types and API design, and a shared structural language—to the domain of interactive SSH experiences.
 
-Agents and humans are the authors, working in their own module that imports Portico. They define scenes, actions, spaces, identity, and assets in Go. The runtime owns session lifecycle, rendering, input dispatch, presence, and persistence. Common patterns are available as scaffolds to merge. Custom logic stays on those extension points.
+Agents and humans are the authors, working in their own module that imports Portico. They define scenes, actions, spaces, identity, and assets in Go. The runtime owns session lifecycle, rendering, input dispatch, presence, and persistence. Common patterns are written into the site with `portico generate` and then edited. Custom logic stays on those extension points.
 
 The result is a system in which creating, iterating on, and maintaining an SSH site is predictable, inspectable, and fast, while remaining open to experiences that the original designers did not anticipate. The name Portico reflects its role as the structured entrance through which SSH sessions arrive and through which agents and humans build what lies beyond.
 
@@ -464,7 +456,7 @@ The result is a system in which creating, iterating on, and maintaining an SSH s
 
 ## 15. Future research (not shipped)
 
-The following items are under consideration only. They are **not** part of the scaffold, **not** in `TODO.md` as committed work, and **not** implemented until an explicit design decision promotes them.
+The following items are under consideration only. They are **not** part of the shipped plan catalog, **not** in `TODO.md` as committed work, and **not** implemented until an explicit design decision promotes them.
 
 ### Terminal pixel / graphics layer
 

@@ -8,7 +8,7 @@ Operator and reference documentation for **site authors** who import `github.com
 
 | Track | Chapters | Use when |
 |-------|----------|----------|
-| **Tutorial** | [Getting started](01-getting-started.md) → [Authoring](02-authoring.md) | First site |
+| **Tutorial** | [Overview](00-overview.md) → [Getting started](01-getting-started.md) → [Authoring](02-authoring.md) | First site |
 | **Guide** | [Input](03-input.md), [Rendering](04-rendering.md), [Identity](05-identity-accounts.md) | Daily development |
 | **Reference** | [reference/](reference/) | Lookup APIs, HTTP, CLI, config |
 | **Operations** | [Running](06-running.md), [Production](07-production.md) | Deploy and run |
@@ -23,8 +23,9 @@ portico docs -tag vX.Y.Z
 
 ### Guides
 
+0. [Overview](00-overview.md)
 1. [Getting started](01-getting-started.md)
-2. [Authoring an experience](02-authoring.md)
+2. [Authoring an installation](02-authoring.md)
 3. [Input and dispatch](03-input.md)
 4. [Rendering](04-rendering.md)
 5. [Identity and accounts](05-identity-accounts.md)
@@ -41,7 +42,7 @@ portico docs -tag vX.Y.Z
 - [Inspect HTTP API](reference/inspect-http.md)
 - [Status HTTP API](reference/status-http.md)
 - [CLI (`portico`)](reference/cli.md)
-- [Scaffolds](reference/scaffolds.md)
+- [Plans](reference/plans.md)
 - [Wire format](reference/wire.md)
 - [Import map (packages)](reference/packages.md)
 
@@ -54,7 +55,8 @@ portico docs -tag vX.Y.Z
 
 | Doc | Audience |
 |-----|----------|
-| [building-a-site.md](../building-a-site.md) | Short how-to |
-| [site-agents.md](../site-agents.md) | AI agent contract |
-| [README.md](../../README.md) | Project entry + options summary |
+| **AGENTS.md** in site repo (from `portico init`) | Primary AI agent entry |
+| [site-agents.md](../site-agents.md) | Extended agent contract (same tag as `go.mod`) |
+| [building-a-site.md](../building-a-site.md) | Short human how-to |
+| [README.md](../../README.md) | Framework entry + options summary |
 | [AGENTS.md](../../AGENTS.md) | Framework contributors only |

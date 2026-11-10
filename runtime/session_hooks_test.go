@@ -1,17 +1,18 @@
 package runtime_test
 
 import (
+	"github.com/MrBlindMouse/Portico/components"
 	"testing"
 
-	"github.com/MrBlindMouse/Portico/experience"
+	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/MrBlindMouse/Portico/testkit"
 )
 
 func TestSessionStartEffect(t *testing.T) {
-	exp, err := experience.NewBuilder().
+	exp, err := installation.NewBuilder().
 		Root("home").
-		Scene("home", experience.Scene{Render: func(experience.RenderContext) string { return "" }}).
-		OnSessionStart(experience.SetLocalEffect("boot", true)).
+		Scene("home", components.Scene{Render: func(components.RenderContext) string { return "" }}).
+		OnSessionStart(components.SetLocalEffect("boot", true)).
 		Build()
 	if err != nil {
 		t.Fatal(err)

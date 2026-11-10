@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/MrBlindMouse/Portico/experience"
+	"github.com/MrBlindMouse/Portico/installation"
 )
 
 // Loader loads named files into a Builder.
@@ -19,7 +19,7 @@ func NewLoader(dir string) *Loader {
 }
 
 // Apply loads all regular files in dir into builder assets (basename → content).
-func (l *Loader) Apply(b *experience.Builder) error {
+func (l *Loader) Apply(b *installation.Builder) error {
 	entries, err := os.ReadDir(l.dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -61,7 +61,7 @@ func (l *Loader) Reload() (map[string]string, error) {
 }
 
 // MergeAssets applies a content map onto a builder (overwriting names).
-func MergeAssets(b *experience.Builder, assets map[string]string) {
+func MergeAssets(b *installation.Builder, assets map[string]string) {
 	for name, content := range assets {
 		b.Asset(name, content)
 	}

@@ -2,16 +2,17 @@ package runtime
 
 import (
 	"fmt"
+	"github.com/MrBlindMouse/Portico/components"
 	"log/slog"
 
-	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
+	"github.com/MrBlindMouse/Portico/installation"
 )
 
 // ApplyResult summarizes effect application for hooks and metrics.
 type ApplyResult struct {
 	Transitioned bool
-	Broadcast    []experience.SpaceID
+	Broadcast    []components.SpaceID
 }
 
 // Applier applies effects to session and shared state.
@@ -44,11 +45,11 @@ func NewApplier(spaces *spaceRegistry, store identity.Store) *Applier {
 }
 
 // Apply mutates session and spaces according to effects. Only this function writes session.current and session.local.
-func (a *Applier) Apply(sess *Session, exp *experience.Experience, effects []experience.Effect) (ApplyResult, error) {
+func (a *Applier) Apply(sess *Session, exp *installation.Installation, effects []components.Effect) (ApplyResult, error) {
 	var res ApplyResult
 	for _, eff := range effects {
 		switch e := eff.(type) {
-		case experience.SetLocal:
+		case components.SetLocal:
 			sc, ok := exp.Scene(sess.CurrentScene())
 			if ok && sc.ValidateLocal != nil {
 				if err := sc.ValidateLocal(e.Key, e.Value); err != nil {
@@ -58,7 +59,7 @@ func (a *Applier) Apply(sess *Session, exp *experience.Experience, effects []exp
 			sess.mu.Lock()
 			sess.local[e.Key] = e.Value
 			sess.mu.Unlock()
-		case experience.Transition:
+		case components.Transition:
 			sess.mu.Lock()
 			if _, ok := exp.Scene(e.To); !ok {
 				sess.mu.Unlock()
@@ -67,11 +68,11 @@ func (a *Applier) Apply(sess *Session, exp *experience.Experience, effects []exp
 			sess.current = e.To
 			sess.mu.Unlock()
 			res.Transitioned = true
-		case experience.Persist:
+		case components.Persist:
 			if err := a.store.Set(sess.Identity(), e.Key, e.Value); err != nil {
 				return res, err
 			}
-		case experience.JoinSpace:
+		case components.JoinSpace:
 			sp, ok := exp.Space(e.Space)
 			if !ok {
 				return res, fmt.Errorf("portico: undefined space %q", e.Space)
@@ -91,7 +92,7 @@ func (a *Applier) Apply(sess *Session, exp *experience.Experience, effects []exp
 				res.Transitioned = res.Transitioned || joinRes.Transitioned
 				res.Broadcast = append(res.Broadcast, joinRes.Broadcast...)
 			}
-		case experience.LeaveSpace:
+		case components.LeaveSpace:
 			sp, ok := exp.Space(e.Space)
 			if !ok {
 				return res, fmt.Errorf("portico: undefined space %q", e.Space)
@@ -111,7 +112,7 @@ func (a *Applier) Apply(sess *Session, exp *experience.Experience, effects []exp
 				res.Transitioned = res.Transitioned || leaveRes.Transitioned
 				res.Broadcast = append(res.Broadcast, leaveRes.Broadcast...)
 			}
-		case experience.SpaceSet:
+		case components.SpaceSet:
 			sp, ok := exp.Space(e.Space)
 			if !ok {
 				return res, fmt.Errorf("portico: undefined space %q", e.Space)
@@ -123,7 +124,7 @@ func (a *Applier) Apply(sess *Session, exp *experience.Experience, effects []exp
 				}
 			}
 			a.spaces.set(e.Space, e.Key, e.Value)
-		case experience.SpaceCAS:
+		case components.SpaceCAS:
 			sp, ok := exp.Space(e.Space)
 			if !ok {
 				return res, fmt.Errorf("portico: undefined space %q", e.Space)
@@ -137,14 +138,14 @@ func (a *Applier) Apply(sess *Session, exp *experience.Experience, effects []exp
 			if !a.spaces.cas(e.Space, e.Key, e.Expect, e.Value) {
 				return res, fmt.Errorf("portico: space cas failed for %q", e.Key)
 			}
-		case experience.AppendSpaceList:
+		case components.AppendSpaceList:
 			if _, ok := exp.Space(e.Space); !ok {
 				return res, fmt.Errorf("portico: undefined space %q", e.Space)
 			}
 			a.spaces.appendList(e.Space, e.Key, e.Value)
-		case experience.Broadcast:
+		case components.Broadcast:
 			res.Broadcast = append(res.Broadcast, e.Space)
-		case experience.ReserveNickname:
+		case components.ReserveNickname:
 			if err := identity.ValidateNickname(e.Name); err != nil {
 				return res, err
 			}
@@ -152,7 +153,7 @@ func (a *Applier) Apply(sess *Session, exp *experience.Experience, effects []exp
 				return res, err
 			}
 			sess.setIdentity(sess.Identity().WithNickname(e.Name))
-		case experience.RegisterAccount:
+		case components.RegisterAccount:
 			if a.accounts == nil {
 				return res, fmt.Errorf("portico: account registration not enabled")
 			}

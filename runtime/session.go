@@ -1,9 +1,9 @@
 package runtime
 
 import (
+	"github.com/MrBlindMouse/Portico/components"
 	"sync"
 
-	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
 	"github.com/MrBlindMouse/Portico/render"
 )
@@ -12,9 +12,9 @@ import (
 type Session struct {
 	id             string
 	identity       identity.Identity
-	current        experience.SceneID
+	current        components.SceneID
 	local          map[string]any
-	spaces         map[experience.SpaceID]struct{}
+	spaces         map[components.SpaceID]struct{}
 	lastRender     string
 	lastRenderSize int
 	termW          int
@@ -29,13 +29,13 @@ type Session struct {
 // ponytail: fixed slice; raise it if a scene shows a longer log.
 const commandCap = 32
 
-func newSession(id string, idn identity.Identity, root experience.SceneID) *Session {
+func newSession(id string, idn identity.Identity, root components.SceneID) *Session {
 	return &Session{
 		id:       id,
 		identity: idn,
 		current:  root,
 		local:    make(map[string]any),
-		spaces:   make(map[experience.SpaceID]struct{}),
+		spaces:   make(map[components.SpaceID]struct{}),
 	}
 }
 
@@ -50,14 +50,14 @@ func (s *Session) Identity() identity.Identity {
 }
 
 // CurrentScene returns the active scene id.
-func (s *Session) CurrentScene() experience.SceneID {
+func (s *Session) CurrentScene() components.SceneID {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.current
 }
 
 // InSpace reports membership.
-func (s *Session) InSpace(space experience.SpaceID) bool {
+func (s *Session) InSpace(space components.SpaceID) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	_, ok := s.spaces[space]
@@ -65,10 +65,10 @@ func (s *Session) InSpace(space experience.SpaceID) bool {
 }
 
 // Spaces returns joined space ids.
-func (s *Session) Spaces() []experience.SpaceID {
+func (s *Session) Spaces() []components.SpaceID {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	out := make([]experience.SpaceID, 0, len(s.spaces))
+	out := make([]components.SpaceID, 0, len(s.spaces))
 	for id := range s.spaces {
 		out = append(out, id)
 	}

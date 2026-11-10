@@ -5,13 +5,14 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"github.com/MrBlindMouse/Portico/components"
 	"net"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
+	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/MrBlindMouse/Portico/runtime"
 	"github.com/MrBlindMouse/Portico/testkit"
 	gossh "golang.org/x/crypto/ssh"
@@ -168,12 +169,12 @@ func TestSSHLinkedKeyBecomesAccount(t *testing.T) {
 	}
 }
 
-func identityScene(t *testing.T, persist bool) *experience.Experience {
+func identityScene(t *testing.T, persist bool) *installation.Installation {
 	t.Helper()
-	b := experience.NewBuilder().
+	b := installation.NewBuilder().
 		Root("home").
-		Scene("home", experience.Scene{
-			Render: func(ctx experience.RenderContext) string {
+		Scene("home", components.Scene{
+			Render: func(ctx components.RenderContext) string {
 				id := ctx.Identity()
 				s := id.String()
 				switch {
@@ -191,7 +192,7 @@ func identityScene(t *testing.T, persist bool) *experience.Experience {
 			},
 		})
 	if persist {
-		b.OnSessionStart(experience.PersistEffect("token", "yes"))
+		b.OnSessionStart(components.PersistEffect("token", "yes"))
 	}
 	exp, err := b.Build()
 	if err != nil {
@@ -200,7 +201,7 @@ func identityScene(t *testing.T, persist bool) *experience.Experience {
 	return exp
 }
 
-func serveIdentity(t *testing.T, exp *experience.Experience, mutate func(*runtime.ServerConfig)) string {
+func serveIdentity(t *testing.T, exp *installation.Installation, mutate func(*runtime.ServerConfig)) string {
 	t.Helper()
 	eng := testkit.New(exp).Engine
 	ln, err := net.Listen("tcp", "127.0.0.1:0")

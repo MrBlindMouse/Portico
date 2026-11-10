@@ -18,7 +18,7 @@ type Input struct {
 }
 
 // SlotTarget receives the caret from Screen.Show.
-// experience.RenderContext implements it.
+// A render context implements it.
 type SlotTarget interface {
 	PlaceInput(Input)
 }

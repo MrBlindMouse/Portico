@@ -2,12 +2,13 @@ package runtime
 
 import (
 	"bufio"
+	"github.com/MrBlindMouse/Portico/components"
 	"io"
 	"strings"
 	"testing"
 
-	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
+	"github.com/MrBlindMouse/Portico/installation"
 )
 
 // scriptTerminal feeds the real inputReader (same path as SSHTerminal).
@@ -34,19 +35,19 @@ func (t *scriptTerminal) Close() error { return nil }
 func (t *scriptTerminal) SetKeys(keys []string) { t.ir.setKeys(keys) }
 
 func TestRunLoopKeyScene(t *testing.T) {
-	exp, err := experience.NewBuilder().
+	exp, err := installation.NewBuilder().
 		Root("home").
-		Scene("home", experience.Scene{
-			Render: func(ctx experience.RenderContext) string { return "home" },
+		Scene("home", components.Scene{
+			Render: func(ctx components.RenderContext) string { return "home" },
 			Keys:   true,
-			Inputs: map[string]experience.ActionID{"n": "goto-other", "up": "goto-other"},
+			Inputs: map[string]components.ActionID{"n": "goto-other", "up": "goto-other"},
 		}).
-		Scene("other", experience.Scene{
-			Render: func(ctx experience.RenderContext) string { return "other" },
+		Scene("other", components.Scene{
+			Render: func(ctx components.RenderContext) string { return "other" },
 		}).
-		Action("goto-other", experience.Action{
-			Run: func(ctx experience.ActionContext) []experience.Effect {
-				return []experience.Effect{experience.TransitionEffect("other")}
+		Action("goto-other", components.Action{
+			Run: func(ctx components.ActionContext) []components.Effect {
+				return []components.Effect{components.TransitionEffect("other")}
 			},
 		}).
 		Build()
@@ -65,18 +66,18 @@ func TestRunLoopKeyScene(t *testing.T) {
 }
 
 func TestRunLoopEnterSequences(t *testing.T) {
-	exp, err := experience.NewBuilder().
+	exp, err := installation.NewBuilder().
 		Root("home").
-		Scene("home", experience.Scene{
-			Render: func(ctx experience.RenderContext) string { return "home" },
-			Inputs: map[string]experience.ActionID{"go": "goto-other"},
+		Scene("home", components.Scene{
+			Render: func(ctx components.RenderContext) string { return "home" },
+			Inputs: map[string]components.ActionID{"go": "goto-other"},
 		}).
-		Scene("other", experience.Scene{
-			Render: func(ctx experience.RenderContext) string { return "other" },
+		Scene("other", components.Scene{
+			Render: func(ctx components.RenderContext) string { return "other" },
 		}).
-		Action("goto-other", experience.Action{
-			Run: func(ctx experience.ActionContext) []experience.Effect {
-				return []experience.Effect{experience.TransitionEffect("other")}
+		Action("goto-other", components.Action{
+			Run: func(ctx components.ActionContext) []components.Effect {
+				return []components.Effect{components.TransitionEffect("other")}
 			},
 		}).
 		Build()

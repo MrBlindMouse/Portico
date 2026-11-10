@@ -38,38 +38,48 @@ func importsUnder(t *testing.T, root, importPath string) []string {
 	return pkg.Imports
 }
 
-func TestExperienceDoesNotImportRuntime(t *testing.T) {
+func TestInstallationDoesNotImportRuntime(t *testing.T) {
 	root := moduleRoot(t)
-	const exp = "github.com/MrBlindMouse/Portico/experience"
+	const exp = "github.com/MrBlindMouse/Portico/installation"
 	for _, imp := range importsUnder(t, root, exp) {
 		if strings.Contains(imp, "/runtime") {
-			t.Fatalf("experience must not import runtime, found %s", imp)
+			t.Fatalf("installation must not import runtime, found %s", imp)
 		}
 	}
 }
 
-func TestRuntimeMayImportExperience(t *testing.T) {
+func TestRuntimeMayImportInstallation(t *testing.T) {
 	root := moduleRoot(t)
 	const rt = "github.com/MrBlindMouse/Portico/runtime"
 	imps := importsUnder(t, root, rt)
 	found := false
 	for _, imp := range imps {
-		if imp == "github.com/MrBlindMouse/Portico/experience" {
+		if imp == "github.com/MrBlindMouse/Portico/installation" {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Fatalf("runtime should import experience for orchestration")
+		t.Fatalf("runtime should import installation for orchestration")
 	}
 }
 
-func TestForbiddenExperienceImports(t *testing.T) {
+func TestComponentsDoNotImportInstallationOrRuntime(t *testing.T) {
 	root := moduleRoot(t)
-	const exp = "github.com/MrBlindMouse/Portico/experience"
+	const pkg = "github.com/MrBlindMouse/Portico/components"
+	for _, imp := range importsUnder(t, root, pkg) {
+		if strings.Contains(imp, "/installation") || strings.Contains(imp, "/runtime") {
+			t.Fatalf("components must not import %s", imp)
+		}
+	}
+}
+
+func TestForbiddenInstallationImports(t *testing.T) {
+	root := moduleRoot(t)
+	const exp = "github.com/MrBlindMouse/Portico/installation"
 	for _, imp := range importsUnder(t, root, exp) {
-		if strings.Contains(imp, "/scaffold") || strings.Contains(imp, "/examples") {
-			t.Fatalf("experience must not import %s", imp)
+		if strings.Contains(imp, "/internal/plans") || strings.Contains(imp, "/examples") {
+			t.Fatalf("installation must not import %s", imp)
 		}
 	}
 }
@@ -107,12 +117,12 @@ func TestSessionStateMutationInApplyOnly(t *testing.T) {
 	}
 }
 
-func TestInspectDoesNotImportScaffold(t *testing.T) {
+func TestInspectDoesNotImportPlans(t *testing.T) {
 	root := moduleRoot(t)
 	const insp = "github.com/MrBlindMouse/Portico/inspect"
 	for _, imp := range importsUnder(t, root, insp) {
-		if strings.Contains(imp, "/scaffold") {
-			t.Fatalf("inspect must not import scaffold, found %s", imp)
+		if strings.Contains(imp, "/internal/plans") {
+			t.Fatalf("inspect must not import plans, found %s", imp)
 		}
 	}
 }
@@ -121,12 +131,13 @@ func TestAllPackagesCompile(t *testing.T) {
 	root := moduleRoot(t)
 	pkgs := []string{
 		"github.com/MrBlindMouse/Portico",
-		"github.com/MrBlindMouse/Portico/experience",
+		"github.com/MrBlindMouse/Portico/components",
+		"github.com/MrBlindMouse/Portico/installation",
 		"github.com/MrBlindMouse/Portico/runtime",
 		"github.com/MrBlindMouse/Portico/identity",
 		"github.com/MrBlindMouse/Portico/render",
 		"github.com/MrBlindMouse/Portico/inspect",
-		"github.com/MrBlindMouse/Portico/scaffold",
+		"github.com/MrBlindMouse/Portico/internal/plans",
 		"github.com/MrBlindMouse/Portico/asset",
 		"github.com/MrBlindMouse/Portico/config",
 		"github.com/MrBlindMouse/Portico/testkit",

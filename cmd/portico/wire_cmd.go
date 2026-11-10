@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/MrBlindMouse/Portico/experience"
+	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/MrBlindMouse/Portico/internal/codegen"
 )
 
@@ -36,7 +36,7 @@ func wireValidateCmd(args []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := experience.ValidateWire(w); err != nil {
+	if err := installation.ValidateWire(w); err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println("ok")
@@ -64,12 +64,12 @@ func wireCodegenCmd(args []string) {
 	}
 }
 
-func loadWire(path string) (experience.Wire, error) {
+func loadWire(path string) (installation.Wire, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return experience.Wire{}, err
+		return installation.Wire{}, err
 	}
-	var w experience.Wire
+	var w installation.Wire
 	err = json.Unmarshal(b, &w)
 	return w, err
 }

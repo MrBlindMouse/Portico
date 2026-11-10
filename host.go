@@ -3,11 +3,12 @@ package portico
 import (
 	"context"
 	"fmt"
+	"github.com/MrBlindMouse/Portico/components"
 	"os"
 	"sync/atomic"
 
 	"github.com/MrBlindMouse/Portico/asset"
-	"github.com/MrBlindMouse/Portico/experience"
+	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/MrBlindMouse/Portico/runtime"
 )
 
@@ -18,15 +19,15 @@ type Host struct {
 	engine *runtime.Engine
 }
 
-// HotReload validates b and swaps the live experience.
-func (h *Host) HotReload(b *experience.Builder) error {
+// HotReload validates b and swaps the live installation.
+func (h *Host) HotReload(b *installation.Builder) error {
 	return HotReload(h.Server, b)
 }
 
 // NewHost prepares a site without listening. Starts inspect/status HTTP and asset polling.
-func NewHost(addr string, exp *experience.Experience, opts Options) (*Host, error) {
+func NewHost(addr string, exp *installation.Installation, opts Options) (*Host, error) {
 	if exp == nil {
-		return nil, fmt.Errorf("portico: experience is required")
+		return nil, fmt.Errorf("portico: installation is required")
 	}
 	opts = opts.withDefaults()
 
@@ -64,13 +65,13 @@ func NewHost(addr string, exp *experience.Experience, opts Options) (*Host, erro
 	if opts.ActionBefore != nil || opts.ActionAfter != nil {
 		before, after := opts.ActionBefore, opts.ActionAfter
 		eng.SetActionHooks(runtime.ActionHooks{
-			Before: func(sess *runtime.Session, action experience.ActionID, line string) (string, error) {
+			Before: func(sess *runtime.Session, action components.ActionID, line string) (string, error) {
 				if before == nil {
 					return line, nil
 				}
 				return before(sess, action, line)
 			},
-			After: func(sess *runtime.Session, action experience.ActionID, _ runtime.ApplyResult, err error) {
+			After: func(sess *runtime.Session, action components.ActionID, _ runtime.ApplyResult, err error) {
 				if after != nil {
 					after(sess, action, err)
 				}

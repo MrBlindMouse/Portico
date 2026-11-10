@@ -2,20 +2,21 @@ package runtime
 
 import (
 	"fmt"
+	"github.com/MrBlindMouse/Portico/components"
 	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
+	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/MrBlindMouse/Portico/render"
 )
 
 // Engine runs the session loop against a Terminal.
 type Engine struct {
 	mu             sync.RWMutex
-	exp            *experience.Experience
+	exp            *installation.Installation
 	spaces         *spaceRegistry
 	applier        *Applier
 	sessions       map[string]*Session
@@ -72,8 +73,8 @@ func (e *Engine) viewTheme() render.Theme {
 
 // ActionHooks optionally intercept action dispatch.
 type ActionHooks struct {
-	Before func(sess *Session, action experience.ActionID, line string) (string, error)
-	After  func(sess *Session, action experience.ActionID, result ApplyResult, err error)
+	Before func(sess *Session, action components.ActionID, line string) (string, error)
+	After  func(sess *Session, action components.ActionID, result ApplyResult, err error)
 }
 
 // EnableRateLimit enables per-session action throttling.
@@ -82,7 +83,7 @@ func (e *Engine) EnableRateLimit(rate, burst float64) {
 }
 
 // NewEngine creates a runtime engine.
-func NewEngine(exp *experience.Experience, applier *Applier) *Engine {
+func NewEngine(exp *installation.Installation, applier *Applier) *Engine {
 	if applier == nil {
 		applier = NewApplier(nil, identity.NewMemoryStore())
 	}
@@ -94,20 +95,20 @@ func NewEngine(exp *experience.Experience, applier *Applier) *Engine {
 	}
 }
 
-// SetExperience hot-swaps the experience definition after validation.
-func (e *Engine) SetExperience(exp *experience.Experience) error {
+// SetInstallation hot-swaps the installation definition after validation.
+func (e *Engine) SetInstallation(exp *installation.Installation) error {
 	if exp == nil {
-		return fmt.Errorf("portico: experience is required")
+		return fmt.Errorf("portico: installation is required")
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	for _, sess := range e.sessions {
 		if _, ok := exp.Scene(sess.CurrentScene()); !ok {
-			return fmt.Errorf("portico: session %s in scene %q not in new experience", sess.ID(), sess.CurrentScene())
+			return fmt.Errorf("portico: session %s in scene %q not in new installation", sess.ID(), sess.CurrentScene())
 		}
 		for _, sp := range sess.Spaces() {
 			if _, ok := exp.Space(sp); !ok {
-				return fmt.Errorf("portico: session %s in space %q not in new experience", sess.ID(), sp)
+				return fmt.Errorf("portico: session %s in space %q not in new installation", sess.ID(), sp)
 			}
 		}
 	}
@@ -129,16 +130,16 @@ func (e *Engine) RedrawSessions() {
 	}
 }
 
-// UpdateAssets replaces asset content on the live experience.
+// UpdateAssets replaces asset content on the live installation.
 func (e *Engine) UpdateAssets(assets map[string]string) error {
 	e.mu.RLock()
 	cur := e.exp
 	e.mu.RUnlock()
-	return e.SetExperience(cur.CloneWithAssets(assets))
+	return e.SetInstallation(cur.CloneWithAssets(assets))
 }
 
-// Experience returns the current definition.
-func (e *Engine) Experience() *experience.Experience {
+// Installation returns the current definition.
+func (e *Engine) Installation() *installation.Installation {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return e.exp
@@ -374,7 +375,7 @@ func (e *Engine) HandleInput(sess *Session, input string) error {
 }
 
 func (e *Engine) sceneKeys(sess *Session) bool {
-	sc, ok := e.Experience().Scene(sess.CurrentScene())
+	sc, ok := e.Installation().Scene(sess.CurrentScene())
 	return ok && sc.Keys
 }
 
@@ -383,7 +384,7 @@ func (e *Engine) syncKeys(sess *Session, term Terminal) {
 	if !ok {
 		return
 	}
-	sc, ok := e.Experience().Scene(sess.CurrentScene())
+	sc, ok := e.Installation().Scene(sess.CurrentScene())
 	if !ok || !sc.Keys {
 		setter.SetKeys(nil)
 		return

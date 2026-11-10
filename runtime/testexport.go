@@ -1,12 +1,13 @@
 package runtime
 
 import (
-	"github.com/MrBlindMouse/Portico/experience"
+	"github.com/MrBlindMouse/Portico/components"
 	"github.com/MrBlindMouse/Portico/identity"
+	"github.com/MrBlindMouse/Portico/installation"
 )
 
 // NewSessionForTest exposes session construction for tests in other packages.
-func NewSessionForTest(id string, idn identity.Identity, root experience.SceneID) *Session {
+func NewSessionForTest(id string, idn identity.Identity, root components.SceneID) *Session {
 	return newSession(id, idn, root)
 }
 
@@ -16,6 +17,6 @@ func SetSessionTerminalForTest(sess *Session, t Terminal) {
 }
 
 // NewActionContextForTest builds an action context for tests.
-func NewActionContextForTest(sess *Session, exp *experience.Experience, eng *Engine) experience.ActionContext {
+func NewActionContextForTest(sess *Session, exp *installation.Installation, eng *Engine) components.ActionContext {
 	return newActionContext(sess, exp, eng.spaces, eng.Applier().Store(), "", eng.viewTheme())
 }

@@ -1,14 +1,15 @@
 package runtime
 
 import (
-	"github.com/MrBlindMouse/Portico/experience"
+	"github.com/MrBlindMouse/Portico/components"
 	"github.com/MrBlindMouse/Portico/identity"
+	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/MrBlindMouse/Portico/render"
 )
 
 type sceneCtx struct {
 	sess  *Session
-	exp   *experience.Experience
+	exp   *installation.Installation
 	sp    *spaceRegistry
 	store identity.Store
 	theme render.Theme
@@ -30,12 +31,12 @@ func (c sceneCtx) Local(key string) (any, bool) {
 	return v, ok
 }
 
-func (c sceneCtx) SetLocal(key string, value any) experience.Effect {
-	return experience.SetLocalEffect(key, value)
+func (c sceneCtx) SetLocal(key string, value any) components.Effect {
+	return components.SetLocalEffect(key, value)
 }
 
-func (c sceneCtx) Transition(to experience.SceneID) experience.Effect {
-	return experience.TransitionEffect(to)
+func (c sceneCtx) Transition(to components.SceneID) components.Effect {
+	return components.TransitionEffect(to)
 }
 
 func (c sceneCtx) Asset(name string) (string, bool) {
@@ -57,15 +58,15 @@ func (c sceneCtx) Persisted(key string) (any, bool) {
 	return v, ok
 }
 
-func (c sceneCtx) Members(space experience.SpaceID) []identity.Identity {
+func (c sceneCtx) Members(space components.SpaceID) []identity.Identity {
 	return c.sp.memberIdentities(space)
 }
 
-func (c sceneCtx) SpaceLocal(space experience.SpaceID, key string) (any, bool) {
+func (c sceneCtx) SpaceLocal(space components.SpaceID, key string) (any, bool) {
 	return c.sp.getValue(space, key)
 }
 
-func (c sceneCtx) SpaceList(space experience.SpaceID, key string) []any {
+func (c sceneCtx) SpaceList(space components.SpaceID, key string) []any {
 	return c.sp.list(space, key)
 }
 
@@ -95,10 +96,10 @@ type actionCtx struct {
 
 func (c actionCtx) InputLine() string { return c.inputLine }
 
-func (c actionCtx) Space() experience.SpaceContext { return spaceCtx{c.sess, c.sp} }
+func (c actionCtx) Space() components.SpaceContext { return spaceCtx{c.sess, c.sp} }
 
-func (c actionCtx) Persist(key string, value any) experience.Effect {
-	return experience.PersistEffect(key, value)
+func (c actionCtx) Persist(key string, value any) components.Effect {
+	return components.PersistEffect(key, value)
 }
 
 type spaceCtx struct {
@@ -106,27 +107,27 @@ type spaceCtx struct {
 	sp   *spaceRegistry
 }
 
-func (s spaceCtx) In(space experience.SpaceID) bool { return s.sess.InSpace(space) }
+func (s spaceCtx) In(space components.SpaceID) bool { return s.sess.InSpace(space) }
 
-func (s spaceCtx) Members(space experience.SpaceID) []identity.Identity {
+func (s spaceCtx) Members(space components.SpaceID) []identity.Identity {
 	return s.sp.memberIdentities(space)
 }
 
-func (s spaceCtx) Local(space experience.SpaceID, key string) (any, bool) {
+func (s spaceCtx) Local(space components.SpaceID, key string) (any, bool) {
 	return s.sp.getValue(space, key)
 }
 
-func (s spaceCtx) List(space experience.SpaceID, key string) []any {
+func (s spaceCtx) List(space components.SpaceID, key string) []any {
 	return s.sp.list(space, key)
 }
 
-func newActionContext(sess *Session, exp *experience.Experience, sp *spaceRegistry, store identity.Store, inputLine string, theme render.Theme) experience.ActionContext {
+func newActionContext(sess *Session, exp *installation.Installation, sp *spaceRegistry, store identity.Store, inputLine string, theme render.Theme) components.ActionContext {
 	return actionCtx{
 		sceneCtx:  sceneCtx{sess: sess, exp: exp, sp: sp, store: store, theme: theme},
 		inputLine: inputLine,
 	}
 }
 
-func newSceneContext(sess *Session, exp *experience.Experience, sp *spaceRegistry, store identity.Store, theme render.Theme, place *inputPlace) experience.SceneContext {
+func newSceneContext(sess *Session, exp *installation.Installation, sp *spaceRegistry, store identity.Store, theme render.Theme, place *inputPlace) components.SceneContext {
 	return sceneCtx{sess: sess, exp: exp, sp: sp, store: store, theme: theme, place: place}
 }

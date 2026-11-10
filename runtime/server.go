@@ -8,6 +8,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/MrBlindMouse/Portico/components"
 	"log/slog"
 	"net"
 	"os"
@@ -16,8 +17,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
+	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/gliderlabs/ssh"
 	gossh "golang.org/x/crypto/ssh"
 )
@@ -62,7 +63,7 @@ func DefaultConfig() ServerConfig {
 	}
 }
 
-// Server serves an experience over SSH.
+// Server serves an installation over SSH.
 type Server struct {
 	cfg       ServerConfig
 	engine    *Engine
@@ -214,7 +215,7 @@ func (s *Server) handleSession(sess ssh.Session) {
 	}
 
 	id := s.engine.NewSessionID()
-	root := s.engine.Experience().Root()
+	root := s.engine.Installation().Root()
 	child := newSession(id, idn, root)
 	s.sessionsWG.Add(1)
 	s.liveSSH.Store(id, sess)
@@ -224,22 +225,22 @@ func (s *Server) handleSession(sess ssh.Session) {
 	}()
 	s.engine.RegisterSession(child)
 	s.cfg.Logger.Info("session_connected", "session", id, "identity", idn.String(), "remote", sess.RemoteAddr().String())
-	exp := s.engine.Experience()
+	exp := s.engine.Installation()
 	if hooks := exp.OnSessionStart(); len(hooks) > 0 {
 		if _, err := s.engine.Applier().Apply(child, exp, hooks); err != nil && s.cfg.Logger != nil {
 			s.cfg.Logger.Error("session_start_failed", "session", id, "error", err)
 		}
 	}
 	defer func() {
-		exp := s.engine.Experience()
+		exp := s.engine.Installation()
 		if hooks := exp.OnSessionEnd(); len(hooks) > 0 {
 			if _, err := s.engine.Applier().Apply(child, exp, hooks); err != nil && s.cfg.Logger != nil {
 				s.cfg.Logger.Error("session_end_failed", "session", id, "error", err)
 			}
 		}
 		for _, sp := range child.Spaces() {
-			if _, err := s.engine.Applier().Apply(child, s.engine.Experience(), []experience.Effect{
-				experience.LeaveSpaceEffect(sp),
+			if _, err := s.engine.Applier().Apply(child, s.engine.Installation(), []components.Effect{
+				components.LeaveSpaceEffect(sp),
 			}); err != nil && s.cfg.Logger != nil {
 				s.cfg.Logger.Error("session_leave_failed", "session", id, "space", string(sp), "error", err)
 			}
@@ -513,13 +514,13 @@ func (s *Server) ListenAndServeOn(ctx context.Context, ln net.Listener) error {
 // EngineRef returns the underlying engine.
 func (s *Server) Engine() *Engine { return s.engine }
 
-// ReloadExperience validates and swaps the experience.
-func (s *Server) ReloadExperience(b *experience.Builder) error {
+// ReloadInstallation validates and swaps the installation.
+func (s *Server) ReloadInstallation(b *installation.Builder) error {
 	exp, err := b.Build()
 	if err != nil {
 		return err
 	}
-	if err := s.engine.SetExperience(exp); err != nil {
+	if err := s.engine.SetInstallation(exp); err != nil {
 		s.engine.NoteReloadFailure()
 		return err
 	}

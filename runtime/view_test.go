@@ -2,16 +2,17 @@ package runtime
 
 import (
 	"fmt"
+	"github.com/MrBlindMouse/Portico/components"
 	"testing"
 
-	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
+	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/MrBlindMouse/Portico/render"
 )
 
 func TestRenderSizeAndTheme(t *testing.T) {
-	exp, err := experience.NewBuilder().Root("home").Scene("home", experience.Scene{
-		Render: func(ctx experience.RenderContext) string {
+	exp, err := installation.NewBuilder().Root("home").Scene("home", components.Scene{
+		Render: func(ctx components.RenderContext) string {
 			w, h := ctx.Size()
 			return fmt.Sprintf("%d %d %s", w, h, ctx.Theme().Bold("x"))
 		},

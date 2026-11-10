@@ -13,10 +13,10 @@ import (
 type StatusFunc func() statusSnapshot
 
 type statusSnapshot struct {
-	ready            bool
-	sessionsActive   int
-	reloadFailures   uint64
-	hasDataDir       bool
+	ready          bool
+	sessionsActive int
+	reloadFailures uint64
+	hasDataDir     bool
 }
 
 func statusHandler(sshAddr string, actions *atomic.Uint64, status StatusFunc) http.Handler {
@@ -38,9 +38,9 @@ func statusHandler(sshAddr string, actions *atomic.Uint64, status StatusFunc) ht
 	mux.HandleFunc("/metrics", func(w http.ResponseWriter, _ *http.Request) {
 		snap := status()
 		payload := map[string]any{
-			"actions_total":     actions.Load(),
+			"actions_total":   actions.Load(),
 			"sessions_active": snap.sessionsActive,
-			"reload_failures":   snap.reloadFailures,
+			"reload_failures": snap.reloadFailures,
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(payload)
@@ -64,7 +64,7 @@ func portFromAddr(addr string) string {
 
 func defaultStatus(srv *runtime.Server, eng *runtime.Engine, dataDir string) StatusFunc {
 	return func() statusSnapshot {
-		ready := eng != nil && eng.Experience() != nil && !srv.Draining()
+		ready := eng != nil && eng.Installation() != nil && !srv.Draining()
 		_ = dataDir
 		return statusSnapshot{
 			ready:          ready,

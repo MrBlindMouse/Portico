@@ -8,28 +8,28 @@ import (
 
 // File is a simple JSON config for operators.
 type File struct {
-	Listen        string        `json:"listen"`
-	DataDir       string        `json:"data_dir"`
-	LogLevel      string        `json:"log_level"`
-	InspectAddr   string        `json:"inspect_addr"`
-	StatusAddr    string        `json:"status_addr"`
-	IdleTimeout   time.Duration `json:"idle_timeout"`
-	MaxConns      int           `json:"max_conns"`
-	MaxConnsPerIP int           `json:"max_conns_per_ip"`
-	AllowKeys     []string      `json:"allow_keys"`
-	DenyKeys      []string      `json:"deny_keys"`
-	ActionRate    float64       `json:"action_rate"`
-	ActionBurst   float64       `json:"action_burst"`
-	AssetDir        string        `json:"asset_dir"`
-	AssetPollEvery  time.Duration `json:"asset_poll_interval"`
-	Accounts            bool          `json:"accounts_enabled"`
-	HashedAccounts      bool          `json:"hashed_accounts"`
-	AllowAccounts       []string      `json:"allow_accounts"`
-	DenyAccounts        []string      `json:"deny_accounts"`
-	RequireAccount      bool          `json:"require_account"`
-	ShutdownGrace       time.Duration `json:"shutdown_grace"`
-	KeepAliveInterval   time.Duration `json:"keepalive_interval"`
-	KeepAliveCountMax   int           `json:"keepalive_count_max"`
+	Listen            string        `json:"listen"`
+	DataDir           string        `json:"data_dir"`
+	LogLevel          string        `json:"log_level"`
+	InspectAddr       string        `json:"inspect_addr"`
+	StatusAddr        string        `json:"status_addr"`
+	IdleTimeout       time.Duration `json:"idle_timeout"`
+	MaxConns          int           `json:"max_conns"`
+	MaxConnsPerIP     int           `json:"max_conns_per_ip"`
+	AllowKeys         []string      `json:"allow_keys"`
+	DenyKeys          []string      `json:"deny_keys"`
+	ActionRate        float64       `json:"action_rate"`
+	ActionBurst       float64       `json:"action_burst"`
+	AssetDir          string        `json:"asset_dir"`
+	AssetPollEvery    time.Duration `json:"asset_poll_interval"`
+	Accounts          bool          `json:"accounts_enabled"`
+	HashedAccounts    bool          `json:"hashed_accounts"`
+	AllowAccounts     []string      `json:"allow_accounts"`
+	DenyAccounts      []string      `json:"deny_accounts"`
+	RequireAccount    bool          `json:"require_account"`
+	ShutdownGrace     time.Duration `json:"shutdown_grace"`
+	KeepAliveInterval time.Duration `json:"keepalive_interval"`
+	KeepAliveCountMax int           `json:"keepalive_count_max"`
 }
 
 // Load reads path if present; returns zero value and nil error when missing.

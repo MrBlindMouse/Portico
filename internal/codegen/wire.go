@@ -6,18 +6,18 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/MrBlindMouse/Portico/experience"
+	"github.com/MrBlindMouse/Portico/installation"
 )
 
 // FromWire emits a Go main-package skeleton from wire JSON.
-func FromWire(w experience.Wire, packageName string) string {
+func FromWire(w installation.Wire, packageName string) string {
 	if packageName == "" {
 		packageName = "main"
 	}
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "// Code generated from wire; fill Render and Run funcs.\npackage %s\n\n", packageName)
-	b.WriteString("import (\n\tportico \"github.com/MrBlindMouse/Portico\"\n\t\"github.com/MrBlindMouse/Portico/experience\"\n)\n\n")
-	b.WriteString("func build() (*experience.Experience, error) {\n\treturn portico.New().\n")
+	b.WriteString("import (\n\tportico \"github.com/MrBlindMouse/Portico\"\n\t\"github.com/MrBlindMouse/Portico/installation\"\n)\n\n")
+	b.WriteString("func build() (*installation.Installation, error) {\n\treturn portico.New().\n")
 	if w.Root != "" {
 		fmt.Fprintf(&b, "\t\tRoot(%q).\n", w.Root)
 	}
@@ -27,10 +27,10 @@ func FromWire(w experience.Wire, packageName string) string {
 	}
 	sort.Strings(sceneNames)
 	for _, name := range sceneNames {
-		fmt.Fprintf(&b, "\t\tScene(%q, experience.Scene{\n\t\t\tRender: func(experience.RenderContext) string { return %q },\n", name, name)
+		fmt.Fprintf(&b, "\t\tScene(%q, components.Scene{\n\t\t\tRender: func(components.RenderContext) string { return %q },\n", name, name)
 		sc := w.Scenes[name]
 		if len(sc.Inputs) > 0 {
-			b.WriteString("\t\t\tInputs: map[string]experience.ActionID{\n")
+			b.WriteString("\t\t\tInputs: map[string]components.ActionID{\n")
 			keys := make([]string, 0, len(sc.Inputs))
 			for k := range sc.Inputs {
 				keys = append(keys, k)
@@ -46,12 +46,12 @@ func FromWire(w experience.Wire, packageName string) string {
 	actionNames := append([]string(nil), w.Actions...)
 	sort.Strings(actionNames)
 	for _, name := range actionNames {
-		fmt.Fprintf(&b, "\t\tAction(%q, experience.Action{\n\t\t\tRun: func(experience.ActionContext) []experience.Effect { return nil },\n\t\t}).\n", name)
+		fmt.Fprintf(&b, "\t\tAction(%q, components.Action{\n\t\t\tRun: func(components.ActionContext) []components.Effect { return nil },\n\t\t}).\n", name)
 	}
 	spaceNames := append([]string(nil), w.Spaces...)
 	sort.Strings(spaceNames)
 	for _, name := range spaceNames {
-		fmt.Fprintf(&b, "\t\tSpace(%q, experience.Space{}).\n", name)
+		fmt.Fprintf(&b, "\t\tSpace(%q, components.Space{}).\n", name)
 	}
 	b.WriteString("\t\tBuild()\n}\n")
 	return strings.TrimSpace(b.String()) + "\n"

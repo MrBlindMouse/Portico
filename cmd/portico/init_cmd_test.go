@@ -22,7 +22,7 @@ func TestWriteTemplateForce(t *testing.T) {
 	if err := os.WriteFile(path, []byte("old"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := writeTemplate(dir, "main.go", "main-scratch.tmpl", true); err != nil {
+	if err := writeTemplate(dir, "main.go", "main.tmpl", true); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(path)

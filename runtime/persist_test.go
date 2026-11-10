@@ -3,10 +3,11 @@ package runtime_test
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"github.com/MrBlindMouse/Portico/components"
 	"testing"
 
-	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
+	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/MrBlindMouse/Portico/runtime"
 	"github.com/MrBlindMouse/Portico/testkit"
 	gossh "golang.org/x/crypto/ssh"
@@ -14,12 +15,12 @@ import (
 
 func TestPersistEffect(t *testing.T) {
 	store := identity.NewMemoryStore()
-	exp, _ := experience.NewBuilder().
+	exp, _ := installation.NewBuilder().
 		Root("home").
-		Scene("home", experience.Scene{Render: func(experience.RenderContext) string { return "" }}).
-		Action("save", experience.Action{
-			Run: func(ctx experience.ActionContext) []experience.Effect {
-				return []experience.Effect{ctx.Persist("x", 42)}
+		Scene("home", components.Scene{Render: func(components.RenderContext) string { return "" }}).
+		Action("save", components.Action{
+			Run: func(ctx components.ActionContext) []components.Effect {
+				return []components.Effect{ctx.Persist("x", 42)}
 			},
 		}).
 		Build()

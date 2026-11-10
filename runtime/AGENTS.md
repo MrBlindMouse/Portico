@@ -7,7 +7,7 @@ SSH server, session lifecycle, input dispatch, and effect application. **Site mo
 - Only `apply.go` mutates `Session` and space registry state (`session.go` updates identity nickname and render cache).
 - Session constructor is unexported (`newSession`).
 - Space hooks `OnJoin` / `OnLeave` run as effect lists through `Apply`.
-- `SetExperience` refuses definitions that orphan live sessions (current scene or a joined space).
+- `SetInstallation` refuses definitions that orphan live sessions (current scene or a joined space).
 - A failed effect leaves earlier effects in that slice applied. Apply is not a transaction.
 
 ## Prefer / avoid

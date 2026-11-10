@@ -30,24 +30,24 @@ Use `ctx.Theme()` in `Render`; apply roles after fitting text (`render` does not
 | `render.Progress` | Static bar `[##--] 50%` |
 | `render.SpinnerFrame(i)` | Single glyph; you advance `i` in local state (no framework timer) |
 
-## Lists in experiences
+## Lists in a scene
 
 Store selected index in session-local state:
 
-- Default key: `experience.LocalListIndex` (`list_index`).
-- `experience.MoveList(ctx, key, delta, n)` → `SetLocal` effect, clamped.
-- `experience.RenderList(ctx, key, items, visible)` draws the window; selected row uses `>` and inverse role.
+- Default key: `installation.LocalListIndex` (`list_index`).
+- `installation.MoveList(ctx, key, delta, n)` → `SetLocal` effect, clamped.
+- `installation.RenderList(ctx, key, items, visible)` draws the window; selected row uses `>` and inverse role.
 
 Bind `up`/`down` with `Scene.Keys: true`.
 
 ## Forms
 
-Multi-step prompts (optional pattern in `experience` package):
+Multi-step prompts (optional pattern in `installation` package):
 
 - `StartForm`, `AdvanceFormValue`, `CancelForm`
 - `FormText`, `RenderForm` for display
 
-See `scaffold.Form()` for an example graph.
+See the form plan (`portico generate form`) for an example graph.
 
 ## Screen grid and caret
 

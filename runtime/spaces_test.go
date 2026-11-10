@@ -1,35 +1,36 @@
 package runtime_test
 
 import (
+	"github.com/MrBlindMouse/Portico/components"
 	"testing"
 
-	"github.com/MrBlindMouse/Portico/experience"
+	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/MrBlindMouse/Portico/internal/faketerm"
 	"github.com/MrBlindMouse/Portico/runtime"
 	"github.com/MrBlindMouse/Portico/testkit"
 )
 
 func TestSpaceBroadcast(t *testing.T) {
-	const sp = experience.SpaceID("lobby")
-	exp, err := experience.NewBuilder().
+	const sp = components.SpaceID("lobby")
+	exp, err := installation.NewBuilder().
 		Root("chat").
-		Space(sp, experience.Space{}).
-		Scene("chat", experience.Scene{
-			Render: func(ctx experience.RenderContext) string {
+		Space(sp, components.Space{}).
+		Scene("chat", components.Scene{
+			Render: func(ctx components.RenderContext) string {
 				n := len(ctx.SpaceList(sp, "msgs"))
 				if n == 0 {
 					return "empty"
 				}
 				return "msgs"
 			},
-			Inputs: map[string]experience.ActionID{"send": "send"},
+			Inputs: map[string]components.ActionID{"send": "send"},
 		}).
-		Action("send", experience.Action{
-			Run: func(ctx experience.ActionContext) []experience.Effect {
-				return []experience.Effect{
-					experience.JoinSpaceEffect(sp),
-					experience.AppendSpaceListEffect(sp, "msgs", "hi"),
-					experience.BroadcastEffect(sp),
+		Action("send", components.Action{
+			Run: func(ctx components.ActionContext) []components.Effect {
+				return []components.Effect{
+					components.JoinSpaceEffect(sp),
+					components.AppendSpaceListEffect(sp, "msgs", "hi"),
+					components.BroadcastEffect(sp),
 				}
 			},
 		}).
@@ -46,7 +47,7 @@ func TestSpaceBroadcast(t *testing.T) {
 	h.Engine.RegisterSession(s2)
 	runtime.SetSessionTerminalForTest(s1, t1)
 	runtime.SetSessionTerminalForTest(s2, t2)
-	_, _ = h.Engine.Applier().Apply(s2, exp, []experience.Effect{experience.JoinSpaceEffect(sp)})
+	_, _ = h.Engine.Applier().Apply(s2, exp, []components.Effect{components.JoinSpaceEffect(sp)})
 	_ = h.Engine.Render(s2, t2)
 	if err := h.Engine.HandleInput(s1, "send"); err != nil {
 		t.Fatal(err)

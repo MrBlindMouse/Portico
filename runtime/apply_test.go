@@ -1,17 +1,18 @@
 package runtime_test
 
 import (
+	"github.com/MrBlindMouse/Portico/components"
 	"testing"
 
-	"github.com/MrBlindMouse/Portico/experience"
+	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/MrBlindMouse/Portico/testkit"
 )
 
 func TestApplyTransitionAndLocal(t *testing.T) {
-	exp, err := experience.NewBuilder().
+	exp, err := installation.NewBuilder().
 		Root("a").
-		Scene("a", experience.Scene{Render: func(experience.RenderContext) string { return "a" }}).
-		Scene("b", experience.Scene{Render: func(experience.RenderContext) string { return "b" }}).
+		Scene("a", components.Scene{Render: func(components.RenderContext) string { return "a" }}).
+		Scene("b", components.Scene{Render: func(components.RenderContext) string { return "b" }}).
 		Build()
 	if err != nil {
 		t.Fatal(err)
@@ -19,9 +20,9 @@ func TestApplyTransitionAndLocal(t *testing.T) {
 	h := testkit.New(exp)
 	ap := h.Applier()
 	sess := h.Session("1", "a")
-	res, err := ap.Apply(sess, exp, []experience.Effect{
-		experience.SetLocalEffect("x", 1),
-		experience.TransitionEffect("b"),
+	res, err := ap.Apply(sess, exp, []components.Effect{
+		components.SetLocalEffect("x", 1),
+		components.TransitionEffect("b"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -32,12 +33,12 @@ func TestApplyTransitionAndLocal(t *testing.T) {
 }
 
 func TestApplySpaceOnJoin(t *testing.T) {
-	const sp = experience.SpaceID("lobby")
-	exp, err := experience.NewBuilder().
+	const sp = components.SpaceID("lobby")
+	exp, err := installation.NewBuilder().
 		Root("home").
-		Scene("home", experience.Scene{Render: func(experience.RenderContext) string { return "" }}).
-		Space(sp, experience.Space{
-			OnJoin: []experience.Effect{experience.SetLocalEffect("joined", true)},
+		Scene("home", components.Scene{Render: func(components.RenderContext) string { return "" }}).
+		Space(sp, components.Space{
+			OnJoin: []components.Effect{components.SetLocalEffect("joined", true)},
 		}).
 		Build()
 	if err != nil {
@@ -46,7 +47,7 @@ func TestApplySpaceOnJoin(t *testing.T) {
 	h := testkit.New(exp)
 	ap := h.Applier()
 	sess := h.Session("1", "home")
-	_, err = ap.Apply(sess, exp, []experience.Effect{experience.JoinSpaceEffect(sp)})
+	_, err = ap.Apply(sess, exp, []components.Effect{components.JoinSpaceEffect(sp)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,9 +55,9 @@ func TestApplySpaceOnJoin(t *testing.T) {
 	if local["joined"] != true {
 		t.Fatalf("local=%v", local)
 	}
-	_, err = ap.Apply(sess, exp, []experience.Effect{
-		experience.SetLocalEffect("joined", false),
-		experience.JoinSpaceEffect(sp),
+	_, err = ap.Apply(sess, exp, []components.Effect{
+		components.SetLocalEffect("joined", false),
+		components.JoinSpaceEffect(sp),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -67,19 +68,19 @@ func TestApplySpaceOnJoin(t *testing.T) {
 }
 
 func TestApplyJoinCycleTerminates(t *testing.T) {
-	render := func(experience.RenderContext) string { return "" }
-	exp, err := experience.NewBuilder().
+	render := func(components.RenderContext) string { return "" }
+	exp, err := installation.NewBuilder().
 		Root("home").
-		Scene("home", experience.Scene{Render: render}).
-		Space("a", experience.Space{OnJoin: []experience.Effect{experience.JoinSpaceEffect("b")}}).
-		Space("b", experience.Space{OnJoin: []experience.Effect{experience.JoinSpaceEffect("a")}}).
+		Scene("home", components.Scene{Render: render}).
+		Space("a", components.Space{OnJoin: []components.Effect{components.JoinSpaceEffect("b")}}).
+		Space("b", components.Space{OnJoin: []components.Effect{components.JoinSpaceEffect("a")}}).
 		Build()
 	if err != nil {
 		t.Fatal(err)
 	}
 	h := testkit.New(exp)
 	sess := h.Session("1", "home")
-	if _, err := h.Applier().Apply(sess, exp, []experience.Effect{experience.JoinSpaceEffect("a")}); err != nil {
+	if _, err := h.Applier().Apply(sess, exp, []components.Effect{components.JoinSpaceEffect("a")}); err != nil {
 		t.Fatal(err)
 	}
 	if !sess.InSpace("a") || !sess.InSpace("b") {
@@ -88,12 +89,12 @@ func TestApplyJoinCycleTerminates(t *testing.T) {
 }
 
 func TestApplyLeaveUnknownAndRepeat(t *testing.T) {
-	render := func(experience.RenderContext) string { return "" }
-	exp, err := experience.NewBuilder().
+	render := func(components.RenderContext) string { return "" }
+	exp, err := installation.NewBuilder().
 		Root("home").
-		Scene("home", experience.Scene{Render: render}).
-		Space("s", experience.Space{
-			OnLeave: []experience.Effect{experience.LeaveSpaceEffect("s"), experience.SetLocalEffect("left", true)},
+		Scene("home", components.Scene{Render: render}).
+		Space("s", components.Space{
+			OnLeave: []components.Effect{components.LeaveSpaceEffect("s"), components.SetLocalEffect("left", true)},
 		}).
 		Build()
 	if err != nil {
@@ -102,13 +103,13 @@ func TestApplyLeaveUnknownAndRepeat(t *testing.T) {
 	h := testkit.New(exp)
 	sess := h.Session("1", "home")
 	ap := h.Applier()
-	if _, err := ap.Apply(sess, exp, []experience.Effect{experience.LeaveSpaceEffect("s")}); err != nil {
+	if _, err := ap.Apply(sess, exp, []components.Effect{components.LeaveSpaceEffect("s")}); err != nil {
 		t.Fatal(err)
 	}
 	if sess.LocalCopy()["left"] == true {
 		t.Fatal("leave ran OnLeave for a session that was not a member")
 	}
-	if _, err := ap.Apply(sess, exp, []experience.Effect{experience.JoinSpaceEffect("s"), experience.LeaveSpaceEffect("s")}); err != nil {
+	if _, err := ap.Apply(sess, exp, []components.Effect{components.JoinSpaceEffect("s"), components.LeaveSpaceEffect("s")}); err != nil {
 		t.Fatal(err)
 	}
 	if sess.InSpace("s") || sess.LocalCopy()["left"] != true {
@@ -117,11 +118,11 @@ func TestApplyLeaveUnknownAndRepeat(t *testing.T) {
 }
 
 func TestApplyAppendAndCASRequireSpace(t *testing.T) {
-	render := func(experience.RenderContext) string { return "" }
-	exp, err := experience.NewBuilder().
+	render := func(components.RenderContext) string { return "" }
+	exp, err := installation.NewBuilder().
 		Root("home").
-		Scene("home", experience.Scene{Render: render}).
-		Space("s", experience.Space{}).
+		Scene("home", components.Scene{Render: render}).
+		Space("s", components.Space{}).
 		Build()
 	if err != nil {
 		t.Fatal(err)
@@ -129,15 +130,15 @@ func TestApplyAppendAndCASRequireSpace(t *testing.T) {
 	h := testkit.New(exp)
 	sess := h.Session("1", "home")
 	ap := h.Applier()
-	if _, err := ap.Apply(sess, exp, []experience.Effect{experience.AppendSpaceListEffect("missing", "k", "v")}); err == nil {
+	if _, err := ap.Apply(sess, exp, []components.Effect{components.AppendSpaceListEffect("missing", "k", "v")}); err == nil {
 		t.Fatal("append to unknown space")
 	}
-	if _, err := ap.Apply(sess, exp, []experience.Effect{experience.SpaceCAS{Space: "missing", Key: "k", Value: "v"}}); err == nil {
+	if _, err := ap.Apply(sess, exp, []components.Effect{components.SpaceCAS{Space: "missing", Key: "k", Value: "v"}}); err == nil {
 		t.Fatal("cas on unknown space")
 	}
-	if _, err := ap.Apply(sess, exp, []experience.Effect{
-		experience.SpaceSetEffect("s", "ready", "no"),
-		experience.SpaceCASEffect("s", "ready", "no", "yes"),
+	if _, err := ap.Apply(sess, exp, []components.Effect{
+		components.SpaceSetEffect("s", "ready", "no"),
+		components.SpaceCASEffect("s", "ready", "no", "yes"),
 	}); err != nil {
 		t.Fatal(err)
 	}

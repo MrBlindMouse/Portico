@@ -1,22 +1,23 @@
 package runtime_test
 
 import (
+	"github.com/MrBlindMouse/Portico/components"
 	"strings"
 	"testing"
 
-	"github.com/MrBlindMouse/Portico/experience"
+	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/MrBlindMouse/Portico/testkit"
 )
 
 func TestRateLimitAppliesOnlyAfterResolve(t *testing.T) {
-	exp, err := experience.NewBuilder().
+	exp, err := installation.NewBuilder().
 		Root("home").
-		Scene("home", experience.Scene{
-			Render: func(ctx experience.RenderContext) string { return "home" },
-			Inputs: map[string]experience.ActionID{"go": "goto"},
+		Scene("home", components.Scene{
+			Render: func(ctx components.RenderContext) string { return "home" },
+			Inputs: map[string]components.ActionID{"go": "goto"},
 		}).
-		Action("goto", experience.Action{
-			Run: func(ctx experience.ActionContext) []experience.Effect { return nil },
+		Action("goto", components.Action{
+			Run: func(ctx components.ActionContext) []components.Effect { return nil },
 		}).
 		Build()
 	if err != nil {

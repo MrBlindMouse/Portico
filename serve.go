@@ -12,15 +12,15 @@ import (
 
 	"github.com/MrBlindMouse/Portico/asset"
 	"github.com/MrBlindMouse/Portico/config"
-	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
 	"github.com/MrBlindMouse/Portico/inspect"
+	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/MrBlindMouse/Portico/render"
 	"github.com/MrBlindMouse/Portico/runtime"
 )
 
 // ServeDev listens on :2222 with dev-friendly inspect/status defaults.
-func ServeDev(exp *experience.Experience, opts Options) error {
+func ServeDev(exp *installation.Installation, opts Options) error {
 	if opts.InspectAddr == "" {
 		opts.InspectAddr = "127.0.0.1:9922"
 	}
@@ -31,7 +31,7 @@ func ServeDev(exp *experience.Experience, opts Options) error {
 }
 
 // Serve blocks serving exp on addr until interrupted (SIGINT/SIGTERM).
-func Serve(addr string, exp *experience.Experience, opts Options) error {
+func Serve(addr string, exp *installation.Installation, opts Options) error {
 	host, err := NewHost(addr, exp, opts)
 	if err != nil {
 		return err

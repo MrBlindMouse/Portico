@@ -3,21 +3,22 @@ package inspect_test
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/MrBlindMouse/Portico/components"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
 	"github.com/MrBlindMouse/Portico/inspect"
+	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/MrBlindMouse/Portico/runtime"
 )
 
 func TestSnapshotJSON(t *testing.T) {
-	exp, _ := experience.NewBuilder().
+	exp, _ := installation.NewBuilder().
 		Root("home").
-		Scene("home", experience.Scene{
-			Render: func(experience.RenderContext) string { return "hello-preview" },
+		Scene("home", components.Scene{
+			Render: func(components.RenderContext) string { return "hello-preview" },
 		}).
 		Build()
 	eng := runtime.NewEngine(exp, nil)
@@ -31,7 +32,7 @@ func TestSnapshotJSON(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &snap); err != nil {
 		t.Fatal(err)
 	}
-	if snap.Experience.Root != "home" || len(snap.Sessions) != 1 {
+	if snap.Installation.Root != "home" || len(snap.Sessions) != 1 {
 		t.Fatalf("%+v", snap)
 	}
 	if snap.Sessions[0].RenderSize == 0 {
@@ -40,13 +41,13 @@ func TestSnapshotJSON(t *testing.T) {
 }
 
 func TestReloadPreviewEndpoint(t *testing.T) {
-	exp, _ := experience.NewBuilder().
+	exp, _ := installation.NewBuilder().
 		Root("home").
-		Scene("home", experience.Scene{
-			Render: func(experience.RenderContext) string { return "" },
+		Scene("home", components.Scene{
+			Render: func(components.RenderContext) string { return "" },
 		}).
-		Scene("gone", experience.Scene{
-			Render: func(experience.RenderContext) string { return "" },
+		Scene("gone", components.Scene{
+			Render: func(components.RenderContext) string { return "" },
 		}).
 		Build()
 	eng := runtime.NewEngine(exp, nil)
@@ -56,7 +57,7 @@ func TestReloadPreviewEndpoint(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/inspect/reload-preview", bytes.NewReader(body))
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
-	var preview experience.ReloadPreview
+	var preview installation.ReloadPreview
 	if err := json.Unmarshal(rec.Body.Bytes(), &preview); err != nil {
 		t.Fatal(err)
 	}
@@ -81,11 +82,11 @@ func TestValidateWireEndpoint(t *testing.T) {
 	}
 }
 
-func mustExp(t *testing.T) *experience.Experience {
+func mustExp(t *testing.T) *installation.Installation {
 	t.Helper()
-	exp, err := experience.NewBuilder().
+	exp, err := installation.NewBuilder().
 		Root("home").
-		Scene("home", experience.Scene{Render: func(experience.RenderContext) string { return "" }}).
+		Scene("home", components.Scene{Render: func(components.RenderContext) string { return "" }}).
 		Build()
 	if err != nil {
 		t.Fatal(err)

@@ -3,12 +3,13 @@ package runtime
 import (
 	"bufio"
 	"bytes"
+	"github.com/MrBlindMouse/Portico/components"
 	"io"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/MrBlindMouse/Portico/experience"
+	"github.com/MrBlindMouse/Portico/installation"
 )
 
 func TestIsTerminalProtocolLine(t *testing.T) {
@@ -391,13 +392,13 @@ func TestReadKeyIgnoresUnbound(t *testing.T) {
 }
 
 func TestCompleteSceneInput(t *testing.T) {
-	exp, err := experience.NewBuilder().
+	exp, err := installation.NewBuilder().
 		Root("home").
-		Scene("home", experience.Scene{
-			Render: func(experience.RenderContext) string { return "home" },
-			Inputs: map[string]experience.ActionID{"chat": "go", "changelog": "go", "guestbook": "go"},
+		Scene("home", components.Scene{
+			Render: func(components.RenderContext) string { return "home" },
+			Inputs: map[string]components.ActionID{"chat": "go", "changelog": "go", "guestbook": "go"},
 		}).
-		Action("go", experience.Action{Run: func(experience.ActionContext) []experience.Effect { return nil }}).
+		Action("go", components.Action{Run: func(components.ActionContext) []components.Effect { return nil }}).
 		Build()
 	if err != nil {
 		t.Fatal(err)

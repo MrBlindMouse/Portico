@@ -16,6 +16,15 @@ func TestFileAccountStoreRejectsPathUsername(t *testing.T) {
 	if err := store.Register("../outside", "secret"); err == nil {
 		t.Fatal("expected invalid username")
 	}
+	if _, err := store.Verify("../outside", "secret"); err == nil {
+		t.Fatal("verify should reject path username")
+	}
+	if err := store.LinkKey("../outside", "fp"); err == nil {
+		t.Fatal("link should reject path username")
+	}
+	if _, _, err := store.Lookup("../outside"); err == nil {
+		t.Fatal("lookup should reject path username")
+	}
 }
 
 func TestFileAccountStoreRegisterVerify(t *testing.T) {

@@ -14,11 +14,11 @@ import (
 	"syscall"
 
 	portico "github.com/MrBlindMouse/Portico"
+	"github.com/MrBlindMouse/Portico/components"
 	"github.com/MrBlindMouse/Portico/config"
-	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
+	"github.com/MrBlindMouse/Portico/internal/plans"
 	"github.com/MrBlindMouse/Portico/runtime"
-	"github.com/MrBlindMouse/Portico/scaffold"
 )
 
 func main() {
@@ -31,8 +31,8 @@ func main() {
 		serveCmd(os.Args[2:])
 	case "inspect":
 		inspectCmd(os.Args[2:])
-	case "scaffold":
-		scaffoldCmd(os.Args[2:])
+	case "generate":
+		generateCmd(os.Args[2:])
 	case "identity-export":
 		identityExportCmd(os.Args[2:])
 	case "account-export":
@@ -52,7 +52,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: portico <init|docs|inspect|scaffold|wire|identity-export|account-export|account-import|serve -demo> [flags]\n")
+	fmt.Fprintf(os.Stderr, "usage: portico <init|generate|docs|inspect|wire|identity-export|account-export|account-import|serve -demo> [flags]\n")
 	fmt.Fprintf(os.Stderr, "  A site is your own Go module that imports this library.\n")
 	fmt.Fprintf(os.Stderr, "  Create one: portico init -module <module-path>   then: go run .\n")
 	fmt.Fprintf(os.Stderr, "  Guides: portico docs    (portico serve is only a -demo smoke test)\n")
@@ -66,7 +66,6 @@ func docsCmd(args []string) {
 	fmt.Printf("manual:          %s/docs/manual/README.md\n", base)
 	fmt.Printf("building-a-site: %s/docs/building-a-site.md\n", base)
 	fmt.Printf("site-agents:     %s/docs/site-agents.md\n", base)
-	fmt.Printf("examples:        %s/examples/from-scratch\n", base)
 }
 
 func serveCmd(args []string) {
@@ -111,9 +110,9 @@ func serveCmd(args []string) {
 	}
 
 	exp, err := portico.New().
-		Merge(scaffold.Guestbook()).
-		Merge(scaffold.Chat()).
-		Merge(scaffold.Landing(map[string]experience.SceneID{
+		Merge(plans.Guestbook()).
+		Merge(plans.Chat()).
+		Merge(plans.Landing(map[string]components.SceneID{
 			"guestbook": "guestbook",
 			"chat":      "chat",
 		})).
@@ -203,42 +202,4 @@ func identityExportCmd(args []string) {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(out)
-}
-
-func scaffoldCmd(args []string) {
-	if len(args) == 0 {
-		log.Fatal("usage: portico scaffold <landing|guestbook|chat|register|nickname|form|blog|lobby|recipe>")
-	}
-	switch args[0] {
-	case "landing":
-		fmt.Println(`portico.New().Merge(scaffold.Landing(map[string]experience.SceneID{"guestbook": "guestbook"}))`)
-	case "guestbook":
-		fmt.Println("portico.New().Merge(scaffold.Guestbook())")
-	case "chat":
-		fmt.Println("portico.New().Merge(scaffold.Chat())")
-	case "register", "registration":
-		fmt.Println("portico.New().Merge(scaffold.Registration()) // enable opts.Accounts")
-	case "nickname":
-		fmt.Println(`portico.New().Merge(scaffold.NicknameCommands()) // bind Inputs["nick"] = "reserve-nick"; RecipeAccountsSite does this`)
-	case "form":
-		fmt.Println("portico.New().Merge(scaffold.Form())")
-	case "blog":
-		fmt.Println("portico.New().Merge(scaffold.Blog())")
-	case "lobby":
-		fmt.Println("portico.New().Merge(scaffold.Lobby())")
-	case "recipe":
-		if len(args) < 2 {
-			log.Fatal("usage: portico scaffold recipe <community|accounts>")
-		}
-		switch args[1] {
-		case "community":
-			fmt.Println("portico.New().Merge(scaffold.RecipeCommunity())")
-		case "accounts":
-			fmt.Println("portico.New().Merge(scaffold.RecipeAccountsSite())")
-		default:
-			log.Fatalf("unknown recipe %q", args[1])
-		}
-	default:
-		log.Fatalf("unknown scaffold %q", args[0])
-	}
 }

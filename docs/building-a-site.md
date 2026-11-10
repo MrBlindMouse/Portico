@@ -1,12 +1,10 @@
 # Building a Portico SSH site
 
-A Portico site is a normal Go program: compose an **experience** (scenes, actions, optional spaces), then call **`ServeDev`** or **`Serve`**.
+A Portico site is a normal Go program: compose an **installation** from **components** (scenes, actions, optional spaces), set **`portico.Options`** in `main`, then call **`Serve(addr, inst, opts)`**. The map is [the manual overview](manual/00-overview.md).
 
 ## Quick start
 
-Same two starts as the [README](../README.md#create-a-site).
-
-Generate a site (`init` runs `go mod init` when `go.mod` is missing, then `go get`):
+Same flow as the [README](../README.md#create-a-site).
 
 ```bash
 mkdir my-site && cd my-site
@@ -15,7 +13,7 @@ go run .
 ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null localhost
 ```
 
-Default style is `community` (`RecipeCommunity`), the same graph as [examples/hello](../examples/hello). `-style scratch` writes the same program as [examples/from-scratch](../examples/from-scratch). [examples/notes](../examples/notes) is a scaffold copied into the site and edited.
+`init` writes `main.go` (one scene, `greet`, `Serve` + `-addr` + loopback inspect), **AGENTS.md**, and **README.md**. Add plans with `portico generate <name>` in the site directory.
 
 ## Mental model
 
@@ -31,46 +29,32 @@ Session and space mutation happen only inside the runtime **apply** step. Your a
 
 ```
 my-site/
-  main.go          # Serve + -addr + options (from portico init)
-  site/            # optional: BuildExperience() etc.
+  main.go          # Build(), Options, Serve (from portico init)
+  *.go             # plans from portico generate (you edit)
   .portico-data/   # host key, identity KV (gitignore)
-  AGENTS.md        # agent contract for this repo (from init)
+  AGENTS.md        # primary agent contract (from init)
+  README.md        # human ops notes (from init)
 ```
 
 Keep `main` thin; grow a `site` package when definitions get large.
 
 ## Authoring checklist
 
-1. Pick **root scene** (`Root("home")` or scaffold default).
+1. Pick **root scene** (`Root("home")`, or the root a generated plan sets, such as `landing`).
 2. Define **scenes** with `Render` + `Inputs`.
-3. Define **actions** returning `[]experience.Effect`.
+3. Define **actions** returning `[]components.Effect`.
 4. Optional **spaces** for shared multi-user state.
 5. **`Build()`** — fix validation errors (missing action refs, bad transitions).
-6. **`Serve`** (or `ServeDev` in examples) with `DataDir`; smoke-test over SSH.
+6. **`Serve`** with `Options` (persistence, limits, inspect on loopback in dev); smoke-test over SSH.
 
-## Rendering
+## Plans
 
-Scenes return a string. Read the window with `ctx.Size()` and the theme with `ctx.Theme()`. Draw with `render` (`Wrap`, `Box`, `Table`, `List`, `Progress`, `SpinnerFrame`). Widths count runes.
-
-A menu stores its index in local state. The action returns `experience.MoveList`. The scene calls `experience.RenderList` and binds `up` / `down` with `Keys: true`. See [site-agents.md](site-agents.md#rendering).
-
-`Options.Theme` replaces the default ANSI roles. A non-empty `NO_COLOR` uses `render.Plain` when `Theme` is nil. `SpinnerFrame` does not move on its own.
-
-The caret is the row under the frame. `render.NewScreen` plus `Input` and `Show` puts that caret in one rectangle. `DrawWithin` clips a region. `BoxBody`, `ListRow`, and `TableCell` report where a block landed. See [site-agents.md](site-agents.md#caret).
-
-## Scaffolds and recipes
-
-```go
-import "github.com/MrBlindMouse/Portico/scaffold"
-
-exp, err := portico.New().
-    Merge(scaffold.RecipeCommunity()).
-    Build()
+```bash
+portico generate guestbook
+portico generate -list
 ```
 
-To customize behavior, **copy** the scaffold definitions into your repo and edit them there ([examples/notes](../examples/notes)). Do not patch files inside the module cache.
-
-`portico scaffold recipe community` prints the merge line.
+Each command copies starter Go into the site and prints a `Merge(…)` line. Edit the file; wire the merge in `main.go`. Plans are **not** a library—only the copies in your repo count. Names: `landing`, `guestbook`, `chat`, `register`, `form`, `blog`, `lobby`. Each builds on its own; later `Merge` wins when ids collide.
 
 ## Options you will actually use
 
@@ -78,42 +62,38 @@ To customize behavior, **copy** the scaffold definitions into your repo and edit
 |-------|--------|
 | `DataDir` | Persistence + host key |
 | `LogLevel` | `debug` for input timing / protocol noise |
-| `InspectAddr` | Default `127.0.0.1:9922` in dev |
-| `AssetDir` | For `asset` package + blog scaffold |
-| `Accounts` | Registration scaffold; not for production as plaintext |
+| `InspectAddr` | Init template uses `127.0.0.1:9922`; empty disables with `Serve` |
+| `AssetDir` | For `asset` package + blog plan |
+| `Accounts` / `HashedAccounts` | `generate register`; production uses hashed accounts |
 | `Theme` | `render.Theme`. Nil keeps `render.Default` (`render.Plain` if `NO_COLOR` is set) |
+
+## Rendering
+
+Scenes return a string. Read the window with `ctx.Size()` and the theme with `ctx.Theme()`. Draw with `render` (`Wrap`, `Box`, `Table`, `List`, `Progress`, `SpinnerFrame`). Widths count runes.
+
+A menu stores its index in local state. The action returns `installation.MoveList`. The scene calls `installation.RenderList` and binds `up` / `down` with `Keys: true`. See [site-agents.md](site-agents.md#rendering).
+
+The caret is the row under the frame. `render.NewScreen` plus `Input` and `Show` puts that caret in one rectangle. See [site-agents.md](site-agents.md#caret).
 
 ## Hot reload
 
-Advanced: `portico.NewHost(exp, opts)`, then `host.HotReload(builder)` with a newly built experience. Invalid graphs or sessions stranded in removed scenes or spaces are rejected. Use `POST /inspect/reload-preview` before applying.
+Advanced: `portico.NewHost(addr, inst, opts)`, then `host.HotReload(builder)` with a newly built installation. Invalid graphs or sessions stranded in removed scenes or spaces are rejected. Use `POST /inspect/reload-preview` before applying.
 
 ## Inspection
 
-While the server runs (localhost only by default):
+Inspect and status HTTP have no authentication. The init template binds them to loopback. Do not publish that port on the internet.
 
 ```bash
 curl -s http://127.0.0.1:9922/inspect/snapshot
 curl -s http://127.0.0.1:9922/inspect/session/<id>
 ```
 
-## Examples in the module
-
-| Example | Teaches |
-|---------|---------|
-| [from-scratch](../examples/from-scratch) | Custom scene + action + effects |
-| [hello](../examples/hello) | `RecipeCommunity` unchanged |
-| [notes](../examples/notes) | Guestbook copied into the site and edited |
-
-Paths above live in the Portico repo at the **tag matching your `go.mod`** version.
-
 ## AI agents
 
-Put [site-agents.md](site-agents.md) in your workflow: site repos should include a short **AGENTS.md** (see `portico init`) that points agents at the tagged upstream contract and local run commands.
+`portico init` writes **AGENTS.md** in the site repo as the primary agent contract. Extended notes: [site-agents.md](site-agents.md). Full reference: [manual/README.md](manual/README.md) at your `go.mod` tag.
 
 ## More
 
-- [manual/README.md](manual/README.md) — full operator and reference manual
+- [manual/README.md](manual/README.md) — operator and reference manual
 - [README.md](../README.md) — API tables and production
-- [scaffold/AGENTS.md](../scaffold/AGENTS.md) — scaffold catalog
-- [experience/AGENTS.md](../experience/AGENTS.md) — effects and contexts
-- [DESIGN.md](../DESIGN.md) — architecture (vision; not all items are shipped)
+- [DESIGN.md](../DESIGN.md) — architecture vision (not all items are shipped)

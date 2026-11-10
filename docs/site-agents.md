@@ -1,44 +1,78 @@
-# Portico site agents
+# Portico site agents (extended)
 
-Contract for AI agents and operators building an **SSH site** that imports `github.com/MrBlindMouse/Portico`. You are in a **consumer repo**, not the framework tree.
+Extended contract for AI agents building an **SSH site** that imports `github.com/MrBlindMouse/Portico`. You are in a **consumer repo**, not the framework tree.
+
+**Start in the site repo:** `portico init` writes **AGENTS.md** there—that file is the primary entry. Use this document when you need more detail at the same module tag.
 
 ## Version alignment
 
 Read `require github.com/MrBlindMouse/Portico` in **this repo’s `go.mod`**. When unsure about an API, prefer that version over training data:
 
-- Manual: `https://github.com/MrBlindMouse/Portico/blob/<tag>/docs/manual/README.md`
-- Upstream contract: `https://github.com/MrBlindMouse/Portico/blob/<tag>/docs/site-agents.md`
-- Human guide: `https://github.com/MrBlindMouse/Portico/blob/<tag>/docs/building-a-site.md`
-- Offline API: `go doc github.com/MrBlindMouse/Portico/experience`
+| Need | URL or command |
+|------|----------------|
+| Site **AGENTS.md** | Primary (in your repo, from `portico init`) |
+| Manual | `https://github.com/MrBlindMouse/Portico/blob/<tag>/docs/manual/README.md` |
+| This file | `https://github.com/MrBlindMouse/Portico/blob/<tag>/docs/site-agents.md` |
+| Human how-to | `https://github.com/MrBlindMouse/Portico/blob/<tag>/docs/building-a-site.md` |
+| Offline API | `go doc github.com/MrBlindMouse/Portico/components`, `…/installation` |
 
 Use the **same git tag** as the module version (not `main` unless this repo tracks main).
 
 **DESIGN.md** is vision; if something appears only in DESIGN and not in README, godoc, or these docs, treat it as **not shipped**.
 
+## Plans — convenient starting points
+
+`portico generate <name>` copies runnable starter Go into your repo. Each plan has its own root scene. **Merge** into `portico.New()` before `Build()`; edit the generated files.
+
+```bash
+portico generate guestbook
+portico generate -list    # landing, guestbook, chat, register, form, blog, lobby
+```
+
+| Name | Job |
+|------|-----|
+| `landing` | Entrance menu — fill destinations in `main` |
+| `guestbook`, `chat` | Shared spaces; also writes `rest.go` |
+| `register` | Account signup — enable accounts in `Options` |
+| `form`, `blog`, `lobby` | Form demo, assets, ready room |
+
+Do not import plan sources from the framework module; only the copies in your repo.
+
+`Guestbook` and `Chat` read the rest of the line (`sign hello`, `send hello`) via `InputLine()`. Later `Merge` calls win on id collision. Session start/end hook slices append.
+
 ## Hard rules
 
-1. **Actions return effects only** (`[]experience.Effect`). Never mutate session or space state in site code.
-2. **Scenes only render** with `experience.RenderContext`. No state changes in `Render`.
-3. **Do not import** `github.com/MrBlindMouse/Portico/runtime`, `.../internal/...`, or `.../inspect` from site code.
-4. **Typed IDs** — `experience.SceneID`, `ActionID`, `SpaceID`.
-5. **`Build()` validates** — fix builder errors before chasing runtime bugs.
-6. **Domain lives here** — scenes, actions, spaces, and assets in this repo; copy scaffolds to edit, do not fork framework packages.
+1. **Actions return effects only** (`[]components.Effect`). Never mutate session or space state in site code.
+2. **Scenes only render** with `components.RenderContext`. No state changes in `Render`.
+3. **Typed IDs** — `components.SceneID`, `ActionID`, `SpaceID`.
+4. **`Build()` validates** — fix builder errors before chasing runtime bugs.
+5. **Domain lives here** — scenes, actions, spaces, and assets in this repo.
+6. **Imports (site code):** `portico`, `components`, `installation`, `render`, `asset`, `identity`, `testkit` (tests). Do not import `runtime` or `inspect`.
 
 ## Layout
 
 | Piece | Typical location |
 |-------|------------------|
-| `Serve` / `ServeDev`, options | `main.go` |
-| Experience definition | `main.go` or `site/` package |
+| Installation (`Build()`) | `main.go` or `site/` package |
+| Server config | `portico.Options` in `main.go` |
 | Data + host key | `Options.DataDir` (e.g. `.portico-data`) |
 | Static content | `Options.AssetDir` when using assets |
 
-Entry pattern:
+Entry pattern (matches `portico init` `main.go`):
 
 ```go
-exp, err := portico.New(). /* scenes, actions, Merge(scaffold.*) */ .Build()
-portico.ServeDev(exp, portico.Options{DataDir: ".portico-data"})
+addr := flag.String("addr", ":2222", "SSH listen address")
+flag.Parse()
+inst, err := portico.New(). /* Merge(Guestbook()) */ .Build()
+opts := portico.Options{
+    DataDir:     dataDir,
+    InspectAddr: "127.0.0.1:9922",
+    StatusAddr:  "127.0.0.1:9923",
+}
+portico.Serve(*addr, inst, opts)
 ```
+
+`portico.ServeDev(inst, opts)` is a dev shortcut (SSH `:2222`, loopback inspect/status when those fields are empty).
 
 ## Iteration loop
 
@@ -57,7 +91,7 @@ curl -s http://127.0.0.1:9922/inspect/snapshot | jq .
 | `/inspect/session/{id}` | GET | One session render preview |
 | `/inspect/spaces` | GET | Shared space keys |
 | `/inspect/identity/{fingerprint}` | GET | Per-key persistence |
-| `/inspect/validate` | POST | Validate a builder JSON body |
+| `/inspect/validate` | POST | Validate an `installation.Wire` JSON body |
 | `/inspect/reload-preview` | POST | Dry-run hot reload |
 
 CLI helper (from dev machine with `go install` on Portico): `portico inspect -url http://127.0.0.1:9922 -resource snapshot`
@@ -96,23 +130,23 @@ Theme roles: bold, muted, error, accent, ok, warn, inverse. Copy `render.Default
 
 A list selection is an `int` in session-local state:
 
-- `experience.LocalListIndex` (`list_index`) is the key when you pass `""`.
-- `experience.MoveList(ctx, key, delta, n)` returns a `SetLocal` effect clamped to `0..n-1`.
-- `experience.RenderList(ctx, key, items, visible)` draws that window. The selected row starts with `>` and uses the inverse role. `visible <= 0` shows every row. Rows are cut to `Size` width.
+- `installation.LocalListIndex` (`list_index`) is the key when you pass `""`.
+- `installation.MoveList(ctx, key, delta, n)` returns a `SetLocal` effect clamped to `0..n-1`.
+- `installation.RenderList(ctx, key, items, visible)` draws that window. The selected row starts with `>` and uses the inverse role. `visible <= 0` shows every row. Rows are cut to `Size` width.
 - Bind `up` and `down` with `Keys: true`.
 
 ```go
-Render: func(ctx experience.RenderContext) string {
+Render: func(ctx components.RenderContext) string {
     _, h := ctx.Size()
-    return experience.RenderList(ctx, "", []string{"one", "two", "three"}, h-2)
+    return installation.RenderList(ctx, "", []string{"one", "two", "three"}, h-2)
 },
 Keys: true,
-Inputs: map[string]experience.ActionID{"up": "menu-up", "down": "menu-down"},
+Inputs: map[string]components.ActionID{"up": "menu-up", "down": "menu-down"},
 ```
 
 ```go
-Run: func(ctx experience.ActionContext) []experience.Effect {
-    return experience.MoveList(ctx, "", -1, 3)
+Run: func(ctx components.ActionContext) []components.Effect {
+    return installation.MoveList(ctx, "", -1, 3)
 },
 ```
 
@@ -142,23 +176,6 @@ return s.Show(ctx)
 
 A scene with `Keys: true` that also places an input fails when it renders. `Build` does not run `Render`, so it cannot see the rectangle.
 
-## Scaffolds
-
-Merge with `portico.New().Merge(scaffold.Guestbook())` etc. Later merges win on ID collisions. Session start and end hooks append.
-
-| Function | Adds |
-|----------|------|
-| `Landing(destinations)` | Root menu, `go-*` transitions |
-| `Guestbook`, `Chat` | Shared spaces |
-| `Registration` | Needs `Options.Accounts` |
-| `NicknameCommands` | Bind `nick` on your scenes. `RecipeAccountsSite` does this |
-| `Form`, `Blog`, `Lobby` | Demos / assets |
-| `RecipeCommunity`, `RecipeAccountsSite` | Pre-wired graphs |
-
-Hints: `portico scaffold <name>` prints merge snippets. See `scaffold/AGENTS.md` in the module at your tag.
-
-`Guestbook` and `Chat` read the rest of the line (`sign hello`, `send hello`) via `InputLine()`. To change a scaffold, copy it into the site and edit that copy (`examples/notes`). Do not patch the module.
-
 ## Identity
 
 A session that connects with no credentials is a guest. That path stays open when the site has no key allow/deny list, no password accounts, and `RequireAccount` is false, so `ssh` with no key still works. The SSH username (OpenSSH sends your local login when you omit `user@`) is the display label for that connection. It is not persisted and not unique. `Identity.String()` uses a reserved nickname, then the account name, then that login.
@@ -180,6 +197,7 @@ Site integration tests can use **`testkit`** (`testkit.New(exp)`) for an in-memo
 
 | Doc | Audience |
 |-----|----------|
-| This file | Site repo agents |
+| **`AGENTS.md` in the site repo** (from `portico init`) | Primary agent entry — start here |
+| This file | Same contract, extended (inspect API, rendering detail, production) at your module tag |
 | `docs/building-a-site.md` | Humans + agents (how-to) |
-| Framework `AGENTS.md` | Portico contributors only |
+| Framework root `AGENTS.md` | Portico contributors only |

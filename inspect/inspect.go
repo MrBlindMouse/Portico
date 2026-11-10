@@ -8,26 +8,26 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
+	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/MrBlindMouse/Portico/runtime"
 )
 
 // Snapshot is the top-level inspect payload.
 type Snapshot struct {
-	Experience ExperienceSnap `json:"experience"`
-	Sessions   []SessionSnap  `json:"sessions"`
-	Spaces     map[string]SpaceSnap `json:"spaces"`
+	Installation InstallationSnap     `json:"installation"`
+	Sessions     []SessionSnap        `json:"sessions"`
+	Spaces       map[string]SpaceSnap `json:"spaces"`
 }
 
-// ExperienceSnap summarizes the loaded definition.
-type ExperienceSnap struct {
-	Root         string   `json:"root"`
-	Hash         string   `json:"hash"` // scene id set fingerprint (not full definition hash)
-	Scenes       []string `json:"scenes"`
-	ActionCount  int      `json:"action_count"`
-	SpaceCount   int      `json:"space_count"`
-	BuilderNote  string   `json:"builder_note"`
+// InstallationSnap summarizes the loaded definition.
+type InstallationSnap struct {
+	Root        string   `json:"root"`
+	Hash        string   `json:"hash"` // scene id set fingerprint (not full definition hash)
+	Scenes      []string `json:"scenes"`
+	ActionCount int      `json:"action_count"`
+	SpaceCount  int      `json:"space_count"`
+	BuilderNote string   `json:"builder_note"`
 }
 
 // SpaceSnap is a read-only space summary for inspection.
@@ -38,17 +38,17 @@ type SpaceSnap struct {
 
 // SessionSnap describes one live session.
 type SessionSnap struct {
-	ID            string            `json:"id"`
-	Scene         string            `json:"scene"`
-	Identity      string            `json:"identity"`
-	Fingerprint   string            `json:"fingerprint"`
-	Inputs            map[string]string `json:"inputs"`
-	AvailableActions  []string          `json:"available_actions"`
-	LocalKeys         []string          `json:"local_keys"`
-	RenderHash        string            `json:"render_hash"`
-	RenderSize    int               `json:"render_size"`
-	RenderPreview string            `json:"render_preview"`
-	Spaces        []string          `json:"spaces"`
+	ID               string            `json:"id"`
+	Scene            string            `json:"scene"`
+	Identity         string            `json:"identity"`
+	Fingerprint      string            `json:"fingerprint"`
+	Inputs           map[string]string `json:"inputs"`
+	AvailableActions []string          `json:"available_actions"`
+	LocalKeys        []string          `json:"local_keys"`
+	RenderHash       string            `json:"render_hash"`
+	RenderSize       int               `json:"render_size"`
+	RenderPreview    string            `json:"render_preview"`
+	Spaces           []string          `json:"spaces"`
 }
 
 // Handler serves JSON inspection endpoints.
@@ -96,20 +96,20 @@ func (h *Handler) reloadPreview(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	var wire experience.Wire
+	var wire installation.Wire
 	if err := json.Unmarshal(body, &wire); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	live := make([]experience.LiveSession, 0)
+	live := make([]installation.LiveSession, 0)
 	for _, sess := range h.Engine.Sessions() {
-		live = append(live, experience.LiveSession{
+		live = append(live, installation.LiveSession{
 			ID:     sess.ID(),
 			Scene:  sess.CurrentScene(),
 			Spaces: sess.Spaces(),
 		})
 	}
-	preview := experience.PreviewReload(h.Engine.Experience(), wire, live)
+	preview := installation.PreviewReload(h.Engine.Installation(), wire, live)
 	writeJSON(w, preview)
 }
 
@@ -119,16 +119,16 @@ func (h *Handler) validate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	var wire experience.Wire
+	var wire installation.Wire
 	if len(body) == 0 {
-		writeJSON(w, map[string]any{"ok": true, "note": "empty body; send experience.Wire JSON to dry-run wiring"})
+		writeJSON(w, map[string]any{"ok": true, "note": "empty body; send installation.Wire JSON to dry-run wiring"})
 		return
 	}
 	if err := json.Unmarshal(body, &wire); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	if err := experience.ValidateWire(wire); err != nil {
+	if err := installation.ValidateWire(wire); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
@@ -175,14 +175,14 @@ func spaceSnaps(in map[string]runtime.SpaceSnapshot) map[string]SpaceSnap {
 }
 
 func (h *Handler) buildSnapshot() Snapshot {
-	exp := h.Engine.Experience()
+	exp := h.Engine.Installation()
 	scenes := make([]string, 0, len(exp.Scenes()))
 	for _, id := range exp.Scenes() {
 		scenes = append(scenes, string(id))
 	}
 	hash := sceneSetHash(exp)
 	out := Snapshot{
-		Experience: ExperienceSnap{
+		Installation: InstallationSnap{
 			Root:        string(exp.Root()),
 			Hash:        hash,
 			Scenes:      scenes,
@@ -217,17 +217,17 @@ func (h *Handler) buildSnapshot() Snapshot {
 			spaceIDs = append(spaceIDs, string(sp))
 		}
 		out.Sessions = append(out.Sessions, SessionSnap{
-			ID:            sess.ID(),
-			Scene:         string(sess.CurrentScene()),
-			Identity:      sess.Identity().String(),
-			Fingerprint:   sess.Identity().Fingerprint(),
+			ID:               sess.ID(),
+			Scene:            string(sess.CurrentScene()),
+			Identity:         sess.Identity().String(),
+			Fingerprint:      sess.Identity().Fingerprint(),
 			Inputs:           inputs,
 			AvailableActions: available,
 			LocalKeys:        localKeys,
 			RenderHash:       renderHash(text),
-			RenderSize:    size,
-			RenderPreview: preview,
-			Spaces:        spaceIDs,
+			RenderSize:       size,
+			RenderPreview:    preview,
+			Spaces:           spaceIDs,
 		})
 	}
 	return out
@@ -241,7 +241,7 @@ func renderHash(text string) string {
 	return hex.EncodeToString(h[:])[:16]
 }
 
-func sceneSetHash(exp *experience.Experience) string {
+func sceneSetHash(exp *installation.Installation) string {
 	h := sha256.New()
 	for _, id := range exp.Scenes() {
 		h.Write([]byte(string(id)))

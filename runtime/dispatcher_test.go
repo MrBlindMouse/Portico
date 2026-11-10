@@ -1,21 +1,22 @@
 package runtime_test
 
 import (
+	"github.com/MrBlindMouse/Portico/components"
 	"strings"
 	"testing"
 
-	"github.com/MrBlindMouse/Portico/experience"
+	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/MrBlindMouse/Portico/runtime"
 )
 
 func TestResolveInputPrefixCommand(t *testing.T) {
-	exp, _ := experience.NewBuilder().
+	exp, _ := installation.NewBuilder().
 		Root("home").
-		Scene("home", experience.Scene{
-			Render: func(experience.RenderContext) string { return "" },
-			Inputs: map[string]experience.ActionID{"go": "go"},
+		Scene("home", components.Scene{
+			Render: func(components.RenderContext) string { return "" },
+			Inputs: map[string]components.ActionID{"go": "go"},
 		}).
-		Action("go", experience.Action{Run: func(experience.ActionContext) []experience.Effect { return nil }}).
+		Action("go", components.Action{Run: func(components.ActionContext) []components.Effect { return nil }}).
 		Build()
 	aid, err := runtime.ResolveInput(exp, "home", "go elsewhere")
 	if err != nil || aid != "go" {
@@ -24,14 +25,14 @@ func TestResolveInputPrefixCommand(t *testing.T) {
 }
 
 func TestInputEligible(t *testing.T) {
-	exp, _ := experience.NewBuilder().
+	exp, _ := installation.NewBuilder().
 		Root("home").
-		Scene("home", experience.Scene{
-			Render: func(experience.RenderContext) string { return "" },
-			Inputs: map[string]experience.ActionID{"go": "go", "OK": "ack"},
+		Scene("home", components.Scene{
+			Render: func(components.RenderContext) string { return "" },
+			Inputs: map[string]components.ActionID{"go": "go", "OK": "ack"},
 		}).
-		Action("go", experience.Action{Run: func(experience.ActionContext) []experience.Effect { return nil }}).
-		Action("ack", experience.Action{Run: func(experience.ActionContext) []experience.Effect { return nil }}).
+		Action("go", components.Action{Run: func(components.ActionContext) []components.Effect { return nil }}).
+		Action("ack", components.Action{Run: func(components.ActionContext) []components.Effect { return nil }}).
 		Build()
 	if !runtime.InputEligible(exp, "home", "go there") {
 		t.Fatal("prefix should be eligible")
@@ -39,13 +40,13 @@ func TestInputEligible(t *testing.T) {
 	if !runtime.InputEligible(exp, "home", "OK") {
 		t.Fatal("OK registered — should be eligible")
 	}
-	exp2, _ := experience.NewBuilder().
+	exp2, _ := installation.NewBuilder().
 		Root("landing").
-		Scene("landing", experience.Scene{
-			Render: func(experience.RenderContext) string { return "" },
-			Inputs: map[string]experience.ActionID{"greet": "g"},
+		Scene("landing", components.Scene{
+			Render: func(components.RenderContext) string { return "" },
+			Inputs: map[string]components.ActionID{"greet": "g"},
 		}).
-		Action("g", experience.Action{Run: func(experience.ActionContext) []experience.Effect { return nil }}).
+		Action("g", components.Action{Run: func(components.ActionContext) []components.Effect { return nil }}).
 		Build()
 	if runtime.InputEligible(exp2, "landing", "OK") {
 		t.Fatal("OK not registered on landing")
@@ -56,10 +57,10 @@ func TestInputEligible(t *testing.T) {
 }
 
 func TestResolveInputMissing(t *testing.T) {
-	exp, _ := experience.NewBuilder().
+	exp, _ := installation.NewBuilder().
 		Root("home").
-		Scene("home", experience.Scene{
-			Render: func(experience.RenderContext) string { return "" },
+		Scene("home", components.Scene{
+			Render: func(components.RenderContext) string { return "" },
 		}).
 		Build()
 	_, err := runtime.ResolveInput(exp, "home", "nope")

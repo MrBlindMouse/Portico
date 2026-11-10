@@ -12,7 +12,7 @@ OpenSSH often sends your local login as the SSH username when you omit `user@`. 
 
 ## Nicknames
 
-`experience.ReserveNicknameEffect(name)` registers a unique nickname for the current identity. `Identity.String()` prefers nickname, then account name, then guest/key label.
+`components.ReserveNicknameEffect(name)` registers a unique nickname for the current identity. `Identity.String()` prefers nickname, then account name, then guest/key label. There is no nickname plan: put that effect in an action on a scene the site already has.
 
 ## When anonymous SSH is allowed
 
@@ -41,7 +41,7 @@ If hashed accounts are requested and the directory cannot be opened, `Serve` ret
 
 Use `HashedAccounts: true` with `DataDir`, or set `AccountBackend` to a file-backed store. Do **not** use dev `AccountStore` in production.
 
-`experience.RegisterAccountEffect` requires an enabled account store (registration scaffold).
+`components.RegisterAccountEffect` requires an enabled account store (`portico generate register`).
 
 ## Key and account lists
 

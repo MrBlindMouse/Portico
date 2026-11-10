@@ -2,17 +2,18 @@ package runtime_test
 
 import (
 	"errors"
+	"github.com/MrBlindMouse/Portico/components"
 	"testing"
 
-	"github.com/MrBlindMouse/Portico/experience"
+	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/MrBlindMouse/Portico/testkit"
 )
 
 func TestSpaceValidator(t *testing.T) {
-	exp, err := experience.NewBuilder().
+	exp, err := installation.NewBuilder().
 		Root("home").
-		Scene("home", experience.Scene{Render: func(experience.RenderContext) string { return "" }}).
-		Space("s", experience.Space{
+		Scene("home", components.Scene{Render: func(components.RenderContext) string { return "" }}).
+		Space("s", components.Space{
 			ValidateSet: func(key string, old, new any) error {
 				if key == "n" {
 					return errors.New("deny")
@@ -27,9 +28,9 @@ func TestSpaceValidator(t *testing.T) {
 	h := testkit.New(exp)
 	ap := h.Applier()
 	sess := h.Session("t", "home")
-	_, err = ap.Apply(sess, exp, []experience.Effect{
-		experience.JoinSpaceEffect("s"),
-		experience.SpaceSetEffect("s", "n", 1),
+	_, err = ap.Apply(sess, exp, []components.Effect{
+		components.JoinSpaceEffect("s"),
+		components.SpaceSetEffect("s", "n", 1),
 	})
 	if err == nil {
 		t.Fatal("expected validator error")

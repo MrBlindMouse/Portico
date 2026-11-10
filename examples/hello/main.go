@@ -1,4 +1,4 @@
-// Reference consumer inside this module: RecipeCommunity + ServeDev.
+// Capability probe inside this module. Sites do not copy it.
 // SSH sites outside this repo import github.com/MrBlindMouse/Portico; they are not added under examples/.
 package main
 
@@ -7,8 +7,9 @@ import (
 	"os"
 
 	portico "github.com/MrBlindMouse/Portico"
-	"github.com/MrBlindMouse/Portico/experience"
-	"github.com/MrBlindMouse/Portico/scaffold"
+	"github.com/MrBlindMouse/Portico/components"
+	"github.com/MrBlindMouse/Portico/installation"
+	"github.com/MrBlindMouse/Portico/internal/plans"
 )
 
 func main() {
@@ -29,8 +30,13 @@ func main() {
 	}
 }
 
-func build() (*experience.Experience, error) {
+func build() (*installation.Installation, error) {
 	return portico.New().
-		Merge(scaffold.RecipeCommunity()).
+		Merge(plans.Guestbook()).
+		Merge(plans.Chat()).
+		Merge(plans.Landing(map[string]components.SceneID{
+			"guestbook": "guestbook",
+			"chat":      "chat",
+		})).
 		Build()
 }

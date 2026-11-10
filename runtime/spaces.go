@@ -1,10 +1,10 @@
 package runtime
 
 import (
+	"github.com/MrBlindMouse/Portico/components"
 	"reflect"
 	"sync"
 
-	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
 )
 
@@ -17,14 +17,14 @@ type spaceState struct {
 
 type spaceRegistry struct {
 	mu     sync.RWMutex
-	spaces map[experience.SpaceID]*spaceState
+	spaces map[components.SpaceID]*spaceState
 }
 
 func newSpaceRegistry() *spaceRegistry {
-	return &spaceRegistry{spaces: make(map[experience.SpaceID]*spaceState)}
+	return &spaceRegistry{spaces: make(map[components.SpaceID]*spaceState)}
 }
 
-func (r *spaceRegistry) get(space experience.SpaceID) *spaceState {
+func (r *spaceRegistry) get(space components.SpaceID) *spaceState {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	st, ok := r.spaces[space]
@@ -39,21 +39,21 @@ func (r *spaceRegistry) get(space experience.SpaceID) *spaceState {
 	return st
 }
 
-func (r *spaceRegistry) join(space experience.SpaceID, sess *Session) {
+func (r *spaceRegistry) join(space components.SpaceID, sess *Session) {
 	st := r.get(space)
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	st.members[sess.ID()] = sess
 }
 
-func (r *spaceRegistry) leave(space experience.SpaceID, sess *Session) {
+func (r *spaceRegistry) leave(space components.SpaceID, sess *Session) {
 	st := r.get(space)
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	delete(st.members, sess.ID())
 }
 
-func (r *spaceRegistry) members(space experience.SpaceID) []*Session {
+func (r *spaceRegistry) members(space components.SpaceID) []*Session {
 	st := r.get(space)
 	st.mu.RLock()
 	defer st.mu.RUnlock()
@@ -64,7 +64,7 @@ func (r *spaceRegistry) members(space experience.SpaceID) []*Session {
 	return out
 }
 
-func (r *spaceRegistry) memberIdentities(space experience.SpaceID) []identity.Identity {
+func (r *spaceRegistry) memberIdentities(space components.SpaceID) []identity.Identity {
 	sessions := r.members(space)
 	out := make([]identity.Identity, len(sessions))
 	for i, s := range sessions {
@@ -73,7 +73,7 @@ func (r *spaceRegistry) memberIdentities(space experience.SpaceID) []identity.Id
 	return out
 }
 
-func (r *spaceRegistry) getValue(space experience.SpaceID, key string) (any, bool) {
+func (r *spaceRegistry) getValue(space components.SpaceID, key string) (any, bool) {
 	st := r.get(space)
 	st.mu.RLock()
 	defer st.mu.RUnlock()
@@ -81,14 +81,14 @@ func (r *spaceRegistry) getValue(space experience.SpaceID, key string) (any, boo
 	return v, ok
 }
 
-func (r *spaceRegistry) set(space experience.SpaceID, key string, value any) {
+func (r *spaceRegistry) set(space components.SpaceID, key string, value any) {
 	st := r.get(space)
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	st.values[key] = value
 }
 
-func (r *spaceRegistry) cas(space experience.SpaceID, key string, expect, value any) bool {
+func (r *spaceRegistry) cas(space components.SpaceID, key string, expect, value any) bool {
 	st := r.get(space)
 	st.mu.Lock()
 	defer st.mu.Unlock()
@@ -104,14 +104,14 @@ func (r *spaceRegistry) cas(space experience.SpaceID, key string, expect, value 
 	return false
 }
 
-func (r *spaceRegistry) appendList(space experience.SpaceID, key string, value any) {
+func (r *spaceRegistry) appendList(space components.SpaceID, key string, value any) {
 	st := r.get(space)
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	st.lists[key] = append(st.lists[key], value)
 }
 
-func (r *spaceRegistry) list(space experience.SpaceID, key string) []any {
+func (r *spaceRegistry) list(space components.SpaceID, key string) []any {
 	st := r.get(space)
 	st.mu.RLock()
 	defer st.mu.RUnlock()

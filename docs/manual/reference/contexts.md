@@ -11,7 +11,7 @@ Used in `Scene.Render` — **read only** (except `PlaceInput`, which records car
 | `Identity()` | Current identity |
 | `Local(key)` | Session-local value |
 | `Persisted(key)` | Identity KV |
-| `Asset(name)`, `Assets()` | Experience assets |
+| `Asset(name)`, `Assets()` | Installation assets |
 | `Members(space)`, `SpaceLocal`, `SpaceList` | Space read API |
 | `Size()` | Terminal columns, rows |
 | `Theme()` | `render.Theme` |
@@ -30,8 +30,8 @@ Embeds read APIs plus effect helpers and input.
 
 ## SessionView (hooks)
 
-`portico.Options.ActionBefore` / `ActionAfter` receive `experience.SessionView` for observability without importing `runtime`.
+`portico.Options.ActionBefore` / `ActionAfter` receive `components.SessionView` for observability without importing `runtime`.
 
 ## SpaceContext
 
-Methods such as `In(space)`, `Members`, `Local`, `List` — see `go doc github.com/MrBlindMouse/Portico/experience`.
+Methods such as `In(space)`, `Members`, `Local`, `List` — see `go doc github.com/MrBlindMouse/Portico/installation`.

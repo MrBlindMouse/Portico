@@ -6,15 +6,15 @@
 host, err := portico.NewHost(addr, exp, opts)
 // or capture via Options.OnReady during Serve wiring
 
-err := host.HotReload(builder) // *experience.Builder after Build()-able edits
+err := host.HotReload(builder) // *installation.Builder after Build()-able edits
 ```
 
-`HotReload` swaps the validated `Experience`. Rejected when:
+`HotReload` swaps the validated `Installation`. Rejected when:
 
 - `Build()` fails on the new graph
 - Live sessions would be stranded (scene or joined space removed)
 
-Same rules as `experience.PreviewReload`.
+Same rules as `installation.PreviewReload`.
 
 ## Dry-run
 

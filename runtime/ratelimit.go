@@ -35,10 +35,10 @@ func (b *tokenBucket) allow() bool {
 }
 
 type rateLimiter struct {
-	mu       sync.Mutex
-	perSess  map[string]*tokenBucket
-	rate     float64
-	burst    float64
+	mu      sync.Mutex
+	perSess map[string]*tokenBucket
+	rate    float64
+	burst   float64
 }
 
 func newRateLimiter(rate, burst float64) *rateLimiter {

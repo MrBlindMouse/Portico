@@ -1,11 +1,12 @@
-# Hello (reference consumer)
+# Hello
 
-Lives in the Portico module so you can read a finished `main`. Your SSH site is a **separate module** that imports `github.com/MrBlindMouse/Portico` (`portico init`). Do not add your scenes under `examples/`.
+A probe for this repository. It is not a site to copy. Create a site with `portico init`, then `portico generate <name>` for each plan you want to own and edit.
 
-This `main` is `scaffold.RecipeCommunity()` + `portico.ServeDev` — the same graph as `portico init` (default `-style community`).
+`main` merges the guestbook, chat, and landing plans and serves them with `ServeDev`. Run it, or `go test .`, to see SSH, scenes, spaces, and broadcast without creating a site.
 
 ```bash
 go run .
+go test .
 export PORTICO_DATA=/path/to/data   # optional persistence directory
 export PORTICO_LOG_LEVEL=debug      # PTY input timing + Kitty protocol discard logs
 ```
@@ -27,7 +28,6 @@ Those scenes have no command back to the menu. Disconnect and connect again to r
 
 | Goal | Where |
 |------|--------|
-| Custom scene/action (no scaffolds) | [examples/from-scratch](../from-scratch) |
-| Copy a scaffold and change it | [examples/notes](../notes) |
 | Bootstrap a new repo | `portico init` + [docs/building-a-site.md](../../docs/building-a-site.md) |
-| Agent contract | [docs/site-agents.md](../../docs/site-agents.md) |
+| Own a plan and edit it | `portico generate <name>` |
+| Agent contract | Site **AGENTS.md** from `portico init`; extended [docs/site-agents.md](../../docs/site-agents.md) |

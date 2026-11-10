@@ -1,6 +1,6 @@
 # Wire format
 
-`experience.Wire` validates graph wiring without `Render`/`Run` functions. Used for inspect POST endpoints and `portico wire`.
+`installation.Wire` validates graph wiring without `Render`/`Run` functions. Used for inspect POST endpoints and `portico wire`.
 
 ## JSON shape
 
@@ -29,13 +29,13 @@
 ## Validate
 
 ```go
-experience.ValidateWire(w)
+installation.ValidateWire(w)
 ```
 
 Builds stub scenes/actions and runs `Build()`.
 
 ## Reload preview
 
-`experience.PreviewReload(current, wire, liveSessions)` returns `ReloadPreview` with `ok`, `errors`, `stranded_sessions`, `warnings`.
+`installation.PreviewReload(current, wire, liveSessions)` returns `ReloadPreview` with `ok`, `errors`, `stranded_sessions`, `warnings`.
 
 Stranding occurs when a live session's current scene or joined space is absent from the proposed wire.

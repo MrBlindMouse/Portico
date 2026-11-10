@@ -2,13 +2,15 @@
 
 Build interactive, multi-user terminal sites over SSH.
 
-You write the experience (scenes, actions, spaces). Portico handles SSH, sessions, input, shared state, and persistence.
+You define **components** (scenes, actions, spaces) and `Build()` an **installation**. Portico handles SSH, sessions, input, shared state, and persistence.
 
 ## Create a site
 
-A Portico site is an ordinary Go program that imports Portico as a library. Either generate that program, or write it. Both end the same way: `go run .`, then SSH to port 2222.
+A Portico site is an ordinary Go program that imports Portico as a library. Bootstrap with `portico init`, or write `main.go` yourself. Both end the same way: `go run .`, then SSH to port 2222.
 
-### Generate it (`portico init`)
+**`portico init`** creates the Go module and a minimal runnable site (one scene, one action). For starter patterns (guestbook, chat, landing, …), see **Plans** (next).
+
+### Bootstrap (`portico init`)
 
 From an empty directory:
 
@@ -18,14 +20,7 @@ go run github.com/MrBlindMouse/Portico/cmd/portico@latest init -module github.co
 go run .
 ```
 
-`init` creates `go.mod` (if needed), runs `go get`, and writes `main.go`, `AGENTS.md`, and `README.md`.
-
-| `-style` | `main.go` |
-|----------|-----------|
-| `community` (default) | `scaffold.RecipeCommunity()` — landing, guestbook, chat |
-| `scratch` | One custom scene and a `greet` action (same program as below) |
-
-Use `-force` to overwrite those three files. Doc URLs for the version in `go.mod`: `portico docs -tag vX.Y.Z`.
+`init` creates `go.mod` (if needed), runs `go get`, and writes `main.go`, `AGENTS.md`, and `README.md`. That `main.go` is one `home` scene and a `greet` action (see below). Use `-force` to overwrite those three files. Doc URLs for the version in `go.mod`: `portico docs -tag vX.Y.Z`.
 
 ### Or write it
 
@@ -40,17 +35,22 @@ go get github.com/MrBlindMouse/Portico
 package main
 
 import (
+	"flag"
 	"log"
+	"os"
 
 	portico "github.com/MrBlindMouse/Portico"
-	"github.com/MrBlindMouse/Portico/experience"
+	"github.com/MrBlindMouse/Portico/components"
 )
 
 func main() {
-	exp, err := portico.New().
+	addr := flag.String("addr", ":2222", "SSH listen address")
+	flag.Parse()
+
+	inst, err := portico.New().
 		Root("home").
-		Scene("home", experience.Scene{
-			Render: func(ctx experience.RenderContext) string {
+		Scene("home", components.Scene{
+			Render: func(ctx components.RenderContext) string {
 				msg := ""
 				if flash, ok := ctx.Local("flash"); ok {
 					if s, ok := flash.(string); ok {
@@ -59,12 +59,12 @@ func main() {
 				}
 				return msg + "Hello, " + ctx.Identity().String() + "\n\nType: greet\n"
 			},
-			Inputs: map[string]experience.ActionID{"greet": "greet"},
+			Inputs: map[string]components.ActionID{"greet": "greet"},
 		}).
-		Action("greet", experience.Action{
-			Run: func(ctx experience.ActionContext) []experience.Effect {
-				return []experience.Effect{
-					experience.SetLocalEffect("flash", "you waved"),
+		Action("greet", components.Action{
+			Run: func(ctx components.ActionContext) []components.Effect {
+				return []components.Effect{
+					components.SetLocalEffect("flash", "you waved"),
 				}
 			},
 		}).
@@ -73,13 +73,22 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := portico.ServeDev(exp, portico.Options{DataDir: ".portico-data"}); err != nil {
+	dataDir := ".portico-data"
+	if v := os.Getenv("PORTICO_DATA"); v != "" {
+		dataDir = v
+	}
+	opts := portico.Options{
+		DataDir:     dataDir,
+		InspectAddr: "127.0.0.1:9922",
+		StatusAddr:  "127.0.0.1:9923",
+	}
+	if err := portico.Serve(*addr, inst, opts); err != nil {
 		log.Fatal(err)
 	}
 }
 ```
 
-Runnable copy: [examples/from-scratch](examples/from-scratch). Scaffold equivalent: [examples/hello](examples/hello) (`RecipeCommunity`).
+This matches what `portico init` writes: build the installation in code, set **server** `Options` in `main`, then `Serve(addr, inst, opts)`. `ServeDev` is a shorthand when you only need defaults (see **Options**).
 
 ```bash
 go run .
@@ -87,30 +96,37 @@ go run .
 ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null localhost
 ```
 
-The loop is always: compose an experience, call `ServeDev` (or `Serve`).
+The loop is always: `Build()` an installation, configure `Options`, call `Serve` (or `ServeDev` for a minimal dev path).
+
+## Plans
+
+Starter patterns live in your repo as ordinary Go, not as an importable plan package. After `init` (or once you have `go.mod` and `main.go`), run `portico generate` in the site directory:
+
+```bash
+portico generate guestbook
+portico generate -list    # landing, guestbook, chat, register, form, blog, lobby
+```
+
+Each command copies one file (and `rest.go` for `guestbook` or `chat`) and prints a merge line such as `portico.New().Merge(Guestbook()).Build()`. Edit the generated code, then wire that `Merge` into `main.go`.
+
+Each plan is a small runnable installation with its own root scene. Combine several with `Merge`; later merges win when scene, action, or space ids collide. Existing files are kept unless you pass `-force` (needed when the second of `guestbook`/`chat` would overwrite an existing `rest.go`). See the manual for `-pkg` and per-plan notes.
+
+`landing` takes a destinations map you fill in `main`. The `register` plan needs password accounts enabled in `Options` (below).
 
 ## Rules
 
 1. **Actions return effects.** Use `SetLocalEffect`, `TransitionEffect`, `PersistEffect`, space effects, etc. Do not mutate session or space state yourself.
 2. **Scenes only render.** `Render` receives a read-only context. State changes happen in actions.
-3. **Use typed IDs.** `experience.SceneID`, `ActionID`, and `SpaceID`.
+3. **Use typed IDs.** `components.SceneID`, `ActionID`, and `SpaceID`.
 4. **`Build()` validates.** Missing scenes or actions fail before the server starts.
 
-## Scaffolds
-
-`portico init` (default) and [examples/hello](examples/hello) are this one-liner:
-
-```go
-import "github.com/MrBlindMouse/Portico/scaffold"
-
-exp, err := portico.New().
-	Merge(scaffold.RecipeCommunity()).
-	Build()
-```
-
-`RecipeCommunity` merges guestbook, chat, and a landing menu. Merge other starters the same way: guestbook, chat, landing, registration, nickname, form, blog, lobby, `RecipeAccountsSite`. `portico scaffold <name>` prints the merge line. Later `Merge` wins when ids collide. Copy a scaffold into your repo when you need to change it.
-
 ## Options
+
+`portico.Options` is the **server configuration** for `Serve`, `ServeDev`, and `NewHost`. It is separate from the installation you `Build()`: persistence, SSH auth, limits, optional inspect/status HTTP, assets on disk, logging, and action hooks all come from `Options`.
+
+`ServeDev(inst, opts)` is for local work. It listens on **:2222** and, when `InspectAddr` / `StatusAddr` are empty, binds inspect and status to loopback defaults. `Serve(addr, inst, opts)` uses your SSH listen address; inspect and status run only if you set those fields (empty means off).
+
+Sites usually assemble `opts` in `main` from flags and environment variables. You can overlay a JSON config file with `opts.MergeConfig` (same shape as `portico serve -demo -config`). `Listen` in that file applies to `Serve(addr, …)`, not to a field on `Options`.
 
 | Field | Purpose |
 |-------|---------|
@@ -126,7 +142,7 @@ exp, err := portico.New().
 | `HashedAccounts` + `DataDir` | Bcrypt account files under the data directory, used when `AccountBackend` is unset |
 | `AccountStore` | Dev plaintext store, used when the two rows above are unset |
 | `RequireAccount` | Reject guests and keys that are not linked to an account |
-| `ActionBefore` / `ActionAfter` | Hooks around action dispatch. They take `experience.SessionView`, so site code does not import `runtime` |
+| `ActionBefore` / `ActionAfter` | Hooks around action dispatch (`components.SessionView`) |
 | `InspectAddr` / `StatusAddr` | Localhost HTTP endpoints for inspection and health |
 | `Theme` | Session theme (`render.Default` when nil). A non-empty `NO_COLOR` selects `render.Plain` |
 | `LogLevel` | `debug`, `info`, `warn`, or `error` — use **debug** to log Kitty/protocol line discards, ineligible PTY lines, command text, and per-command `read_ms` / `render_ms` (`input_cycle`) |
@@ -137,14 +153,17 @@ With no account store and no key list, `ssh` with no key still connects. A key a
 
 When the session has no account, the SSH username is the display label for that connection only (`johan` when OpenSSH fills in your local login). It is not stored and it is not unique. A reserved nickname replaces it for the rest of the session. With no username, a guest still shows as `guest` and an unlinked key as `key-` plus the start of the fingerprint.
 
-You can also load options from a JSON config file (`log_level`). Timestamps use sub-second precision on the default logger.
-
 ## Going further
 
-- **Hot reload** — Obtain a `*portico.Host` (via `NewHost` or the `OnReady` hook) and call `HotReload` with a new builder. Reloads that would strand live sessions are rejected.
-- **Accounts** — Opt-in. Use the registration scaffold and `RegisterAccountEffect`. The built-in store is for development; production sites should use hashed passwords.
-- **Input** — Scene inputs match exact lines or the first word of a line. Actions can read the full line with `ctx.InputLine()`.
-- **Inspection** — When using `ServeDev`, an HTTP inspect endpoint is available on localhost (default `:9922`). Example: `curl http://127.0.0.1:9922/inspect/snapshot`.
+| Topic | Summary |
+|-------|---------|
+| [Authoring](docs/manual/02-authoring.md) | Scenes, actions, `Merge`, prefix input, `InputLine()` |
+| [Identity & accounts](docs/manual/05-identity-accounts.md) | Guests, keys, nicknames, `register` plan, hashed accounts in production |
+| [Testing](docs/manual/08-testing.md) | `testkit` exercises real apply logic without opening SSH |
+| [Hot reload](docs/manual/appendices/hot-reload.md) | `NewHost` + `HotReload`; preview with `POST /inspect/reload-preview` before swapping |
+| [Manual](docs/manual/README.md) | Full CLI, effects, wire, inspect paths |
+
+Inspect HTTP has no authentication. Keep it on loopback in production unless something else protects the port.
 
 ## Rendering
 
@@ -162,7 +181,7 @@ A scene returns one string. The runtime paints that string after each applied ac
 
 `Theme` roles are bold, muted, error, accent, ok, warn, and inverse. `render.Plain` leaves text unchanged.
 
-A selectable list stores an `int` in session-local state. `experience.MoveList` returns the `SetLocal` effect (clamped to the list). `experience.RenderList` only reads it. Bind `up` and `down` on a scene with `Keys: true`. The default key is `experience.LocalListIndex`.
+A selectable list stores an `int` in session-local state. `installation.MoveList` returns the `SetLocal` effect (clamped to the list). `installation.RenderList` only reads it. Bind `up` and `down` on a scene with `Keys: true`. The default key is `installation.LocalListIndex`.
 
 `SpinnerFrame` does not animate. Change the index with `SetLocalEffect` from an action. Portico does not run a clock.
 
@@ -182,12 +201,12 @@ return s.Show(ctx)
 | Import | Use for |
 |--------|---------|
 | `github.com/MrBlindMouse/Portico` | `New`, `Serve`, `ServeDev`, `Options`, `NewHost` |
-| `.../experience` | Scenes, actions, spaces, effects |
-| `.../scaffold` | Ready-made starting definitions |
+| `.../components` | Scenes, actions, spaces, effects, contexts |
+| `.../installation` | Builder, `Installation`, wire, form/list helpers |
 | `.../render` | Layout, theme, list, table, progress (`Box`, `Wrap`, `Table`, `List`) |
 | `.../asset` | Loading assets into a builder |
-
-Do not import `internal/...` from site code.
+| `.../identity` | Custom stores when you implement `identity.Store` / `AccountStore` |
+| `.../testkit` | In-memory engine fixtures for site tests |
 
 ## Production
 
@@ -248,6 +267,5 @@ See [docs/site-agents.md](docs/site-agents.md) for account-store precedence and 
 - **Manual (full reference):** [docs/manual/README.md](docs/manual/README.md)
 - **Building a site:** [docs/building-a-site.md](docs/building-a-site.md)
 - **Agents in site repos:** [docs/site-agents.md](docs/site-agents.md)
-- Examples: [from-scratch](examples/from-scratch) (write a scene), [hello](examples/hello) (merge a scaffold), [notes](examples/notes) (copy a scaffold and edit it)
 - Design and architecture: [DESIGN.md](DESIGN.md)
 - Framework contributor notes: [AGENTS.md](AGENTS.md) (not for consumer sites)

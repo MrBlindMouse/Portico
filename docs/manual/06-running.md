@@ -28,7 +28,7 @@ opts := portico.Options{
 portico.Serve(*addr, exp, opts)
 ```
 
-The framework repo's `examples/*` may still use `ServeDev` for brevity.
+`PORTICO_LOG_LEVEL` and `PORTICO_DATA` are honored when your `main` reads them (init template reads `PORTICO_DATA`).
 
 ## NewHost and hot reload
 
@@ -46,7 +46,7 @@ Use `Options.OnReady` to capture `*portico.Host` from `Serve` wiring. Details: [
 portico serve -demo -addr :2222 -data .portico-data -config portico.json
 ```
 
-Bundled guestbook/chat smoke test only. Real sites use `go run .` in their module.
+Bundled guestbook, chat, and landing smoke test only. Real sites use `go run .` in their module.
 
 ## Auxiliary HTTP
 
@@ -59,7 +59,7 @@ Bind to loopback in production unless you authenticate in front.
 
 ## Assets
 
-`Options.AssetDir` + `AssetPollEvery` load and poll files; updates call `Engine.UpdateAssets`. Blog scaffold expects assets like `post-<id>`.
+`Options.AssetDir` + `AssetPollEvery` load and poll files; updates call `Engine.UpdateAssets`. Blog plan expects assets like `post-<id>`.
 
 ## Logging
 

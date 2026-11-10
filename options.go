@@ -1,11 +1,11 @@
 package portico
 
 import (
+	"github.com/MrBlindMouse/Portico/components"
 	"log/slog"
 	"time"
 
 	"github.com/MrBlindMouse/Portico/config"
-	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
 	"github.com/MrBlindMouse/Portico/render"
 	"github.com/MrBlindMouse/Portico/runtime"
@@ -45,8 +45,8 @@ type Options struct {
 	KeepAliveInterval time.Duration
 	KeepAliveCountMax int
 	// ActionBefore and ActionAfter run around action dispatch without importing runtime.
-	ActionBefore func(experience.SessionView, experience.ActionID, string) (string, error)
-	ActionAfter  func(experience.SessionView, experience.ActionID, error)
+	ActionBefore func(components.SessionView, components.ActionID, string) (string, error)
+	ActionAfter  func(components.SessionView, components.ActionID, error)
 	// OnReady runs after the host is wired, before Serve returns (and before ListenAndServe in NewHost-only flows).
 	OnReady func(*Host)
 	// Theme is the session theme. Nil uses render.Default, or render.Plain when

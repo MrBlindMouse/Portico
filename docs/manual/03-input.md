@@ -9,15 +9,15 @@ When `Scene.Keys` is **false** (default), the runtime reads a line of text and m
 
 Unmatched lines print `no such command`.
 
-Use `ctx.InputLine()` in the action for the full line. Helpers: `experience.ParseFields`, `experience.Masked` (display only).
+Use `ctx.InputLine()` in the action for the full line. Helpers: `components.ParseFields`, `components.Masked` (display only).
 
 ## Key mode
 
 When `Scene.Keys` is **true**:
 
-- Input names must be a **single rune** or `up`, `down`, `left`, `right` (`experience.SingleKeyInput`).
+- Input names must be a **single rune** or `up`, `down`, `left`, `right` (`components.SingleKeyInput`).
 - Keys dispatch immediately; there is no `>` line editor on that scene.
-- Typical pattern: list navigation bound to `up`/`down` actions that return `experience.MoveList`.
+- Typical pattern: list navigation bound to `up`/`down` actions that return `installation.MoveList`.
 
 A scene with `Keys: true` **cannot** place a custom caret via `PlaceInput` during render (render fails).
 

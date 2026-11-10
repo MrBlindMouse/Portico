@@ -8,12 +8,12 @@ import (
 
 // Terminal is an in-memory Terminal for tests.
 type Terminal struct {
-	mu      sync.Mutex
-	frames  []string
-	inputs  []string
-	idx     int
+	mu       sync.Mutex
+	frames   []string
+	inputs   []string
+	idx      int
 	onResize func(int, int)
-	closed  bool
+	closed   bool
 }
 
 // New creates a fake terminal with scripted inputs.

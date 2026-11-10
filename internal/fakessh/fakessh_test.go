@@ -3,22 +3,23 @@ package fakessh_test
 import (
 	"bufio"
 	"context"
+	"github.com/MrBlindMouse/Portico/components"
 	"net"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/MrBlindMouse/Portico/experience"
+	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/MrBlindMouse/Portico/runtime"
 	"github.com/MrBlindMouse/Portico/testkit"
 	gossh "golang.org/x/crypto/ssh"
 )
 
 func TestEmbeddedSSH(t *testing.T) {
-	exp, err := experience.NewBuilder().
+	exp, err := installation.NewBuilder().
 		Root("home").
-		Scene("home", experience.Scene{
-			Render: func(experience.RenderContext) string { return "hello-ssh" },
+		Scene("home", components.Scene{
+			Render: func(components.RenderContext) string { return "hello-ssh" },
 		}).
 		Build()
 	if err != nil {

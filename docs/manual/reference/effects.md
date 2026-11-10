@@ -1,6 +1,6 @@
 # Effects reference
 
-Actions return `[]experience.Effect`. **Only** `runtime` apply mutates sessions and spaces. Effect slices are **not transactional**: if one effect in a slice fails, earlier effects in that slice may already be applied.
+Actions return `[]components.Effect`. **Only** `runtime` apply mutates sessions and spaces. Effect slices are **not transactional**: if one effect in a slice fails, earlier effects in that slice may already be applied.
 
 | Type | Helper | Purpose |
 |------|--------|---------|
@@ -18,7 +18,7 @@ Actions return `[]experience.Effect`. **Only** `runtime` apply mutates sessions 
 
 ## Space hooks
 
-`experience.Space` may define:
+`components.Space` may define:
 
 - `OnJoin`, `OnLeave` — effect lists run through apply when membership changes
 - `ValidateSet` — reject invalid space writes

@@ -2,12 +2,13 @@ package runtime
 
 import (
 	"bufio"
+	"github.com/MrBlindMouse/Portico/components"
 	"io"
 	"strings"
 	"testing"
 
-	"github.com/MrBlindMouse/Portico/experience"
 	"github.com/MrBlindMouse/Portico/identity"
+	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/MrBlindMouse/Portico/render"
 )
 
@@ -65,8 +66,8 @@ func (t *slotTerm) OnResize(func(int, int))    {}
 func (t *slotTerm) Close() error               { return nil }
 
 func TestRenderPlacesInput(t *testing.T) {
-	exp, err := experience.NewBuilder().Root("home").Scene("home", experience.Scene{
-		Render: func(ctx experience.RenderContext) string {
+	exp, err := installation.NewBuilder().Root("home").Scene("home", components.Scene{
+		Render: func(ctx components.RenderContext) string {
 			s := render.NewScreen(10, 3)
 			s.Draw(0, 0, "left")
 			s.Draw(0, 5, "right")
@@ -99,18 +100,18 @@ func TestRenderPlacesInput(t *testing.T) {
 }
 
 func TestKeysSceneRejectsPlacedInput(t *testing.T) {
-	exp, err := experience.NewBuilder().Root("home").Scene("home", experience.Scene{
+	exp, err := installation.NewBuilder().Root("home").Scene("home", components.Scene{
 		Keys: true,
-		Inputs: map[string]experience.ActionID{
+		Inputs: map[string]components.ActionID{
 			"j": "down",
 		},
-		Render: func(ctx experience.RenderContext) string {
+		Render: func(ctx components.RenderContext) string {
 			s := render.NewScreen(8, 2)
 			s.Input(0, 0, 4, ">")
 			return s.Show(ctx)
 		},
-	}).Action("down", experience.Action{
-		Run: func(experience.ActionContext) []experience.Effect { return nil },
+	}).Action("down", components.Action{
+		Run: func(components.ActionContext) []components.Effect { return nil },
 	}).Build()
 	if err != nil {
 		t.Fatal(err)

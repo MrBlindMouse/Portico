@@ -1,4 +1,4 @@
-# Authoring an experience
+# Authoring an installation
 
 ## Mental model
 
@@ -15,14 +15,14 @@ Your site code **never** mutates session or space state. Actions return **effect
 ```go
 portico.New().
     Root("home").                    // required root scene id
-    Scene("home", experience.Scene{...}).
-    Action("greet", experience.Action{...}).
-    Space("lobby", experience.Space{...}). // optional
+    Scene("home", components.Scene{...}).
+    Action("greet", components.Action{...}).
+    Space("lobby", components.Space{...}). // optional
     Asset("welcome", "Hello\n").     // optional inline assets
     BindInput("home", "help", "show-help"). // optional sugar
-    OnSessionStart(experience.SetLocalEffect("k", "v")...).
+    OnSessionStart(components.SetLocalEffect("k", "v")...).
     OnSessionEnd(...).
-    Merge(scaffold.Guestbook()).     // optional; later Merge wins on id collision
+    Merge(Guestbook()).              // after portico generate guestbook
     Build()
 ```
 
@@ -40,9 +40,9 @@ Fix builder errors before debugging SSH behavior.
 ## Scenes
 
 ```go
-experience.Scene{
-    Render: func(ctx experience.RenderContext) string { return "..." },
-    Inputs: map[string]experience.ActionID{"greet": "greet"},
+components.Scene{
+    Render: func(ctx components.RenderContext) string { return "..." },
+    Inputs: map[string]components.ActionID{"greet": "greet"},
     Keys:   false, // true = key dispatch, no line prompt
     ValidateLocal: func(key string, value any) error { return nil },
 }
@@ -55,45 +55,48 @@ experience.Scene{
 ## Actions
 
 ```go
-experience.Action{
-    Run: func(ctx experience.ActionContext) []experience.Effect {
-        return []experience.Effect{
-            experience.SetLocalEffect("flash", "ok"),
+components.Action{
+    Run: func(ctx components.ActionContext) []components.Effect {
+        return []components.Effect{
+            components.SetLocalEffect("flash", "ok"),
         }
     },
 }
 ```
 
-Use `ctx.InputLine()` for the full submitted line. Use `experience.ParseFields(line, n)` to split tokens.
+Use `ctx.InputLine()` for the full submitted line. Use `components.ParseFields(line, n)` to split tokens.
 
 ## Spaces
 
 ```go
-experience.Space{
-    OnJoin:  []experience.Effect{...},
-    OnLeave: []experience.Effect{...},
+components.Space{
+    OnJoin:  []components.Effect{...},
+    OnLeave: []components.Effect{...},
     ValidateSet: func(key string, old, newValue any) error { return nil },
 }
 ```
 
-Cross-session updates: write space state with space effects, then `experience.BroadcastEffect(spaceID)` so members re-render. There is no in-process event bus.
+Cross-session updates: write space state with space effects, then `components.BroadcastEffect(spaceID)` so members re-render. There is no in-process event bus.
 
-## Merging scaffolds
+## Merging generated plans
+
+```bash
+portico generate guestbook
+portico generate landing
+```
 
 ```go
 portico.New().
-    Merge(scaffold.Guestbook()).
-    Merge(scaffold.Landing(map[string]experience.SceneID{"guestbook": "guestbook"})).
+    Merge(Guestbook()).
+    Merge(Landing(map[string]components.SceneID{"guestbook": "guestbook"})).
     Build()
 ```
 
-Later `Merge` calls override scenes, actions, and spaces with the same ids. Session start/end hook slices append.
-
-Copy a scaffold into your repo to customize it ([examples/notes](../../examples/notes)); do not edit files inside the module cache.
+Later `Merge` calls override scenes, actions, and spaces with the same ids. Session start/end hook slices append. Edit the generated files. Do not patch the module cache.
 
 ## Wire and validation
 
-`experience.Wire` is a JSON-serializable sketch (ids and input bindings, no funcs). Use it for:
+`installation.Wire` is a JSON-serializable sketch (ids and input bindings, no funcs). Use it for:
 
 - `POST /inspect/validate` and `POST /inspect/reload-preview`
 - `portico wire validate -file site.wire.json`
@@ -104,8 +107,8 @@ See [Wire format](reference/wire.md).
 
 1. Actions return effects only.
 2. Scenes only render.
-3. Do not import `runtime`, `inspect`, or `internal/...` from site code.
-4. Use typed ids: `experience.SceneID`, `ActionID`, `SpaceID`.
+3. Do not import `runtime` or `inspect` from site code.
+4. Use typed ids: `components.SceneID`, `ActionID`, `SpaceID`.
 
 ## Anti-patterns
 
