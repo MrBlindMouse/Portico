@@ -9,7 +9,7 @@ SSH server, session lifecycle, input dispatch, and effect application. **Site mo
 - Space hooks `OnJoin` / `OnLeave` run as effect lists through `Apply`.
 - `SetInstallation` refuses definitions that orphan live sessions (current scene or a joined space).
 - A failed effect leaves earlier effects in that slice applied. Apply is not a transaction.
-- `Engine.Submit`, `SubmitToSpace`, and `SubmitAll` apply effects and paint (`Render` plus `RestoreInputLine`). They skip action hooks, the rate limiter, and `onAction`. `Host` refuses them while the server is draining.
+- `Engine.Submit`, `SubmitToSpace`, and `SubmitAll` apply effects and paint (`Render` plus `RestoreInputLine`). They skip action hooks, the rate limiter, and `onAction`. `RepaintScene` paints sessions on one scene and applies nothing. `Host` refuses them while the server is draining.
 
 ## Prefer / avoid
 

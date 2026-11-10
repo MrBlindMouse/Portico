@@ -52,6 +52,27 @@ func (e *Engine) SubmitAll(effects []components.Effect) error {
 	return e.submitTargets(exp, targets, effects, "all")
 }
 
+// RepaintScene paints every registered session whose current scene is scene.
+// It applies no effects. An unknown scene or a scene with no sessions is a no-op.
+func (e *Engine) RepaintScene(scene components.SceneID) error {
+	e.mu.RLock()
+	targets := make([]*Session, 0, len(e.sessions))
+	for _, sess := range e.sessions {
+		if sess.CurrentScene() == scene {
+			targets = append(targets, sess)
+		}
+	}
+	e.mu.RUnlock()
+	for _, sess := range targets {
+		e.paintSession(sess)
+		e.syncKeys(sess, memberTerminal(sess))
+	}
+	if e.log != nil {
+		e.log.Info("repaint", "scene", string(scene), "sessions", len(targets))
+	}
+	return nil
+}
+
 func (e *Engine) submitTargets(exp *installation.Installation, targets []*Session, effects []components.Effect, label string) error {
 	spaceEff, sessEff := splitSubmitEffects(effects)
 	var transitioned bool

@@ -130,7 +130,7 @@ Scene `Inputs` map **keys** to `ActionID`:
 
 Fit and draw with `render`: `Wrap`, `Truncate`, `Pad`, `AlignLeft`, `AlignRight`, `AlignCenter`, `Box`, `Columns`, `Table`, `List`, `Progress`, `SpinnerFrame`. Widths are rune counts. Style a string after you fit it. These helpers do not skip ANSI codes.
 
-On `render.Screen`, only plain runes go in the grid. Do not pass `ctx.Theme()` output into `Draw` or `DrawWithin` (CSI counts as cells and breaks pane width). Use a full string for a one-shot frame. Inside a layout, `Screen.DrawList` marks the selected line's column, and `Screen.MarkRole` marks any other role. `Show` applies the theme to those cells only. `Host.SubmitAll(nil)` repaints every session without effects. `portico.Every` is not built; the site owns the timer.
+On `render.Screen`, only plain runes go in the grid. Do not pass `ctx.Theme()` output into `Draw` or `DrawWithin` (CSI counts as cells and breaks pane width). Use a full string for a one-shot frame. Inside a layout, `Screen.DrawList` marks the selected line's column, and `Screen.MarkRole` marks any other role. `Show` applies the theme to those cells only. `Host.SubmitAll(nil)` repaints every session without effects. `Host.RepaintScene(sceneID)` repaints only sessions on that scene. `portico.Every` is not built; the site owns the timer.
 
 Theme roles: bold, muted, error, accent, ok, warn, inverse. Copy `render.Default` or `render.Plain` and replace a field to change one role. Do not nest role calls.
 

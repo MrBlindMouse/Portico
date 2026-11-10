@@ -98,3 +98,45 @@ func TestSubmitValidateLocal(t *testing.T) {
 		t.Fatal("local was written")
 	}
 }
+
+func TestRepaintScenePaintsOnlyThatScene(t *testing.T) {
+	exp, err := installation.NewBuilder().
+		Root("home").
+		Scene("home", components.Scene{
+			Render: func(components.RenderContext) string { return "home" },
+		}).
+		Scene("away", components.Scene{
+			Render: func(components.RenderContext) string { return "away" },
+		}).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	eng := NewEngine(exp, nil)
+	home := newSession("home-sess", identity.Anonymous(), "home")
+	away := newSession("away-sess", identity.Anonymous(), "home")
+	eng.RegisterSession(home)
+	eng.RegisterSession(away)
+	if _, err := eng.Applier().Apply(away, exp, []components.Effect{components.TransitionEffect("away")}); err != nil {
+		t.Fatal(err)
+	}
+	homeTerm := &slotTerm{}
+	awayTerm := &slotTerm{}
+	SetSessionTerminalForTest(home, homeTerm)
+	SetSessionTerminalForTest(away, awayTerm)
+	if err := eng.RepaintScene("home"); err != nil {
+		t.Fatal(err)
+	}
+	if len(homeTerm.frames) != 1 || homeTerm.frames[0] != "home" {
+		t.Fatalf("home frames %#v", homeTerm.frames)
+	}
+	if len(awayTerm.frames) != 0 {
+		t.Fatalf("away frames %#v", awayTerm.frames)
+	}
+	if err := eng.RepaintScene("missing"); err != nil {
+		t.Fatal(err)
+	}
+	if len(homeTerm.frames) != 1 {
+		t.Fatalf("missing scene painted %#v", homeTerm.frames)
+	}
+}

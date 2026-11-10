@@ -44,8 +44,9 @@ Actions are not the only caller. A site goroutine (from `Options.OnReady`, or on
 | `Submit(sessionID, effects)` | That registered session. Unknown id returns `no such session`. |
 | `SubmitToSpace(space, effects)` | Current members of the space. |
 | `SubmitAll(effects)` | Every registered session. |
+| `RepaintScene(sceneID)` | Sessions whose current scene is `sceneID`. No effects. |
 
-The site owns the trigger. Portico does not run a timer. `SubmitAll(nil)` repaints every registered session and applies nothing. `portico.Every` is still unbuilt.
+The site owns the trigger. Portico does not run a timer. `SubmitAll(nil)` repaints every registered session and applies nothing. `RepaintScene` repaints only the sessions on that scene, so a clock does not redraw the rest of the site. `portico.Every` is still unbuilt.
 
 `SpaceSet`, `SpaceCAS`, `AppendSpaceList`, and `Broadcast` run **once**. `SetLocal`, `Transition`, `Persist`, `JoinSpace`, `LeaveSpace`, `ReserveNickname`, and `RegisterAccount` run **once per target**. Applying the whole slice once per session would append a list many times.
 

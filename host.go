@@ -51,6 +51,15 @@ func (h *Host) SubmitAll(effects []components.Effect) error {
 	return h.engine.SubmitAll(effects)
 }
 
+// RepaintScene paints every live session currently on scene.
+// It applies no effects. Use it from the site's own timer.
+func (h *Host) RepaintScene(scene components.SceneID) error {
+	if err := h.notDraining(); err != nil {
+		return err
+	}
+	return h.engine.RepaintScene(scene)
+}
+
 func (h *Host) notDraining() error {
 	if h.Server != nil && h.Server.Draining() {
 		return fmt.Errorf("portico: shutting down")
