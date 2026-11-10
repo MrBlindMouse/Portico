@@ -77,7 +77,8 @@ type inputReader struct {
 	crPending      bool   // saw CR; a following LF is the rest of CRLF, not a new line
 	kittyBootstrap bool   // ssh kitten payload after KITTY_DATA_START, until END
 	conductor      bool   // iTerm it2ssh script after "-- BEGIN CONDUCTOR --"
-	keyWire        []byte // key scene: line-buffered kitty/base64 before dispatch
+	keyWire          []byte // key scene: line-buffered kitty/base64 before dispatch
+	keySuppressEnter int    // keys: absorb enter-like noise right after KITTY_DATA_END
 }
 
 func newInputReader(r *bufio.Reader) *inputReader {
@@ -786,6 +787,9 @@ func (ir *inputReader) noteWireWindow(line string) {
 		ir.kittyBootstrap = true
 	case "KITTY_DATA_END":
 		ir.kittyBootstrap = false
+		if len(ir.keys) > 0 {
+			ir.keySuppressEnter = 3
+		}
 	case itermConductorBegin:
 		ir.conductor = true
 	}
@@ -874,11 +878,13 @@ func (ir *inputReader) readKey() (string, error) {
 					_, _ = ir.r.ReadByte()
 				}
 			}
-			if len(ir.keyWire) > 0 || ir.kittyBootstrap || ir.conductor {
-				ir.finishKeyWireLine(string(ir.keyWire))
+			if ir.namedKeyBlocked() {
+				if len(ir.keyWire) > 0 || ir.kittyBootstrap || ir.conductor {
+					ir.finishKeyWireLine(string(ir.keyWire))
+				}
 				continue
 			}
-			if ir.namedKeyBlocked() || !ir.hasKey("enter") {
+			if ir.dropKeyEnter() || !ir.hasKey("enter") {
 				continue
 			}
 			return "enter", nil
@@ -892,6 +898,9 @@ func (ir *inputReader) readKey() (string, error) {
 				return "", err
 			}
 			if name != "" && !ir.pasting && ir.hasKey(name) {
+				if ir.namedKeyBlocked() || (name == "enter" && ir.dropKeyEnter()) {
+					continue
+				}
 				return name, nil
 			}
 		default:
@@ -1058,6 +1067,15 @@ func arrowName(b byte) string {
 // namedKeyBlocked reports a key-mode read that must not dispatch a named key.
 func (ir *inputReader) namedKeyBlocked() bool {
 	return ir.pasting || len(ir.keyWire) > 0 || ir.kittyBootstrap || ir.conductor
+}
+
+// dropKeyEnter absorbs post-kitty enter-like noise on Keys scenes (CSI, CR, SS3, CRLF).
+func (ir *inputReader) dropKeyEnter() bool {
+	if ir.keySuppressEnter <= 0 {
+		return false
+	}
+	ir.keySuppressEnter--
+	return true
 }
 
 // IsTerminalProtocolLine reports transport-level noise (not scene dispatch policy).

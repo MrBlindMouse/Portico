@@ -98,6 +98,48 @@ func TestRunLoopKeyScene(t *testing.T) {
 	}
 }
 
+func TestRunLoopKeySceneKittyThenSpuriousEnter(t *testing.T) {
+	exp, err := installation.NewBuilder().
+		Root("home").
+		Scene("home", components.Scene{
+			Render: func(ctx components.RenderContext) string { return "home" },
+			Keys:   true,
+			Inputs: map[string]components.ActionID{"enter": "go", "l": "go"},
+		}).
+		Scene("other", components.Scene{
+			Render: func(ctx components.RenderContext) string { return "other" },
+		}).
+		Action("go", components.Action{
+			Run: func(ctx components.ActionContext) []components.Effect {
+				return []components.Effect{components.TransitionEffect("other")}
+			},
+		}).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	const stream = "KITTY_DATA_START\nOK\nKITTY_DATA_END\n\x1b[13u\nl"
+	eng := NewEngine(exp, NewApplier(nil, identity.NewMemoryStore()))
+	sess := NewSessionForTest("t", identity.Anonymous(), "home")
+	term := newScriptTerminal(strings.NewReader(stream))
+	if err := eng.RunLoop(sess, term, nil); err != nil && err != io.EOF {
+		t.Fatal(err)
+	}
+	if sess.CurrentScene() != "other" {
+		t.Fatalf("scene=%s, want other only after l", sess.CurrentScene())
+	}
+}
+
+func TestReadKeyBlocksEnterDuringKittyBootstrap(t *testing.T) {
+	ir := newInputReader(bufio.NewReader(strings.NewReader("\r\x1b[13u")))
+	ir.setKeys([]string{"enter"})
+	ir.kittyBootstrap = true
+	got, err := ir.readKey()
+	if got != "" || err != io.EOF {
+		t.Fatalf("got %q err %v, want EOF without enter", got, err)
+	}
+}
+
 func TestRunLoopKeySceneEnter(t *testing.T) {
 	exp, err := installation.NewBuilder().
 		Root("home").
