@@ -22,11 +22,11 @@ Use the **same git tag** as the module version (not `main` unless this repo trac
 
 ## Plans — convenient starting points
 
-`portico generate <name>` copies runnable starter Go into your repo. Each plan has its own root scene. **Merge** into `portico.New()` before `Build()`; edit the generated files.
+`go run github.com/MrBlindMouse/Portico/cmd/portico generate <name>` copies runnable starter Go into your repo. Each plan has its own root scene. **Merge** into `portico.New()` before `Build()`; edit the generated files.
 
 ```bash
-portico generate guestbook
-portico generate -list    # landing, guestbook, chat, register, form, blog, lobby
+go run github.com/MrBlindMouse/Portico/cmd/portico generate guestbook
+go run github.com/MrBlindMouse/Portico/cmd/portico generate -list    # landing, guestbook, chat, register, form, blog, lobby
 ```
 
 | Name | Job |
@@ -96,7 +96,7 @@ curl -s http://127.0.0.1:9922/inspect/snapshot | jq .
 | `/inspect/validate` | POST | Validate an `installation.Wire` JSON body |
 | `/inspect/reload-preview` | POST | Dry-run hot reload |
 
-CLI helper (from dev machine with `go install` on Portico): `portico inspect -url http://127.0.0.1:9922 -resource snapshot`
+CLI helper (from site module): `go run github.com/MrBlindMouse/Portico/cmd/portico inspect -url http://127.0.0.1:9922 -resource snapshot` (or `go install …/cmd/portico@<tag>` once)
 
 Environment: `PORTICO_DATA`, `PORTICO_LOG_LEVEL` (when wired in `main`). Do not expose inspect/status HTTP on untrusted networks.
 

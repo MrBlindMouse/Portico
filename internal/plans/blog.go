@@ -12,7 +12,8 @@ import (
 
 // How to change this plan
 //
-// portico generate copies this file into the site. Edit the copy.
+// go run github.com/MrBlindMouse/Portico/cmd/portico generate copies this
+// file into the site. Edit the copy.
 //
 // Root is "blog-list". "open <id>" transitions to "blog-post"; "back" returns.
 // Posts are assets whose names start with "post-". Load them with

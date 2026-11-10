@@ -11,7 +11,8 @@ import (
 
 // How to change this plan
 //
-// portico generate copies this file into the site. Edit the copy.
+// go run github.com/MrBlindMouse/Portico/cmd/portico generate copies this
+// file into the site. Edit the copy.
 //
 // Root is "form". "form-menu" is a second scene (command go-form) for a site
 // that wants a door in front of the form. Merge landing and point it at

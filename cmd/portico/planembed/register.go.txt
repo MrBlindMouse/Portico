@@ -12,7 +12,8 @@ import (
 
 // How to change this plan
 //
-// portico generate copies this file into the site. Edit the copy.
+// go run github.com/MrBlindMouse/Portico/cmd/portico generate copies this
+// file into the site. Edit the copy.
 //
 // Root scene is "register". The command is "register <username> <password>".
 // RegisterAccountEffect writes the account store configured in portico.Options

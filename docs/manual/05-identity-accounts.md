@@ -41,7 +41,7 @@ If hashed accounts are requested and the directory cannot be opened, `Serve` ret
 
 Use `HashedAccounts: true` with `DataDir`, or set `AccountBackend` to a file-backed store. Do **not** use dev `AccountStore` in production.
 
-`components.RegisterAccountEffect` requires an enabled account store (`portico generate register`).
+`components.RegisterAccountEffect` requires an enabled account store (`go run …/cmd/portico generate register` in the site module).
 
 ## Key and account lists
 

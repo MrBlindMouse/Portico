@@ -27,7 +27,7 @@ DESIGN “emit events” = write domain data with `SpaceSetEffect` / `AppendSpac
 
 ## Prefer / avoid
 
-- Prefer builder methods, typed IDs, and `Merge` of builders the site owns (`portico generate`).
+- Prefer builder methods, typed IDs, and `Merge` of builders the site owns (`go run …/cmd/portico generate`).
 - Prefer `InputLine()` for multi-word commands when using prefix dispatch.
 - `Scene.Keys` dispatches one bound key per action (one rune, or `up`/`down`/`left`/`right`). Leave it unset for line entry.
 - List selection is local state: `MoveList` returns a `SetLocal` effect, `RenderList` only reads. Default key `LocalListIndex`.

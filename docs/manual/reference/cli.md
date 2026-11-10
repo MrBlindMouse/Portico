@@ -1,8 +1,25 @@
-# CLI reference (`portico`)
-
-Install: `go install github.com/MrBlindMouse/Portico/cmd/portico@latest`
+# CLI reference (`cmd/portico`)
 
 **Your site's entry point is `go run .` in the site module**, not `portico serve`.
+
+## How to run the CLI
+
+From a **site** that already `require`s Portico in `go.mod` (after `init`), run subcommands **without** an `@version` so Go uses that dependency:
+
+```bash
+go run github.com/MrBlindMouse/Portico/cmd/portico generate guestbook
+go run github.com/MrBlindMouse/Portico/cmd/portico generate -list
+```
+
+Before `go.mod` exists, bootstrap with a **pinned tag** on the tool module (same tag you want in `require`):
+
+```bash
+go run github.com/MrBlindMouse/Portico/cmd/portico@v0.1.0 init -module github.com/you/my-site
+```
+
+**Optional:** install a global binary once (`go install github.com/MrBlindMouse/Portico/cmd/portico@<tag>` with `$(go env GOPATH)/bin` on `PATH`), then `portico generate …` works the same. Installing is not required.
+
+In examples below, `portico` means whichever of the above you use.
 
 ## Commands
 
@@ -25,7 +42,7 @@ Install: `go install github.com/MrBlindMouse/Portico/cmd/portico@latest`
 portico init [-dir .] [-module path] [-force]
 ```
 
-Runs `go mod init` when needed, `go get` Portico, writes `main.go`, `AGENTS.md`, and `README.md`. `main.go` is one scene and a `greet` action. Stderr hints at `generate` and lists plan names.
+Runs `go mod init` when needed, `go get` Portico, writes `main.go`, `AGENTS.md`, and `README.md`. `main.go` is one scene and a `greet` action. Stderr prints the `go run … generate` line and lists plan names.
 
 ## generate
 

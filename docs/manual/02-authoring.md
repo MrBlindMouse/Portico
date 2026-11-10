@@ -22,7 +22,7 @@ portico.New().
     BindInput("home", "help", "show-help"). // optional sugar
     OnSessionStart(components.SetLocalEffect("k", "v")...).
     OnSessionEnd(...).
-    Merge(Guestbook()).              // after portico generate guestbook
+    Merge(Guestbook()).              // after go run …/cmd/portico generate guestbook
     Build()
 ```
 
@@ -81,8 +81,8 @@ Cross-session updates: write space state with space effects, then `components.Br
 ## Merging generated plans
 
 ```bash
-portico generate guestbook
-portico generate landing
+go run github.com/MrBlindMouse/Portico/cmd/portico generate guestbook
+go run github.com/MrBlindMouse/Portico/cmd/portico generate landing
 ```
 
 ```go
@@ -99,7 +99,7 @@ Later `Merge` calls override scenes, actions, and spaces with the same ids. Sess
 `installation.Wire` is a JSON-serializable sketch (ids and input bindings, no funcs). Use it for:
 
 - `POST /inspect/validate` and `POST /inspect/reload-preview`
-- `portico wire validate -file site.wire.json`
+- `go run github.com/MrBlindMouse/Portico/cmd/portico wire validate -file site.wire.json`
 
 See [Wire format](reference/wire.md).
 

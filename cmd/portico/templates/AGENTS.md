@@ -4,12 +4,14 @@ You are in a **consumer repo**: a Go module that imports `github.com/MrBlindMous
 
 ## Plans — convenient starting points
 
-`init` gives one scene. **Plans** are the usual next step: `portico generate` copies runnable starter Go into this repo (you own and edit it). Each plan is a small whole site with its own root. Wire it with `Merge` before `Build()`.
+`init` gives one scene. **Plans** are the usual next step: `go run …/cmd/portico generate` copies runnable starter Go into this repo (you own and edit it). Each plan is a small whole site with its own root. Wire it with `Merge` before `Build()`.
 
 ```bash
-portico generate guestbook
-portico generate -list    # landing, guestbook, chat, register, form, blog, lobby
+go run github.com/MrBlindMouse/Portico/cmd/portico generate guestbook
+go run github.com/MrBlindMouse/Portico/cmd/portico generate -list    # landing, guestbook, chat, register, form, blog, lobby
 ```
+
+Run from this repo root (site module). No `@version` on the path — Go uses `require` in `go.mod`.
 
 The CLI prints a merge line, e.g. `portico.New().Merge(Guestbook()).Build()`. Add that to your builder in `main.go`, then customize the generated file. Later `Merge` calls win when ids collide. `guestbook` and `chat` also write `rest.go` (use `-force` for the second if the file exists).
 

@@ -47,7 +47,7 @@ Multi-step prompts (optional pattern in `installation` package):
 - `StartForm`, `AdvanceFormValue`, `CancelForm`
 - `FormText`, `RenderForm` for display
 
-See the form plan (`portico generate form`) for an example graph.
+See the form plan (`go run …/cmd/portico generate form`) for an example graph.
 
 ## Screen grid and caret
 

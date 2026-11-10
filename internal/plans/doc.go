@@ -1,4 +1,4 @@
-// Package plans holds the sources that portico generate copies into a site.
+// Package plans holds the sources that go run …/cmd/portico generate copies into a site.
 // Each file is one installation: it sets a root and Build succeeds alone.
 // Sites do not import this package. They edit the generated copy.
 //

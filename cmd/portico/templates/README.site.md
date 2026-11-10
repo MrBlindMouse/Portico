@@ -35,11 +35,11 @@ Inspect has no login. Do not expose it on the public internet.
 1. **Plans** — convenient starters you own and edit (this repo already depends on Portico in `go.mod`):
 
    ```bash
-   portico generate guestbook
-   portico generate -list
+   go run github.com/MrBlindMouse/Portico/cmd/portico generate guestbook
+   go run github.com/MrBlindMouse/Portico/cmd/portico generate -list
    ```
 
-   If the CLI is not on your PATH: `go install github.com/MrBlindMouse/Portico/cmd/portico@<same-version-as-go.mod>` once, or `go run github.com/MrBlindMouse/Portico/cmd/portico generate guestbook` from this directory (uses the module version in `go.mod`, not `@latest`).
+   Uses the Portico version in `go.mod` (no `@tag` on the path). Optional: `go install github.com/MrBlindMouse/Portico/cmd/portico@<tag>` once, then `portico generate …` if `$(go env GOPATH)/bin` is on your `PATH`.
 
    Wire the printed `Merge(…)` line into `main.go`, then change the generated file.
 

@@ -9,7 +9,7 @@
 | **Effect** | Intent description applied only in runtime (`components` package) |
 | **Space** | Shared multi-user context with membership |
 | **Identity** | Guest, SSH key fingerprint, or account-linked user |
-| **Plan** | One starter installation from `portico generate`: its own root, one purpose, owned Go you edit |
+| **Plan** | One starter installation from `go run …/cmd/portico generate`: its own root, one purpose, owned Go you edit |
 | **Plan set** | Several plans plus recommended wiring (not shipped; see TODO) |
 | **Apply** | Runtime step that mutates session/space state |
 | **Wire** | JSON wiring sketch without Go funcs |

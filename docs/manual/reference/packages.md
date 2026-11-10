@@ -11,7 +11,7 @@
 | `.../config` | Optional JSON operator config |
 | `.../testkit` | In-memory tests |
 
-Plans are not an import. `portico generate` writes them into the site. See [Plans](plans.md).
+Plans are not an import. `go run …/cmd/portico generate` writes them into the site. See [Plans](plans.md).
 
 Do not import `runtime` or `inspect` from site code.
 

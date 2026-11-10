@@ -11,7 +11,12 @@ go run .
 ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null localhost
 ```
 
-`init` writes `main.go` (one scene, `greet`, `Serve` + `-addr` + loopback inspect), **AGENTS.md**, and **README.md**. Add plans with `portico generate <name>` in the site directory.
+`init` writes `main.go` (one scene, `greet`, `Serve` + `-addr` + loopback inspect), **AGENTS.md**, and **README.md**. Add plans from the site directory:
+
+```bash
+go run github.com/MrBlindMouse/Portico/cmd/portico generate <name>
+go run github.com/MrBlindMouse/Portico/cmd/portico generate -list
+```
 
 ## Mental model
 
@@ -28,7 +33,7 @@ Session and space mutation happen only inside the runtime **apply** step. Your a
 ```
 my-site/
   main.go          # Build(), Options, Serve (from portico init)
-  *.go             # plans from portico generate (you edit)
+  *.go             # plans from go run …/cmd/portico generate (you edit)
   .portico-data/   # host key, identity KV (gitignore)
   AGENTS.md        # primary agent contract (from init)
   README.md        # human ops notes (from init)
@@ -48,8 +53,8 @@ Keep `main` thin; grow a `site` package when definitions get large.
 ## Plans
 
 ```bash
-portico generate guestbook
-portico generate -list
+go run github.com/MrBlindMouse/Portico/cmd/portico generate guestbook
+go run github.com/MrBlindMouse/Portico/cmd/portico generate -list
 ```
 
 Each command copies starter Go into the site and prints a `Merge(…)` line. Edit the file; wire the merge in `main.go`. Plans are **not** a library—only the copies in your repo count. Names: `landing`, `guestbook`, `chat`, `register`, `form`, `blog`, `lobby`. Each builds on its own; later `Merge` wins when ids collide.

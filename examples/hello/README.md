@@ -1,6 +1,6 @@
 # Hello
 
-Framework **smoke test** for CI and local verification. It is not a site to copy. Create a site with `portico init`, then `portico generate <name>` for each plan you want to own and edit.
+Framework **smoke test** for CI and local verification. It is not a site to copy. Create a site with `go run github.com/MrBlindMouse/Portico/cmd/portico@v0.1.0 init`, then `go run github.com/MrBlindMouse/Portico/cmd/portico generate <name>` in that module for each plan you want to own and edit.
 
 `main` merges every plan (guestbook, chat, register, form, lobby, blog) behind a landing menu and serves them with `ServeDev`. A dev plaintext account store is on so `register` can create an account. One blog post is seeded as `post-1.md`.
 
@@ -31,5 +31,5 @@ You start on the landing menu. Those scenes have no command back to the menu. Di
 | Goal | Where |
 |------|--------|
 | Bootstrap a new repo | `portico init` + [docs/building-a-site.md](../../docs/building-a-site.md) |
-| Own a plan and edit it | `portico generate <name>` |
+| Own a plan and edit it | `go run github.com/MrBlindMouse/Portico/cmd/portico generate <name>` |
 | Agent contract | Site **AGENTS.md** from `portico init`; extended [docs/site-agents.md](../../docs/site-agents.md) |

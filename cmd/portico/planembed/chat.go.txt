@@ -12,8 +12,8 @@ import (
 
 // How to change this plan
 //
-// portico generate copies this file into the site. Edit the copy. Do not
-// import internal/plans.
+// go run github.com/MrBlindMouse/Portico/cmd/portico generate copies this
+// file into the site. Edit the copy. Do not import internal/plans.
 //
 // Shape: Space, Actions, one Scene, Root. An Inputs entry is the word the
 // visitor types; the value is the action id registered above. Both must

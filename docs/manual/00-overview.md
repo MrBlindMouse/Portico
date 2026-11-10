@@ -3,8 +3,8 @@
 A site is an ordinary Go module. Portico is the SSH entrance. You declare **components**, `Build()` an **installation**, and serve it.
 
 ```text
-portico init          site shell (one scene, one action)
-portico generate      one plan: owned Go you edit
+go run …/cmd/portico init     site shell (one scene, one action); pin @tag before go.mod exists
+go run …/cmd/portico generate one plan: owned Go you edit; no @tag once Portico is in go.mod
 components            scene, action, space, effects, contexts
 installation          builder, Build(), the Installation value
 render                optional terminal drawing
@@ -16,7 +16,7 @@ runtime               sessions and apply — do not import
 
 Effects are the only way to change session or space state. A scene's `Render` only reads. Actions return `[]components.Effect`. The runtime applies them.
 
-**Plans** are starter files, not a library. `portico generate guestbook` writes Go into the site that you own and edit. A **plan set** (several plans plus wiring) is not shipped.
+**Plans** are starter files, not a library. `go run …/cmd/portico generate guestbook` writes Go into the site that you own and edit. A **plan set** (several plans plus wiring) is not shipped.
 
 **Identity** is not a component. It is the visitor on the session, plus the stores in `Options` (key/value and accounts). The register plan creates an account through `RegisterAccountEffect`. A nickname is identity data (`ReserveNicknameEffect`), not a plan.
 

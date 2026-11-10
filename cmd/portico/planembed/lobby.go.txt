@@ -12,7 +12,8 @@ import (
 
 // How to change this plan
 //
-// portico generate copies this file into the site. Edit the copy.
+// go run github.com/MrBlindMouse/Portico/cmd/portico generate copies this
+// file into the site. Edit the copy.
 //
 // Shape: one Space, one Scene, actions for join / leave / ready / unready / start,
 // Root "lobby". Inputs keys are the words typed. Render only reads.

@@ -60,7 +60,7 @@ func initCmd(args []string) {
 	}
 
 	fmt.Fprintf(os.Stderr, "wrote %s. Run: cd %s && go run .\n", target, target)
-	fmt.Fprintf(os.Stderr, "Next: portico generate <plan>   (names: %s)\n", strings.Join(planNames(), ", "))
+	fmt.Fprintf(os.Stderr, "Next: go run github.com/MrBlindMouse/Portico/cmd/portico generate <plan>   (names: %s)\n", strings.Join(planNames(), ", "))
 }
 
 func writeTemplate(dir, outName, tmplName string, force bool) error {

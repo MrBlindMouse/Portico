@@ -21,7 +21,14 @@ go run .
 | `-force` | Overwrite `main.go`, `AGENTS.md`, `README.md` |
 | `-module` | Required when `go.mod` is missing |
 
-After `init`, add plans with `portico generate <name>` (`portico generate -list`) from the site directory. Agents: start with **AGENTS.md** in the site repo.
+After `init`, add plans from the site directory:
+
+```bash
+go run github.com/MrBlindMouse/Portico/cmd/portico generate <name>
+go run github.com/MrBlindMouse/Portico/cmd/portico generate -list
+```
+
+Agents: start with **AGENTS.md** in the site repo.
 
 **Or write manually:** `go mod init`, `go get github.com/MrBlindMouse/Portico`, then build an installation in `main.go`. `portico init` writes that same program.
 

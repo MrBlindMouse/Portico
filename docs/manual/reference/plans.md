@@ -1,6 +1,6 @@
 # Plans
 
-`portico generate <name>` copies one **plan** into the site as ordinary Go. Edit that file. Plans are not an importable package—only the generated files in your repo.
+`go run github.com/MrBlindMouse/Portico/cmd/portico generate <name>` copies one **plan** into the site as ordinary Go. Edit that file. Plans are not an importable package—only the generated files in your repo.
 
 Each plan is a whole installation: it sets a root scene and `Build()` succeeds on its own. Each plan has one job. Merge them when a site needs more than one. A nickname is identity data (`ReserveNicknameEffect`), not a plan.
 
@@ -36,8 +36,8 @@ Later `Merge` wins when scene, action, or space **ids** collide. Merge landing l
 Each generated file opens with a **How to change this plan** comment. That comment is the editing guide for the copy.
 
 ```bash
-portico generate guestbook
-portico generate -list
+go run github.com/MrBlindMouse/Portico/cmd/portico generate guestbook
+go run github.com/MrBlindMouse/Portico/cmd/portico generate -list
 ```
 
 ## Plan sets (not shipped)

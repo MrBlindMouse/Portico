@@ -59,8 +59,8 @@ POST body: `installation.Wire`. Response JSON includes `ok` and `error` on failu
 ## CLI
 
 ```bash
-portico inspect -url http://127.0.0.1:9922 -resource snapshot
-portico inspect -url http://127.0.0.1:9922 -resource reload-preview -method POST -file wire.json
+go run github.com/MrBlindMouse/Portico/cmd/portico inspect -url http://127.0.0.1:9922 -resource snapshot
+go run github.com/MrBlindMouse/Portico/cmd/portico inspect -url http://127.0.0.1:9922 -resource reload-preview -method POST -file wire.json
 ```
 
 Resources: `snapshot`, `sessions`, `reload-preview`, `validate`.

@@ -16,9 +16,14 @@ go run .
 ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null localhost
 ```
 
-`init` creates the module, runs `go get github.com/MrBlindMouse/Portico`, and writes a runnable `main.go` plus site **AGENTS.md** and **README.md**. Add starters with `portico generate <name>` in that directory (`landing`, `guestbook`, `chat`, …).
+`init` creates the module, runs `go get github.com/MrBlindMouse/Portico`, and writes a runnable `main.go` plus site **AGENTS.md** and **README.md**. Add starters from that directory (uses the version in `go.mod`):
 
-More for site authors: [docs/building-a-site.md](docs/building-a-site.md) and the [manual](docs/manual/README.md) at your `go.mod` version (`portico docs -tag v0.1.0`).
+```bash
+go run github.com/MrBlindMouse/Portico/cmd/portico generate landing
+go run github.com/MrBlindMouse/Portico/cmd/portico generate -list
+```
+
+More for site authors: [docs/building-a-site.md](docs/building-a-site.md) and the [manual](docs/manual/README.md) (`go run github.com/MrBlindMouse/Portico/cmd/portico docs -tag v0.1.0`).
 
 ---
 

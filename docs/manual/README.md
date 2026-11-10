@@ -16,7 +16,7 @@ Operator and reference documentation for **site authors** who import `github.com
 Discovery from the CLI (replace `vX.Y.Z` with your module version):
 
 ```bash
-portico docs -tag vX.Y.Z
+go run github.com/MrBlindMouse/Portico/cmd/portico docs -tag vX.Y.Z
 ```
 
 ## Contents

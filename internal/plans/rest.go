@@ -4,7 +4,8 @@ import "strings"
 
 // How to change this plan
 //
-// portico generate writes this file next to guestbook.go and chat.go.
+// go run github.com/MrBlindMouse/Portico/cmd/portico generate writes this
+// file next to guestbook.go and chat.go.
 // Generating the second of those two needs -force when rest.go is already there.
 // Other plans do not use this helper. Prefix commands ("sign hello", "nick ada")
 // take the text after the first token. The first token must be the command;
