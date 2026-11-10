@@ -1,8 +1,28 @@
 # Portico
 
-Go framework for interactive, multi-user terminal **sites** served over SSH. Sites are ordinary modules that import this library; **this repository is the framework**, not a site.
+Go framework for interactive, multi-user terminal **sites** served over SSH. Build scenes and actions in your own module; Portico runs SSH, sessions, and shared state. **This repository is the framework**, not a site.
 
-Authors define **components** (scenes, actions, spaces), `Build()` an **installation**, and call `Serve` with **Options**. The framework runs SSH, sessions, input dispatch, effect application, spaces, and identity persistence. Vision and ceilings: [DESIGN.md](DESIGN.md). Day-to-day rules for changing this tree: [AGENTS.md](AGENTS.md).
+## Get started
+
+In a new directory (outside this repo):
+
+```bash
+mkdir my-site && cd my-site
+go run github.com/MrBlindMouse/Portico/cmd/portico@v0.1.0 init -module github.com/you/my-site
+go run .
+```
+
+```bash
+ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null localhost
+```
+
+`init` creates the module, runs `go get github.com/MrBlindMouse/Portico`, and writes a runnable `main.go` plus site **AGENTS.md** and **README.md**. Add starters with `portico generate <name>` in that directory (`landing`, `guestbook`, `chat`, …).
+
+More for site authors: [docs/building-a-site.md](docs/building-a-site.md) and the [manual](docs/manual/README.md) at your `go.mod` version (`portico docs -tag v0.1.0`).
+
+---
+
+Contributors: vision in [DESIGN.md](DESIGN.md); rules for this tree in [AGENTS.md](AGENTS.md).
 
 ## Verify
 
@@ -60,21 +80,3 @@ go test ./cmd/portico/ -run TestPlanEmbedMatchesSource
 
 Sites import `github.com/MrBlindMouse/Portico` and typically `components`, `installation`, `render`, and optionally `identity`, `asset`, `testkit`. Full reference: [docs/manual/README.md](docs/manual/README.md). Option fields and production deployment: [docs/manual/reference/options.md](docs/manual/reference/options.md), [docs/manual/07-production.md](docs/manual/07-production.md).
 
-## For site authors
-
-This repo is the wrong place to build a product. In a **new module**:
-
-```bash
-go run github.com/MrBlindMouse/Portico/cmd/portico@latest init -module github.com/you/my-site
-```
-
-| Doc | Audience |
-|-----|----------|
-| Site **AGENTS.md** / **README.md** (from `init`) | Agents and operators in that repo |
-| [docs/building-a-site.md](docs/building-a-site.md) | Human how-to |
-| [docs/site-agents.md](docs/site-agents.md) | Extended agent contract |
-| [docs/manual/](docs/manual/README.md) | Full manual at your `go.mod` tag |
-
-```bash
-portico docs -tag vX.Y.Z
-```
