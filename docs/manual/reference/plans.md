@@ -30,7 +30,7 @@ Later `Merge` wins when scene, action, or space **ids** collide. Merge landing l
 - Chat: `join-chat`, `leave`, `nick <name>`, `send <message>`
 - Lobby: `join`, `leave`, `ready`, `unready`, `start` (`ready` uses `SpaceCAS`)
 - Form: `start`, `next <value>`, `cancel` (finished answers are `Persist`ed for a key or account)
-- Blog: `open <id>`, `back` (last opened id is `Persist`ed for a key or account)
+- Blog: `open <id from Posts>` (suffix after `post-` in the asset name, e.g. `open 1.md`); `back` returns to the list (shown on the post screen; last opened id is `Persist`ed for a key or account)
 - Registration: `register user pass`
 
 Each generated file opens with a **How to change this plan** comment. That comment is the editing guide for the copy.

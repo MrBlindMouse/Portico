@@ -8,7 +8,7 @@ In a new directory (outside this repo):
 
 ```bash
 mkdir my-site && cd my-site
-go run github.com/MrBlindMouse/Portico/cmd/portico@v0.1.0 init -module github.com/you/my-site
+go run github.com/MrBlindMouse/Portico/cmd/portico@v0.1.1 init -module github.com/you/my-site
 go run .
 ```
 
@@ -23,7 +23,7 @@ go run github.com/MrBlindMouse/Portico/cmd/portico generate landing
 go run github.com/MrBlindMouse/Portico/cmd/portico generate -list
 ```
 
-More for site authors: [docs/building-a-site.md](docs/building-a-site.md) and the [manual](docs/manual/README.md) (`go run github.com/MrBlindMouse/Portico/cmd/portico docs -tag v0.1.0`).
+More for site authors: [docs/building-a-site.md](docs/building-a-site.md) and the [manual](docs/manual/README.md) (`go run github.com/MrBlindMouse/Portico/cmd/portico docs -tag v0.1.1`).
 
 ---
 

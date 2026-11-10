@@ -14,7 +14,7 @@ go run github.com/MrBlindMouse/Portico/cmd/portico generate -list
 Before `go.mod` exists, bootstrap with a **pinned tag** on the tool module (same tag you want in `require`):
 
 ```bash
-go run github.com/MrBlindMouse/Portico/cmd/portico@v0.1.0 init -module github.com/you/my-site
+go run github.com/MrBlindMouse/Portico/cmd/portico@v0.1.1 init -module github.com/you/my-site
 ```
 
 **Optional:** install a global binary once (`go install github.com/MrBlindMouse/Portico/cmd/portico@<tag>` with `$(go env GOPATH)/bin` on `PATH`), then `portico generate …` works the same. Installing is not required.

@@ -205,7 +205,7 @@ func TestBlogListsAndOpens(t *testing.T) {
 	if err := eng.Render(sess, term); err != nil {
 		t.Fatal(err)
 	}
-	if !term.Contains("1.md") || term.Contains("notes.txt") {
+	if !term.Contains("1.md") || !term.Contains("e.g. open 1.md") || term.Contains("notes.txt") {
 		t.Fatalf("frame=%q", term.LastFrame())
 	}
 	if err := eng.HandleInput(sess, "open"); err != nil {
@@ -214,7 +214,7 @@ func TestBlogListsAndOpens(t *testing.T) {
 	if err := eng.Render(sess, term); err != nil {
 		t.Fatal(err)
 	}
-	if !term.Contains("usage: open <post-id>") {
+	if !term.Contains("usage: open <id from Posts list>") {
 		t.Fatalf("frame=%q", term.LastFrame())
 	}
 	if err := eng.HandleInput(sess, "open 1.md"); err != nil {
@@ -223,7 +223,7 @@ func TestBlogListsAndOpens(t *testing.T) {
 	if err := eng.Render(sess, term); err != nil {
 		t.Fatal(err)
 	}
-	if !term.Contains("hello post") {
+	if !term.Contains("hello post") || !term.Contains("back — return to Posts") {
 		t.Fatalf("frame=%q", term.LastFrame())
 	}
 }

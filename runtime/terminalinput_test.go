@@ -391,6 +391,33 @@ func TestReadKeyIgnoresUnbound(t *testing.T) {
 	}
 }
 
+func TestReadKeyDrainsKittyBase64BeforeMenuKey(t *testing.T) {
+	const b64 = "n0v4uazhRRJ+tvBzET+X8HNZw3sg/Gzh5yJ+LuHnsnb8fAf+L8BHCz4W4WMJPpY1EIlqKAvVQFSoCbGb+O5rIFd6J4l59/fu793fu78f9u//HwAzKeTyAH4BAA=="
+	stream := "KITTY_DATA_START\nOK\n" + b64 + "\nKITTY_DATA_END\ng"
+	ir := newInputReader(bufio.NewReader(strings.NewReader(stream)))
+	ir.setKeys([]string{"b", "c", "f", "g", "l", "r"})
+	got, err := ir.readUserCommand()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "g" {
+		t.Fatalf("got %q, want g after wire drain", got)
+	}
+}
+
+func TestReadKeyDrainsBareBase64BeforeMenuKey(t *testing.T) {
+	const b64 = "n0v4uazhRRJ+tvBzET+X8HNZw3sg/Gzh5yJ+LuHnsnb8fAf+L8BHCz4W4WMJPpY1EIlqKAvVQFSoCbGb+O5rIFd6J4l59/fu793fu78f9u//HwAzKeTyAH4BAA=="
+	ir := newInputReader(bufio.NewReader(strings.NewReader(b64 + "\nc")))
+	ir.setKeys([]string{"b", "c", "f", "g", "l", "r"})
+	got, err := ir.readUserCommand()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "c" {
+		t.Fatalf("got %q, want c after bare base64 line", got)
+	}
+}
+
 func TestCompleteSceneInput(t *testing.T) {
 	exp, err := installation.NewBuilder().
 		Root("home").

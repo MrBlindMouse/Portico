@@ -19,7 +19,7 @@ func TestEveryPlanFromLanding(t *testing.T) {
 
 	chat := h.Session("chat", exp.Root())
 	h.Engine.RegisterSession(chat)
-	if err := h.Engine.HandleInput(chat, "chat"); err != nil {
+	if err := h.Engine.HandleInput(chat, "c"); err != nil {
 		t.Fatal(err)
 	}
 	if err := h.Engine.HandleInput(chat, "send hello there"); err != nil {
@@ -34,7 +34,7 @@ func TestEveryPlanFromLanding(t *testing.T) {
 
 	book := h.Session("book", exp.Root())
 	h.Engine.RegisterSession(book)
-	if err := h.Engine.HandleInput(book, "guestbook"); err != nil {
+	if err := h.Engine.HandleInput(book, "g"); err != nil {
 		t.Fatal(err)
 	}
 	if err := h.Engine.HandleInput(book, "sign ships ahoy"); err != nil {
@@ -49,7 +49,7 @@ func TestEveryPlanFromLanding(t *testing.T) {
 
 	reg := h.Session("reg", exp.Root())
 	h.Engine.RegisterSession(reg)
-	if err := h.Engine.HandleInput(reg, "register"); err != nil {
+	if err := h.Engine.HandleInput(reg, "r"); err != nil {
 		t.Fatal(err)
 	}
 	if err := h.Engine.HandleInput(reg, "register alice secret"); err != nil {
@@ -64,7 +64,7 @@ func TestEveryPlanFromLanding(t *testing.T) {
 
 	form := h.Session("form", exp.Root())
 	h.Engine.RegisterSession(form)
-	if err := h.Engine.HandleInput(form, "form"); err != nil {
+	if err := h.Engine.HandleInput(form, "f"); err != nil {
 		t.Fatal(err)
 	}
 	if err := h.Engine.HandleInput(form, "start"); err != nil {
@@ -79,7 +79,7 @@ func TestEveryPlanFromLanding(t *testing.T) {
 
 	lobby := h.Session("lobby", exp.Root())
 	h.Engine.RegisterSession(lobby)
-	if err := h.Engine.HandleInput(lobby, "lobby"); err != nil {
+	if err := h.Engine.HandleInput(lobby, "l"); err != nil {
 		t.Fatal(err)
 	}
 	if err := h.Engine.HandleInput(lobby, "join"); err != nil {
@@ -97,7 +97,7 @@ func TestEveryPlanFromLanding(t *testing.T) {
 
 	blog := h.Session("blog", exp.Root())
 	h.Engine.RegisterSession(blog)
-	if err := h.Engine.HandleInput(blog, "blog"); err != nil {
+	if err := h.Engine.HandleInput(blog, "b"); err != nil {
 		t.Fatal(err)
 	}
 	if err := h.Engine.HandleInput(blog, "open 1.md"); err != nil {

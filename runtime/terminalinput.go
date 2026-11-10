@@ -76,6 +76,7 @@ type inputReader struct {
 	crPending      bool   // saw CR; a following LF is the rest of CRLF, not a new line
 	kittyBootstrap bool   // ssh kitten payload after KITTY_DATA_START, until END
 	conductor      bool   // iTerm it2ssh script after "-- BEGIN CONDUCTOR --"
+	keyWire        []byte // key scene: line-buffered kitty/base64 before dispatch
 }
 
 func newInputReader(r *bufio.Reader) *inputReader {
@@ -838,6 +839,8 @@ func (ir *inputReader) hasKey(s string) bool {
 }
 
 // readKey returns the next bound key. Unbound input is discarded.
+// Kitty/iTerm bootstrap lines are buffered and dropped so wire bytes that
+// match menu keys (common in base64) do not dispatch before the user acts.
 func (ir *inputReader) readKey() (string, error) {
 	for {
 		b, err := ir.r.ReadByte()
@@ -854,7 +857,20 @@ func (ir *inputReader) readKey() (string, error) {
 			if ir.redraw != nil {
 				ir.redraw()
 			}
+		case '\n', '\r':
+			if b == '\r' && ir.r.Buffered() > 0 {
+				if peek, _ := ir.r.Peek(1); len(peek) > 0 && peek[0] == '\n' {
+					_, _ = ir.r.ReadByte()
+				}
+			}
+			if len(ir.keyWire) > 0 || ir.kittyBootstrap || ir.conductor {
+				ir.finishKeyWireLine(string(ir.keyWire))
+			}
 		case 0x1b:
+			if len(ir.keyWire) > 0 || ir.kittyBootstrap || ir.conductor {
+				ir.keyWire = append(ir.keyWire, b)
+				continue
+			}
 			name, err := ir.readKeyEscape()
 			if err != nil {
 				return "", err
@@ -870,12 +886,47 @@ func (ir *inputReader) readKey() (string, error) {
 			if err != nil {
 				return "", err
 			}
+			if len(ir.keyWire) > 0 || ir.kittyBootstrap || ir.conductor {
+				ir.keyWire = append(ir.keyWire, s...)
+				continue
+			}
+			if ir.keyByteOpensWire(b) {
+				ir.keyWire = append(ir.keyWire, s...)
+				continue
+			}
 			if ir.pasting || !ir.hasKey(s) {
 				continue
 			}
 			return s, nil
 		}
 	}
+}
+
+func (ir *inputReader) peekWireLineFrom(first byte) string {
+	n := ir.r.Buffered()
+	if n > 512 {
+		n = 512
+	}
+	got, _ := ir.r.Peek(n)
+	line := append([]byte{first}, got...)
+	if i := bytesIndexAny(line); i >= 0 {
+		line = line[:i]
+	}
+	return string(line)
+}
+
+func (ir *inputReader) keyByteOpensWire(first byte) bool {
+	if ir.shouldSilence(first) {
+		return true
+	}
+	return looksLikeBase64Chunk(ir.peekWireLineFrom(first))
+}
+
+func (ir *inputReader) finishKeyWireLine(raw string) {
+	ir.keyWire = ir.keyWire[:0]
+	line := normalizeUserLine(raw)
+	ir.noteWireWindow(line)
+	_ = ir.discardTransportLine(line)
 }
 
 func (ir *inputReader) readKeyRune(first byte) (string, error) {

@@ -15,12 +15,13 @@ import (
 // go run github.com/MrBlindMouse/Portico/cmd/portico generate copies this
 // file into the site. Edit the copy.
 //
-// Root is "blog-list". "open <id>" transitions to "blog-post"; "back" returns.
+// Root is "blog-list". "open …" transitions to "blog-post"; "back" returns.
 // Posts are assets whose names start with "post-". Load them with
 // builder.Asset in main, or Options.AssetDir (files the runtime watches).
 // Anything that does not start with "post-" is ignored by the list.
-// The id the visitor types is the part after "post-" ("open 1.md" loads
-// asset "post-1.md"). A missing asset is a render string, not an error effect.
+// The visitor types the id shown under Posts—the part after "post-" in the
+// asset name ("open 1.md" loads "post-1.md"; "open 1" or "open post-1.md" miss).
+// A missing asset is a render string, not an error effect.
 //
 // post_id is session-local so the post scene can read it after Transition.
 // blog_last is Persist of that same id, only when the identity has a
@@ -42,13 +43,14 @@ func Blog() *installation.Builder {
 			id, _ := ctx.Local("post_id")
 			s, _ := id.(string)
 			if s == "" {
-				return render.Box("Post", "no post selected", 48)
+				return render.Box("Post", blogPostBody("no post selected"), 48)
 			}
 			text, ok := ctx.Asset("post-" + s)
 			if !ok {
-				return render.Box("Post", fmt.Sprintf("missing asset post-%s", s), 48)
+				msg := fmt.Sprintf("no asset post-%s\n\nUse the id from Posts (e.g. open %s)", s, s)
+				return render.Box("Post", blogPostBody(msg), 48)
 			}
-			return render.Box("Post: "+s, text, 64)
+			return render.Box("Post: "+s, blogPostBody(text), 64)
 		},
 		Inputs: map[string]components.ActionID{
 			"back": "blog-back",
@@ -61,7 +63,7 @@ func Blog() *installation.Builder {
 			id := strings.Fields(rest)
 			if len(id) == 0 {
 				return []components.Effect{
-					components.SetLocalEffect("flash", "usage: open <post-id>"),
+					components.SetLocalEffect("flash", "usage: open <id from Posts list>"),
 				}
 			}
 			effects := []components.Effect{
@@ -116,6 +118,14 @@ func blogListBody(ctx components.RenderContext) string {
 			b.WriteByte('\n')
 		}
 	}
-	b.WriteString("\nCommands: open <id>")
+	b.WriteString("\nCommands: open <id from Posts>")
+	if len(ids) > 0 {
+		b.WriteString("\n  e.g. open ")
+		b.WriteString(ids[0])
+	}
 	return b.String()
+}
+
+func blogPostBody(main string) string {
+	return strings.TrimRight(main, "\n") + "\n\nCommand: back — return to Posts"
 }
