@@ -23,12 +23,19 @@ type SlotTarget interface {
 	PlaceInput(Input)
 }
 
+// ThemeSource is optional on the Show target. When Screen has inverse rows,
+// emit applies Theme().Inverse to those rows only in the terminal string.
+type ThemeSource interface {
+	Theme() Theme
+}
+
 // Screen is a grid of cells a scene draws, plus at most one input rectangle.
 type Screen struct {
-	w, h int
-	cell []rune
-	slot Input
-	has  bool
+	w, h         int
+	cell         []rune
+	inverseRows  []bool
+	slot         Input
+	has          bool
 }
 
 // NewScreen returns a grid of spaces. Non-positive dimensions become 0.
@@ -81,6 +88,63 @@ func (s *Screen) DrawWithin(row, col, width, height int, text string) Rect {
 		c++
 	}
 	return clipRect(row, col, width, height, s.w, s.h)
+}
+
+// DrawList writes a list window at row, col with plain cells.
+// The selected row is marked inverse on emit; pass Show a ThemeSource to apply inverse.
+// width and height clip like DrawWithin. Returns the same region as ListRow.
+func (s *Screen) DrawList(row, col, width, height int, items []string, selected, visible int) Rect {
+	if s == nil || s.w == 0 || s.h == 0 {
+		return Rect{}
+	}
+	start, end, selected, ok := listWindow(len(items), selected, visible)
+	if !ok {
+		return Rect{Row: row, Col: col}
+	}
+	if len(s.inverseRows) < s.h {
+		grow := make([]bool, s.h)
+		copy(grow, s.inverseRows)
+		s.inverseRows = grow
+	}
+	for i := start; i < end; i++ {
+		lineRow := row + i - start
+		if height > 0 && lineRow >= row+height {
+			break
+		}
+		if lineRow < 0 || lineRow >= s.h {
+			continue
+		}
+		prefix := "  "
+		if i == selected {
+			prefix = "> "
+		}
+		line := prefix + items[i]
+		if width > 0 {
+			line = Truncate(line, width)
+		}
+		s.DrawWithin(lineRow, col, width, 1, line)
+		s.setRowInverse(lineRow, i == selected)
+	}
+	return ListRow(row, col, items, selected, visible, width)
+}
+
+func (s *Screen) setRowInverse(row int, on bool) {
+	if row < 0 || row >= s.h {
+		return
+	}
+	if len(s.inverseRows) < s.h {
+		grow := make([]bool, s.h)
+		copy(grow, s.inverseRows)
+		s.inverseRows = grow
+	}
+	s.inverseRows[row] = on
+}
+
+func (s *Screen) rowInverse(row int) bool {
+	if row < 0 || row >= len(s.inverseRows) {
+		return false
+	}
+	return s.inverseRows[row]
 }
 
 func paneExtent(origin, size, limit int) int {
@@ -153,11 +217,20 @@ func (s *Screen) Show(target SlotTarget) string {
 	if target != nil && s.has {
 		target.PlaceInput(s.slot)
 	}
-	return s.String()
+	var mark func(string) string
+	if ts, ok := target.(ThemeSource); ok {
+		mark = ts.Theme().Inverse
+	}
+	return s.emit(mark)
 }
 
 // String returns the grid without a caret. Trailing spaces on each row are removed.
+// Inverse row marks are not applied; use Show with a ThemeSource for terminal styling.
 func (s *Screen) String() string {
+	return s.emit(nil)
+}
+
+func (s *Screen) emit(mark func(string) string) string {
 	if s == nil || s.h == 0 {
 		return ""
 	}
@@ -167,7 +240,11 @@ func (s *Screen) String() string {
 			b.WriteByte('\n')
 		}
 		line := string(s.cell[r*s.w : (r+1)*s.w])
-		b.WriteString(strings.TrimRight(line, " "))
+		line = strings.TrimRight(line, " ")
+		if mark != nil && line != "" && s.rowInverse(r) {
+			line = mark(line)
+		}
+		b.WriteString(line)
 	}
 	return b.String()
 }

@@ -232,6 +232,9 @@ func (e *Engine) Render(sess *Session, term Terminal) error {
 		paintInputSlot(term)
 		return nil
 	}
+	if e.sceneKeys(sess) {
+		return writeGrid(term, out)
+	}
 	return term.WriteFrame(out)
 }
 

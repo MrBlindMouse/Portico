@@ -7,9 +7,15 @@
 // A scene reads the window from components.RenderContext.Size and the active
 // theme from RenderContext.Theme.
 //
-// Screen is a grid plus one optional caret rectangle. DrawWithin clips a
-// region. BoxBody, ListRow, and TableCell report the rectangle of a block
-// drawn at an origin. Show places the caret on the render context. With no
-// rectangle, the runtime draws ">" on the row under the frame.
+// Screen is a grid plus one optional caret rectangle. Draw and DrawWithin store
+// plain runes only—do not draw Theme role output or other ANSI into the grid.
+// Use Screen.DrawList for a marked list; Show applies inverse on marked rows
+// when the target implements ThemeSource (the runtime render context does).
+// Fit text first, then theme, for standalone strings from List, Box, and Table.
+//
+// DrawWithin clips a region. BoxBody, ListRow, and TableCell report the
+// rectangle of a block drawn at an origin. Show places the caret on the render
+// context. With no rectangle, the runtime draws ">" on the row under the frame.
+// Keys scenes paint with WriteGrid so a full-height grid does not scroll.
 // See docs/site-agents.md.
 package render

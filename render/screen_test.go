@@ -1,7 +1,9 @@
 package render_test
 
 import (
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/MrBlindMouse/Portico/render"
 )
@@ -40,6 +42,54 @@ func TestDrawWithinClipsColumn(t *testing.T) {
 	}
 	if pane.Row != 0 || pane.Col != 0 || pane.Width != 4 || pane.Height != 2 {
 		t.Fatalf("pane %+v", pane)
+	}
+}
+
+type themeRec struct {
+	slotRec
+	th render.Theme
+}
+
+func (r *themeRec) Theme() render.Theme { return r.th }
+
+func TestDrawListPaneWidthAndTheme(t *testing.T) {
+	const paneW = 12
+	s := render.NewScreen(20, 4)
+	items := []string{"xxxxxxxxxx", "yyyyyyyyyy", "zzzzzzzzzz"}
+	s.DrawList(1, 0, paneW, 0, items, 1, 0)
+	plain := s.String()
+	if strings.Contains(plain, "\x1b[") {
+		t.Fatalf("grid string must not contain CSI: %q", plain)
+	}
+	lines := strings.Split(plain, "\n")
+	if len(lines) < 2 {
+		t.Fatal(plain)
+	}
+	gotSel := strings.TrimRight(lines[2], " ")
+	if utf8.RuneCountInString(gotSel) != paneW {
+		t.Fatalf("selected row width %d want %d line %q", utf8.RuneCountInString(gotSel), paneW, gotSel)
+	}
+	rec := &themeRec{th: render.Default}
+	themed := s.Show(rec)
+	if !strings.Contains(themed, "\x1b[7m") || !strings.Contains(themed, "> yyyyyyyyyy") {
+		t.Fatalf("themed %q", themed)
+	}
+	if strings.Contains(strings.Split(themed, "\n")[2], "\x1b[") && utf8.RuneCountInString(gotSel) != paneW {
+		t.Fatal("grid width must not include escape runes")
+	}
+}
+
+func TestDrawListTwoPanesStableWidth(t *testing.T) {
+	s := render.NewScreen(24, 3)
+	items := []string{"one", "two", "three", "four"}
+	for _, sel := range []int{0, 2, 3} {
+		s = render.NewScreen(24, 3)
+		s.DrawList(0, 0, 10, 0, items, sel, 0)
+		s.DrawWithin(0, 12, 8, 0, "aside")
+		line := strings.Split(s.String(), "\n")[0]
+		if len(line) < 17 || line[12:17] != "aside" {
+			t.Fatalf("sel %d line %q", sel, line)
+		}
 	}
 }
 

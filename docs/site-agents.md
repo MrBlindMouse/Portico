@@ -128,14 +128,17 @@ Scene `Inputs` map **keys** to `ActionID`:
 
 Fit and draw with `render`: `Wrap`, `Truncate`, `Pad`, `AlignLeft`, `AlignRight`, `AlignCenter`, `Box`, `Columns`, `Table`, `List`, `Progress`, `SpinnerFrame`. Widths are rune counts. Style a string after you fit it. These helpers do not skip ANSI codes.
 
+On `render.Screen`, only plain runes go in the grid. Do not pass `ctx.Theme()` output into `Draw` or `DrawWithin` (CSI counts as cells and breaks pane width). Use a full string for a one-shot frame, or `Screen.DrawList` for a list inside a layout.
+
 Theme roles: bold, muted, error, accent, ok, warn, inverse. Copy `render.Default` or `render.Plain` and replace a field to change one role. Do not nest role calls.
 
 A list selection is an `int` in session-local state:
 
 - `installation.LocalListIndex` (`list_index`) is the key when you pass `""`.
 - `installation.MoveList(ctx, key, delta, n)` returns a `SetLocal` effect clamped to `0..n-1`.
-- `installation.RenderList(ctx, key, items, visible)` draws that window. The selected row starts with `>` and uses the inverse role. `visible <= 0` shows every row. Rows are cut to `Size` width.
-- Bind `up` and `down` with `Keys: true`.
+- `installation.RenderList(ctx, key, items, visible)` draws that window as one string. The selected row starts with `>` and uses the inverse role. `visible <= 0` shows every row. Rows are cut to `Size` width. Use this for a full-frame `Keys` menu.
+- `installation.DrawList(s, ctx, row, col, width, height, key, items, visible)` (or `s.DrawList`) for a list inside a `Screen` layout; inverse is applied on `Show(ctx)`.
+- Bind `up` and `down` with `Keys: true`. The runtime paints `Keys` scenes with `WriteGrid` (no trailing newline).
 
 ```go
 Render: func(ctx components.RenderContext) string {
@@ -158,7 +161,7 @@ Run: func(ctx components.ActionContext) []components.Effect {
 
 With no placed input, and without `Keys: true`, the caret is `>` on the full row under the frame. Typing stays on that row.
 
-`render.Screen` is a grid. `Draw` writes text to the screen edge. `DrawWithin(row, col, width, height, text)` drops runes outside that rectangle, so a left column cannot paint over the right. A width or height of `0` runs through the screen edge. `Show(ctx)` returns the grid and places the caret. The prompt is painted in the rectangle and counts toward `width`. A second `Input` replaces the first.
+`render.Screen` is a grid. `Draw` writes text to the screen edge. `DrawWithin(row, col, width, height, text)` drops runes outside that rectangle, so a left column cannot paint over the right. A width or height of `0` runs through the screen edge. `Show(ctx)` returns the grid and places the caret. The prompt is painted in the rectangle and counts toward `width`. A second `Input` replaces the first. Trailing spaces on each row are trimmed on output—align panes with explicit `DrawWithin` columns, not row padding alone.
 
 These return a `render.Rect` for a block drawn at an origin, so the caret can sit on it:
 
@@ -173,6 +176,15 @@ s := render.NewScreen(w, h)
 s.DrawWithin(2, 4, 40, 0, render.Table(headers, rows, widths))
 cell := render.TableCell(2, 4, widths, bodyRow, 0, true)
 s.Input(cell.Row, cell.Col, cell.Width, ">")
+return s.Show(ctx)
+```
+
+List beside a box (plain `DrawWithin` for the box; `DrawList` for selection):
+
+```go
+body := render.BoxBody(row, col, "Menu", "", boxW)
+s.DrawWithin(row, col, boxW, h-row, render.Box("Menu", "", boxW))
+installation.DrawList(s, ctx, body.Row, body.Col, body.Width, body.Height, "", items, visible)
 return s.Show(ctx)
 ```
 

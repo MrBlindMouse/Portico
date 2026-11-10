@@ -99,6 +99,55 @@ func TestRenderPlacesInput(t *testing.T) {
 	}
 }
 
+func TestKeysSceneUsesWriteGrid(t *testing.T) {
+	exp, err := installation.NewBuilder().Root("home").Scene("home", components.Scene{
+		Keys: true,
+		Inputs: map[string]components.ActionID{
+			"j": "noop",
+		},
+		Render: func(ctx components.RenderContext) string {
+			w, h := ctx.Size()
+			s := render.NewScreen(w, h)
+			s.Draw(0, 0, "menu")
+			return s.Show(ctx)
+		},
+	}).Action("noop", components.Action{
+		Run: func(components.ActionContext) []components.Effect { return nil },
+	}).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	eng := NewEngine(exp, nil)
+	sess := newSession("s", identity.Anonymous(), "home")
+	term := &slotTerm{}
+	if err := eng.Render(sess, term); err != nil {
+		t.Fatal(err)
+	}
+	if len(term.grids) != 1 || len(term.frames) != 0 {
+		t.Fatalf("grids %#v frames %#v", term.grids, term.frames)
+	}
+}
+
+func TestLineSceneUsesWriteFrameWithoutSlot(t *testing.T) {
+	exp, err := installation.NewBuilder().Root("home").Scene("home", components.Scene{
+		Render: func(ctx components.RenderContext) string {
+			return "hello"
+		},
+	}).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	eng := NewEngine(exp, nil)
+	sess := newSession("s", identity.Anonymous(), "home")
+	term := &slotTerm{}
+	if err := eng.Render(sess, term); err != nil {
+		t.Fatal(err)
+	}
+	if len(term.frames) != 1 || len(term.grids) != 0 {
+		t.Fatalf("grids %#v frames %#v", term.grids, term.frames)
+	}
+}
+
 func TestKeysSceneRejectsPlacedInput(t *testing.T) {
 	exp, err := installation.NewBuilder().Root("home").Scene("home", components.Scene{
 		Keys: true,

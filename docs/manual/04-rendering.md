@@ -10,7 +10,7 @@ Each scene returns one **string**. After every applied action batch (and on term
 - When `Theme` is nil and `NO_COLOR` is non-empty, `render.Plain` is used.
 - Otherwise `render.Default` ANSI roles apply: bold, muted, error, accent, ok, warn, inverse.
 
-Use `ctx.Theme()` in `Render`; apply roles after fitting text (`render` does not strip ANSI for width).
+Use `ctx.Theme()` in `Render`; apply roles after fitting text (`render` does not strip ANSI for width). Theme output is for terminal strings. `Screen` grid cells must stay plain—use `Screen.DrawList` for a marked list in a layout.
 
 ## Text helpers
 
@@ -36,9 +36,10 @@ Store selected index in session-local state:
 
 - Default key: `installation.LocalListIndex` (`list_index`).
 - `installation.MoveList(ctx, key, delta, n)` → `SetLocal` effect, clamped.
-- `installation.RenderList(ctx, key, items, visible)` draws the window; selected row uses `>` and inverse role.
+- `installation.RenderList(ctx, key, items, visible)` draws the window as one string; selected row uses `>` and inverse role.
+- `installation.DrawList` / `render.Screen.DrawList` for lists inside a `Screen` layout.
 
-Bind `up`/`down` with `Scene.Keys: true`.
+Bind `up`/`down` with `Scene.Keys: true`. Keys scenes use `WriteGrid` at paint time.
 
 ## Forms
 
@@ -60,7 +61,8 @@ s.Input(h-1, 0, w/2, ">")
 return s.Show(ctx)
 ```
 
-- `DrawWithin` clips so regions do not overwrite neighbors.
+- `DrawWithin` clips so regions do not overwrite neighbors. Do not draw ANSI into the grid.
+- `DrawList` writes list rows as plain cells and applies inverse on `Show(ctx)`.
 - One `Input` per frame; second call replaces the first.
 - `Keys: true` + placed input → render error.
 

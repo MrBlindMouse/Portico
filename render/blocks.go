@@ -11,6 +11,8 @@ import (
 // width <= 0 leaves each row uncut. Otherwise the row, including the "> " marker,
 // is truncated before mark runs, so mark can add ANSI without being cut.
 // The selected row is passed through mark when mark is non-nil.
+// For a Screen layout, use Screen.DrawList and Show with a ThemeSource instead of
+// passing mark into DrawWithin (CSI must not be stored in grid cells).
 func List(items []string, selected, visible, width int, mark func(string) string) string {
 	start, end, selected, ok := listWindow(len(items), selected, visible)
 	if !ok {
