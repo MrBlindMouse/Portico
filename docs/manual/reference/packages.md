@@ -13,7 +13,7 @@
 
 Plans are not an import. `go run …/cmd/portico generate` writes them into the site. See [Plans](plans.md).
 
-Do not import `runtime` or `inspect` from site code.
+Do not import `runtime` or `inspect` from site code. Transcript policy constants are `portico.TranscriptKeep` and `portico.TranscriptOff`.
 
 API details: `go doc` or [pkg.go.dev](https://pkg.go.dev/github.com/MrBlindMouse/Portico) at your module version.
 

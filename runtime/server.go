@@ -125,8 +125,16 @@ func (s *Server) loadOrGenerateHostKey() (gossh.Signer, error) {
 		path = filepath.Join(s.cfg.DataDir, "ssh_host_rsa")
 	}
 	if path != "" {
-		if b, err := os.ReadFile(path); err == nil {
-			return gossh.ParsePrivateKey(b)
+		b, err := os.ReadFile(path)
+		if err == nil {
+			signer, err := gossh.ParsePrivateKey(b)
+			if err != nil {
+				return nil, fmt.Errorf("portico: host key %s: %w", path, err)
+			}
+			return signer, nil
+		}
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("portico: host key %s: %w", path, err)
 		}
 	}
 	key, err := rsa.GenerateKey(rand.Reader, 2048)

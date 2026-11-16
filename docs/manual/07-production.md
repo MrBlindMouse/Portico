@@ -94,7 +94,7 @@ On SIGINT/SIGTERM, `Serve` cancels context and honors `ShutdownGrace`. Point hea
 
 ## Logging
 
-Use `info` in production; `debug` only when diagnosing input issues.
+Use `info` in production. `debug` is for diagnosing input. At debug, Portico logs the first word of each line and the line length. The rest of the line, including a password on `register user pass`, is not logged.
 
 ## Security checklist
 

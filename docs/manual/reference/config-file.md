@@ -16,10 +16,10 @@ portico.Serve(cfg.Listen, exp, opts) // or your flag for addr
 |----------|----------|-------|
 | `listen` | `Listen` | SSH address (not stored on Options) |
 | `data_dir` | `DataDir` | |
-| `log_level` | `LogLevel` | |
+| `log_level` | `LogLevel` | Copied when non-empty (`debug`, `info`, `warn`, `error`) |
 | `inspect_addr` | `InspectAddr` | |
 | `status_addr` | `StatusAddr` | |
-| `idle_timeout` | `IdleTimeout` | Go `time.Duration` JSON (nanoseconds as number) |
+| `idle_timeout` | `IdleTimeout` | Go `time.Duration` JSON (nanoseconds as a number). `0` leaves the Options value (30 minutes at serve). A negative number disables idle disconnect. |
 | `max_conns` | `MaxConns` | |
 | `max_conns_per_ip` | `MaxConnsPerIP` | |
 | `allow_keys`, `deny_keys` | string arrays | |
@@ -51,4 +51,4 @@ portico.Serve(cfg.Listen, exp, opts) // or your flag for addr
 }
 ```
 
-(`idle_timeout` example = 30 minutes in nanoseconds.)
+(`idle_timeout` example = 30 minutes in nanoseconds. Use a negative number, such as `-1`, to disable idle disconnect.)

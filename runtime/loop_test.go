@@ -1,7 +1,9 @@
 package runtime_test
 
 import (
+	"errors"
 	"github.com/MrBlindMouse/Portico/components"
+	"io"
 	"strings"
 	"testing"
 
@@ -163,5 +165,71 @@ func TestLoopOnLineOnEmpty(t *testing.T) {
 	}
 	if lastLine != "typed blob" {
 		t.Fatalf("lastLine=%q", lastLine)
+	}
+}
+
+type rejectTerm struct {
+	frames  []string
+	rejects []string
+	inputs  []string
+	idx     int
+}
+
+func (t *rejectTerm) WriteFrame(s string) error {
+	t.frames = append(t.frames, s)
+	return nil
+}
+func (t *rejectTerm) ReadInput() (string, error) {
+	if t.idx >= len(t.inputs) {
+		return "", io.EOF
+	}
+	v := t.inputs[t.idx]
+	t.idx++
+	return v, nil
+}
+func (t *rejectTerm) OnResize(func(int, int))      {}
+func (t *rejectTerm) Close() error                 { return nil }
+func (t *rejectTerm) BeginInputLine() error        { return nil }
+func (t *rejectTerm) CommitInputLine(string) error { return nil }
+func (t *rejectTerm) RejectInput(msg string) error {
+	t.rejects = append(t.rejects, msg)
+	return nil
+}
+
+func TestLoopApplyErrorStaysOnPrompt(t *testing.T) {
+	exp, err := installation.NewBuilder().
+		Root("home").
+		Scene("home", components.Scene{
+			Render: func(components.RenderContext) string { return "home" },
+			Inputs: map[string]components.ActionID{"bad": "bad"},
+			ValidateLocal: func(string, any) error {
+				return errors.New("rejected")
+			},
+		}).
+		Action("bad", components.Action{
+			Run: func(components.ActionContext) []components.Effect {
+				return []components.Effect{components.SetLocalEffect("k", "v")}
+			},
+		}).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := testkit.New(exp)
+	sess := h.Session("t", "home")
+	term := &rejectTerm{inputs: []string{"bad"}}
+	if err := h.Engine.RunLoop(sess, term, nil); err != nil && !strings.Contains(err.Error(), "EOF") {
+		t.Fatal(err)
+	}
+	if len(term.rejects) != 1 || !strings.Contains(term.rejects[0], "rejected") {
+		t.Fatalf("rejects=%v", term.rejects)
+	}
+	if len(term.frames) == 0 || !strings.Contains(term.frames[len(term.frames)-1], "home") {
+		t.Fatalf("frames=%v", term.frames)
+	}
+	for _, f := range term.frames {
+		if strings.Contains(f, "rejected") {
+			t.Fatalf("error replaced the scene frame: %q", f)
+		}
 	}
 }

@@ -74,7 +74,7 @@ func (o Options) MergeConfig(cfg config.File) Options {
 	if cfg.StatusAddr != "" {
 		o.StatusAddr = cfg.StatusAddr
 	}
-	if cfg.IdleTimeout > 0 {
+	if cfg.IdleTimeout != 0 {
 		o.IdleTimeout = cfg.IdleTimeout
 	}
 	if cfg.MaxConns > 0 {
@@ -122,5 +122,15 @@ func (o Options) MergeConfig(cfg config.File) Options {
 	if cfg.HashedAccounts {
 		o.HashedAccounts = true
 	}
+	if cfg.LogLevel != "" {
+		o.LogLevel = cfg.LogLevel
+	}
 	return o
 }
+
+// TranscriptKeep retains RecentCommands across a scene change.
+// TranscriptOff records nothing. The zero Transcript value clears the list on a scene change.
+const (
+	TranscriptKeep = runtime.TranscriptKeep
+	TranscriptOff  = runtime.TranscriptOff
+)

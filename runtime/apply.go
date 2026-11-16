@@ -45,7 +45,14 @@ func NewApplier(spaces *spaceRegistry, store identity.Store) *Applier {
 }
 
 // Apply mutates session and spaces according to effects. Only this function writes session.current and session.local.
+// One session is applied at a time. OnJoin and OnLeave run inside that call.
 func (a *Applier) Apply(sess *Session, exp *installation.Installation, effects []components.Effect) (ApplyResult, error) {
+	sess.applyMu.Lock()
+	defer sess.applyMu.Unlock()
+	return a.apply(sess, exp, effects)
+}
+
+func (a *Applier) apply(sess *Session, exp *installation.Installation, effects []components.Effect) (ApplyResult, error) {
 	var res ApplyResult
 	for _, eff := range effects {
 		switch e := eff.(type) {
@@ -85,7 +92,7 @@ func (a *Applier) Apply(sess *Session, exp *installation.Installation, effects [
 			sess.mu.Unlock()
 			a.spaces.join(e.Space, sess)
 			if len(sp.OnJoin) > 0 {
-				joinRes, err := a.Apply(sess, exp, sp.OnJoin)
+				joinRes, err := a.apply(sess, exp, sp.OnJoin)
 				if err != nil {
 					return res, err
 				}
@@ -105,7 +112,7 @@ func (a *Applier) Apply(sess *Session, exp *installation.Installation, effects [
 			sess.mu.Unlock()
 			a.spaces.leave(e.Space, sess)
 			if len(sp.OnLeave) > 0 {
-				leaveRes, err := a.Apply(sess, exp, sp.OnLeave)
+				leaveRes, err := a.apply(sess, exp, sp.OnLeave)
 				if err != nil {
 					return res, err
 				}

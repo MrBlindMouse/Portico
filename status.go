@@ -16,7 +16,6 @@ type statusSnapshot struct {
 	ready          bool
 	sessionsActive int
 	reloadFailures uint64
-	hasDataDir     bool
 }
 
 func statusHandler(sshAddr string, actions *atomic.Uint64, status StatusFunc) http.Handler {
@@ -53,15 +52,6 @@ func statusHandler(sshAddr string, actions *atomic.Uint64, status StatusFunc) ht
 	return mux
 }
 
-func portFromAddr(addr string) string {
-	host, port := hostPortFromAddr(addr)
-	_ = host
-	if port == "" {
-		return "2222"
-	}
-	return port
-}
-
 func sshConnectHint(addr string) string {
 	host, port := hostPortFromAddr(addr)
 	if port == "" {
@@ -88,15 +78,13 @@ func hostPortFromAddr(addr string) (host, port string) {
 	return addr, ""
 }
 
-func defaultStatus(srv *runtime.Server, eng *runtime.Engine, dataDir string) StatusFunc {
+func defaultStatus(srv *runtime.Server, eng *runtime.Engine) StatusFunc {
 	return func() statusSnapshot {
 		ready := eng != nil && eng.Installation() != nil && !srv.Draining()
-		_ = dataDir
 		return statusSnapshot{
 			ready:          ready,
 			sessionsActive: srv.ActiveSessions(),
 			reloadFailures: eng.ReloadFailures(),
-			hasDataDir:     dataDir != "",
 		}
 	}
 }

@@ -200,11 +200,15 @@ func (e *Engine) RegisterSession(sess *Session) {
 	e.sessions[sess.ID()] = sess
 }
 
-// UnregisterSession removes a session.
+// UnregisterSession removes a session and its rate-limit bucket.
 func (e *Engine) UnregisterSession(id string) {
 	e.mu.Lock()
-	defer e.mu.Unlock()
+	limits := e.limits
 	delete(e.sessions, id)
+	e.mu.Unlock()
+	if limits != nil {
+		limits.forget(id)
+	}
 }
 
 // Sessions returns all live sessions.
@@ -374,7 +378,7 @@ func (e *Engine) HandleInput(sess *Session, input string) error {
 			members := e.spaces.members(space)
 			broadcastN += len(members)
 			for _, member := range members {
-				_ = e.Render(member, memberTerminal(member))
+				e.paintSession(member)
 			}
 		}
 		broadcastMs = time.Since(bStart).Milliseconds()
@@ -580,25 +584,25 @@ func (e *Engine) RunLoop(sess *Session, term Terminal, activity chan<- struct{})
 		handleStart := time.Now()
 		handleErr := e.HandleInput(sess, in)
 		handleMs := time.Since(handleStart).Milliseconds()
-		if handleErr != nil {
-			if e.log != nil {
-				e.log.Warn("input_error",
-					"session", sess.ID(),
-					"scene", scene,
-					"input_len", len(in),
-					"read_ms", readMs,
-					"handle_ms", handleMs,
-					"error", handleErr,
-				)
-				e.log.Debug("input_error_preview", "session", sess.ID(), "input_preview", logInputPreview(in))
-			}
-			_ = term.WriteFrame("Error: " + handleErr.Error() + "\n")
+		if handleErr != nil && e.log != nil {
+			e.log.Warn("input_error",
+				"session", sess.ID(),
+				"scene", scene,
+				"input_len", len(in),
+				"read_ms", readMs,
+				"handle_ms", handleMs,
+				"error", handleErr,
+			)
+			e.log.Debug("input_error_preview", "session", sess.ID(), "input_preview", logInputPreview(in))
 		}
 		renderStart := time.Now()
 		if err := e.Render(sess, term); err != nil {
 			return err
 		}
-		if _, slotted := sess.inputSlot(); !e.sceneKeys(sess) && !slotted {
+		if handleErr != nil {
+			// After the scene paint, so the error stays on the prompt line.
+			e.rejectInput(term, handleErr.Error())
+		} else if _, slotted := sess.inputSlot(); !e.sceneKeys(sess) && !slotted {
 			e.mu.RLock()
 			echo := e.scrollbackEcho
 			e.mu.RUnlock()

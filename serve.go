@@ -145,7 +145,7 @@ func startAuxiliaryHTTP(opts Options, sshAddr string, srv *runtime.Server, eng *
 	if opts.StatusAddr != "" {
 		go func() {
 			opts.Logger.Info("status listening", "addr", opts.StatusAddr)
-			_ = http.ListenAndServe(opts.StatusAddr, statusHandler(sshAddr, actions, defaultStatus(srv, eng, opts.DataDir)))
+			_ = http.ListenAndServe(opts.StatusAddr, statusHandler(sshAddr, actions, defaultStatus(srv, eng)))
 		}()
 	}
 }

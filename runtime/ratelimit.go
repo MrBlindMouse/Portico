@@ -45,6 +45,15 @@ func newRateLimiter(rate, burst float64) *rateLimiter {
 	return &rateLimiter{perSess: make(map[string]*tokenBucket), rate: rate, burst: burst}
 }
 
+func (r *rateLimiter) forget(sessID string) {
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	delete(r.perSess, sessID)
+	r.mu.Unlock()
+}
+
 func (r *rateLimiter) allow(sessID string) error {
 	r.mu.Lock()
 	b, ok := r.perSess[sessID]

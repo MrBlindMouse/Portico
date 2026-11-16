@@ -16,7 +16,7 @@ func FromWire(w installation.Wire, packageName string) string {
 	}
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "// Code generated from wire; fill Render and Run funcs.\npackage %s\n\n", packageName)
-	b.WriteString("import (\n\tportico \"github.com/MrBlindMouse/Portico\"\n\t\"github.com/MrBlindMouse/Portico/installation\"\n)\n\n")
+	b.WriteString("import (\n\tportico \"github.com/MrBlindMouse/Portico\"\n\t\"github.com/MrBlindMouse/Portico/components\"\n\t\"github.com/MrBlindMouse/Portico/installation\"\n)\n\n")
 	b.WriteString("func build() (*installation.Installation, error) {\n\treturn portico.New().\n")
 	if w.Root != "" {
 		fmt.Fprintf(&b, "\t\tRoot(%q).\n", w.Root)

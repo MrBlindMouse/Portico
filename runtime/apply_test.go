@@ -2,7 +2,9 @@ package runtime_test
 
 import (
 	"github.com/MrBlindMouse/Portico/components"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/MrBlindMouse/Portico/testkit"
@@ -141,5 +143,63 @@ func TestApplyAppendAndCASRequireSpace(t *testing.T) {
 		components.SpaceCASEffect("s", "ready", "no", "yes"),
 	}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestApplyConcurrentJoinRunsOnJoinOnce(t *testing.T) {
+	const sp = components.SpaceID("lobby")
+	holding := make(chan struct{})
+	release := make(chan struct{})
+	var entered atomic.Int32
+	exp, err := installation.NewBuilder().
+		Root("home").
+		Scene("home", components.Scene{Render: func(components.RenderContext) string { return "" }}).
+		Space(sp, components.Space{
+			OnJoin: []components.Effect{components.SpaceSetEffect(sp, "n", 1)},
+			ValidateSet: func(string, any, any) error {
+				if entered.Add(1) == 1 {
+					close(holding)
+					<-release
+				}
+				return nil
+			},
+		}).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := testkit.New(exp)
+	sess := h.Session("1", "home")
+	ap := h.Applier()
+	go func() {
+		if _, err := ap.Apply(sess, exp, []components.Effect{components.JoinSpaceEffect(sp)}); err != nil {
+			t.Error(err)
+		}
+	}()
+	select {
+	case <-holding:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for OnJoin")
+	}
+	done := make(chan struct{})
+	go func() {
+		if _, err := ap.Apply(sess, exp, []components.Effect{components.JoinSpaceEffect(sp)}); err != nil {
+			t.Error(err)
+		}
+		close(done)
+	}()
+	select {
+	case <-done:
+		t.Fatal("second Apply finished while the first still held the session")
+	case <-time.After(100 * time.Millisecond):
+	}
+	close(release)
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("second Apply did not finish")
+	}
+	if entered.Load() != 1 || !sess.InSpace(sp) {
+		t.Fatalf("entered=%d in=%v", entered.Load(), sess.InSpace(sp))
 	}
 }

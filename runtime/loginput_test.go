@@ -10,6 +10,9 @@ func TestLogInputPreview(t *testing.T) {
 	if logInputPreview(short) != short {
 		t.Fatal(short)
 	}
+	if got := logInputPreview("register alice secret"); got != "register" {
+		t.Fatalf("preview=%q", got)
+	}
 	long := strings.Repeat("a", 80)
 	p := logInputPreview(long)
 	if len([]rune(p)) > logInputPreviewRunes+1 {

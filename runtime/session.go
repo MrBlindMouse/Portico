@@ -22,7 +22,8 @@ type Session struct {
 	slot           *render.Input
 	commands       []string // successful lines; cleared on scene change unless kept
 
-	mu sync.RWMutex
+	mu      sync.RWMutex
+	applyMu sync.Mutex // serializes Apply; OnJoin/OnLeave call apply without taking it again
 }
 
 // commandCap bounds the session transcript.

@@ -31,4 +31,11 @@ func TestMergeConfig(t *testing.T) {
 	if off.ActionRate != -1 {
 		t.Fatalf("rate=%v", off.ActionRate)
 	}
+	withLog := portico.Options{}.MergeConfig(config.File{LogLevel: "debug", IdleTimeout: -time.Second})
+	if withLog.LogLevel != "debug" || withLog.IdleTimeout != -time.Second {
+		t.Fatalf("log=%q idle=%v", withLog.LogLevel, withLog.IdleTimeout)
+	}
+	if portico.TranscriptKeep == 0 || portico.TranscriptOff == 0 {
+		t.Fatal("transcript constants")
+	}
 }
