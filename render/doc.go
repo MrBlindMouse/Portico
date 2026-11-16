@@ -12,7 +12,9 @@
 // Use Screen.DrawList for a marked list. Show applies inverse only on that
 // column span when the target implements ThemeSource (the runtime render
 // context does). MarkRole does the same for bold, muted, and the other roles.
-// SubmitAll(nil) repaints live sessions. portico.Every is not built.
+// SubmitAll(nil) repaints live sessions. Periodic refresh uses portico.Every in the site module.
+// FormatWriteup turns a small markdown subset (headings, nested lists, fences, inline
+// emphasis) into terminal strings—blog post assets use it when width and Theme apply.
 // Fit text first, then theme, for standalone strings from List, Box, and Table.
 //
 // DrawWithin clips a region. BoxBody, ListRow, and TableCell report the

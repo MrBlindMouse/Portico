@@ -6,8 +6,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 )
+
+// FileStoreFormatVersion is the on-disk layout this binary reads and writes.
+// A missing store-version file is this version. A higher marker is refused.
+const FileStoreFormatVersion = 1
+
+const storeVersionFile = "store-version"
 
 // Store persists per-identity key-value data and nicknames.
 type Store interface {
@@ -27,12 +35,37 @@ type FileStore struct {
 }
 
 // OpenFileStore creates or opens a file-backed store.
+// It does not write store-version. A missing marker is version 1.
 func OpenFileStore(dataDir string) (*FileStore, error) {
+	if err := checkStoreVersion(dataDir); err != nil {
+		return nil, err
+	}
 	idDir := filepath.Join(dataDir, "identities")
 	if err := os.MkdirAll(idDir, 0o750); err != nil {
 		return nil, err
 	}
 	return &FileStore{dir: dataDir}, nil
+}
+
+func checkStoreVersion(dataDir string) error {
+	path := filepath.Join(dataDir, storeVersionFile)
+	b, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	text := strings.TrimSpace(string(b))
+	n, convErr := strconv.Atoi(text)
+	if convErr != nil || n != FileStoreFormatVersion {
+		got := text
+		if got == "" {
+			got = "empty"
+		}
+		return fmt.Errorf("portico: %s has store version %q; this binary supports version %d", path, got, FileStoreFormatVersion)
+	}
+	return nil
 }
 
 type idFile struct {

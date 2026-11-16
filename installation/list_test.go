@@ -21,6 +21,7 @@ func (m listMem) Local(k string) (any, bool) {
 	return v, ok
 }
 func (m listMem) Asset(string) (string, bool)                       { return "", false }
+func (m listMem) AssetAny(string) (any, bool)                       { return nil, false }
 func (m listMem) Assets() map[string]string                         { return nil }
 func (m listMem) Persisted(string) (any, bool)                      { return nil, false }
 func (m listMem) Members(components.SpaceID) []identity.Identity    { return nil }
@@ -75,5 +76,12 @@ func TestRenderListMarksSelection(t *testing.T) {
 	got = installation.RenderList(m, "", []string{"a", "b", "c", "d", "e"}, 2)
 	if !strings.Contains(got, "> e") || !strings.Contains(got, "\x1b[7m") {
 		t.Fatalf("%q", got)
+	}
+}
+
+func TestFlashPrefix(t *testing.T) {
+	m := listMem{v: map[string]any{installation.LocalFlash: "hi"}, th: render.Plain}
+	if got := installation.FlashPrefix(m); got != "hi\n\n" {
+		t.Fatalf("got=%q", got)
 	}
 }

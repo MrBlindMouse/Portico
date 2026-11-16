@@ -43,12 +43,7 @@ func Lobby() *installation.Builder {
 			ready, _ := ctx.SpaceLocal("lobby", "ready")
 			var body strings.Builder
 			body.WriteString("Commands: join | leave | ready | unready | start\n\n")
-			if flash, ok := ctx.Local("flash"); ok {
-				if s, ok := flash.(string); ok && s != "" {
-					body.WriteString(s)
-					body.WriteString("\n\n")
-				}
-			}
+			body.WriteString(installation.FlashPrefix(ctx))
 			body.WriteString(fmtMembers(members))
 			body.WriteByte('\n')
 			body.WriteString(fmtReady(ready))
@@ -68,7 +63,7 @@ func Lobby() *installation.Builder {
 	b.Action("lobby-join", components.Action{
 		Run: func(ctx components.ActionContext) []components.Effect {
 			return []components.Effect{
-				components.SetLocalEffect("flash", ""),
+				installation.ClearFlash(),
 				components.JoinSpaceEffect("lobby"),
 			}
 		},
@@ -76,13 +71,13 @@ func Lobby() *installation.Builder {
 	b.Action("lobby-leave", components.Action{
 		Run: func(ctx components.ActionContext) []components.Effect {
 			if !ctx.Space().In("lobby") {
-				return []components.Effect{components.SetLocalEffect("flash", "not in the lobby")}
+				return []components.Effect{installation.SetFlash("not in the lobby")}
 			}
 			// lobbySetReady clears flash. The later SetLocal replaces it.
 			// Apply runs the slice in order; it is not rolled back on a later error.
 			effects := lobbySetReady(ctx, false)
 			effects = append(effects,
-				components.SetLocalEffect("flash", "left the lobby"),
+				installation.SetFlash("left the lobby"),
 				components.LeaveSpaceEffect("lobby"),
 			)
 			return effects
@@ -91,7 +86,7 @@ func Lobby() *installation.Builder {
 	b.Action("lobby-ready", components.Action{
 		Run: func(ctx components.ActionContext) []components.Effect {
 			if !ctx.Space().In("lobby") {
-				return []components.Effect{components.SetLocalEffect("flash", "join the lobby first")}
+				return []components.Effect{installation.SetFlash("join the lobby first")}
 			}
 			return lobbySetReady(ctx, true)
 		},
@@ -99,7 +94,7 @@ func Lobby() *installation.Builder {
 	b.Action("lobby-unready", components.Action{
 		Run: func(ctx components.ActionContext) []components.Effect {
 			if !ctx.Space().In("lobby") {
-				return []components.Effect{components.SetLocalEffect("flash", "join the lobby first")}
+				return []components.Effect{installation.SetFlash("join the lobby first")}
 			}
 			return lobbySetReady(ctx, false)
 		},
@@ -107,18 +102,18 @@ func Lobby() *installation.Builder {
 	b.Action("lobby-start", components.Action{
 		Run: func(ctx components.ActionContext) []components.Effect {
 			if !ctx.Space().In("lobby") {
-				return []components.Effect{components.SetLocalEffect("flash", "join the lobby first")}
+				return []components.Effect{installation.SetFlash("join the lobby first")}
 			}
 			// Members, not the map, decide who must be ready. A leftover map
 			// entry for someone who left does not block start.
 			ready := readyMap(ctx)
 			for _, m := range ctx.Space().Members("lobby") {
 				if !ready[m.String()] {
-					return []components.Effect{components.SetLocalEffect("flash", "not everyone is ready")}
+					return []components.Effect{installation.SetFlash("not everyone is ready")}
 				}
 			}
 			return []components.Effect{
-				components.SetLocalEffect("flash", ""),
+				installation.ClearFlash(),
 				components.SpaceSetEffect("lobby", "started", true),
 				components.BroadcastEffect("lobby"),
 			}
@@ -140,7 +135,7 @@ func lobbySetReady(ctx components.ActionContext, ready bool) []components.Effect
 	m[ctx.Identity().String()] = ready
 	return []components.Effect{
 		components.SpaceCASEffect("lobby", "ready", expect, m),
-		components.SetLocalEffect("flash", ""),
+		installation.ClearFlash(),
 		components.BroadcastEffect("lobby"),
 	}
 }

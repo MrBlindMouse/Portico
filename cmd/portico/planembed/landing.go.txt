@@ -20,6 +20,7 @@ import (
 // not inspect effects inside action functions, so a missing destination is
 // an error when the visitor picks the entry, not when the site starts.
 // Register that scene (usually by merging another plan) before Serve.
+// Destination map values are scene ids (e.g. "blog-list", not "blog").
 //
 // Merge landing last if this menu should be the installation root.
 // Each destination is one action id "go-<label>" returning TransitionEffect.
@@ -66,12 +67,7 @@ func Landing(destinations map[string]components.SceneID) *installation.Builder {
 	sc := components.Scene{
 		Render: func(ctx components.RenderContext) string {
 			var body strings.Builder
-			if flash, ok := ctx.Local("flash"); ok {
-				if s, ok := flash.(string); ok && s != "" {
-					body.WriteString(s)
-					body.WriteString("\n\n")
-				}
-			}
+			body.WriteString(installation.FlashPrefix(ctx))
 			body.WriteString("Welcome, ")
 			body.WriteString(ctx.Identity().String())
 			body.WriteString("\n\nMenu:\n")

@@ -25,6 +25,7 @@ import (
 // OnSessionStart joins; OnSessionEnd leaves. A disconnect also leaves every
 // space the session was in, so the end hook is the explicit pair for the start hook.
 // restAfter, in rest.go, is the text after "sign".
+// With Landing, add a TransitionEffect back to "landing" on a scene Input if needed.
 
 const guestbookSpace = components.SpaceID("guestbook")
 const guestbookListKey = "entries"

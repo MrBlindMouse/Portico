@@ -66,6 +66,35 @@ func TestReloadPreviewEndpoint(t *testing.T) {
 	}
 }
 
+func TestWireEndpoint(t *testing.T) {
+	exp, err := installation.NewBuilder().
+		Root("home").
+		Scene("home", components.Scene{
+			Render: func(components.RenderContext) string { return "" },
+			Inputs: map[string]components.ActionID{"go": "go"},
+		}).
+		Action("go", components.Action{Run: func(components.ActionContext) []components.Effect { return nil }}).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	eng := runtime.NewEngine(exp, nil)
+	h := inspect.NewHandler(eng)
+	req := httptest.NewRequest(http.MethodGet, "/inspect/wire", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	var w installation.Wire
+	if err := json.Unmarshal(rec.Body.Bytes(), &w); err != nil {
+		t.Fatal(err)
+	}
+	if err := installation.ValidateWire(w); err != nil {
+		t.Fatal(err)
+	}
+	if w.Scenes["home"].Inputs["go"] != "go" {
+		t.Fatalf("%+v", w)
+	}
+}
+
 func TestValidateWireEndpoint(t *testing.T) {
 	eng := runtime.NewEngine(mustExp(t), nil)
 	h := inspect.NewHandler(eng)

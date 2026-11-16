@@ -28,6 +28,7 @@ import (
 // nick needs a fingerprint (SSH key or account). A guest has none, so the
 // action returns a flash instead of an effect the store will reject.
 // restAfter, in rest.go, is the text after the command word.
+// With Landing, add a TransitionEffect back to "landing" on a scene Input if needed.
 
 const chatSpace = components.SpaceID("chat")
 const chatMessagesKey = "messages"
@@ -43,7 +44,7 @@ func Chat() *installation.Builder {
 	b.Action("join-chat", components.Action{
 		Run: func(ctx components.ActionContext) []components.Effect {
 			return []components.Effect{
-				components.SetLocalEffect("flash", ""),
+				installation.ClearFlash(),
 				components.JoinSpaceEffect(chatSpace),
 			}
 		},
@@ -51,12 +52,12 @@ func Chat() *installation.Builder {
 	b.Action("leave-chat", components.Action{
 		Run: func(ctx components.ActionContext) []components.Effect {
 			if !ctx.Space().In(chatSpace) {
-				return []components.Effect{components.SetLocalEffect("flash", "not in chat")}
+				return []components.Effect{installation.SetFlash("not in chat")}
 			}
 			// LeaveSpace is a no-op when the session is already out, so check first
 			// if the flash should say they were not a member.
 			return []components.Effect{
-				components.SetLocalEffect("flash", "left chat"),
+				installation.SetFlash("left chat"),
 				components.LeaveSpaceEffect(chatSpace),
 			}
 		},
@@ -65,14 +66,14 @@ func Chat() *installation.Builder {
 		Run: func(ctx components.ActionContext) []components.Effect {
 			name := restAfter(ctx.InputLine(), "nick")
 			if ctx.Identity().Fingerprint() == "" {
-				return []components.Effect{components.SetLocalEffect("flash", "nickname needs a key or account")}
+				return []components.Effect{installation.SetFlash("nickname needs a key or account")}
 			}
 			if err := identity.ValidateNickname(name); err != nil {
-				return []components.Effect{components.SetLocalEffect("flash", "usage: nick <name>")}
+				return []components.Effect{installation.SetFlash("usage: nick <name>")}
 			}
 			// Identity.String() prefers the nickname on the next render and on later sends.
 			return []components.Effect{
-				components.SetLocalEffect("flash", "you are "+name),
+				installation.SetFlash("you are "+name),
 				components.ReserveNicknameEffect(name),
 			}
 		},
@@ -97,12 +98,7 @@ func Chat() *installation.Builder {
 			var body strings.Builder
 			body.WriteString("Commands: join-chat | leave | nick <name> | send <message>\n\n")
 			// flash is session-local. It is not part of the shared message list.
-			if flash, ok := ctx.Local("flash"); ok {
-				if s, ok := flash.(string); ok && s != "" {
-					body.WriteString(s)
-					body.WriteString("\n\n")
-				}
-			}
+			body.WriteString(installation.FlashPrefix(ctx))
 			for _, msg := range ctx.SpaceList(chatSpace, chatMessagesKey) {
 				body.WriteString("  ")
 				body.WriteString(fmt.Sprint(msg))

@@ -11,7 +11,7 @@ Each plan is a whole installation: it sets a root scene and `Build()` succeeds o
 | `chat` | `chat.go` | `Chat()` | One room where members post lines. Also writes `rest.go` |
 | `register` | `register.go` | `Registration()` | Create a password account. Needs accounts in Options |
 | `form` | `form.go` | `Form()` | Walk a two-field form |
-| `blog` | `blog.go` | `Blog()` | List and open post assets (`post-<id>`). Use `AssetDir` |
+| `blog` | `blog.go` | `Blog()` | List and open post assets (`post-<id>`). Root scene `blog-list`. Use `AssetDir` or inline assets; `generate` may write `posts/post-1.md` |
 | `lobby` | `lobby.go` | `Lobby()` | A room that starts when members are ready |
 
 `guestbook` and `chat` also write `rest.go`. If that file is already there, generating the other one needs `-force`.
@@ -39,6 +39,8 @@ Each generated file opens with a **How to change this plan** comment. That comme
 go run github.com/MrBlindMouse/Portico/cmd/portico generate guestbook
 go run github.com/MrBlindMouse/Portico/cmd/portico generate -list
 ```
+
+`generate` prints the `Merge(…).Build()` line on stdout and **options hints** on stderr when relevant (accounts for `register`, assets for `blog`, merge order for `landing`). Landing destination map values must be **scene ids** (e.g. `blog-list`).
 
 ## Plan sets (not shipped)
 

@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/MrBlindMouse/Portico/asset"
 	"github.com/MrBlindMouse/Portico/identity"
 	"github.com/MrBlindMouse/Portico/installation"
 	"github.com/MrBlindMouse/Portico/render"
@@ -142,6 +143,17 @@ func (e *Engine) UpdateAssets(assets map[string]string) error {
 	cur := e.exp
 	e.mu.RUnlock()
 	return e.SetInstallation(cur.CloneWithAssets(assets))
+}
+
+// UpdateAssetAny replaces site-registered assets on the live installation.
+func (e *Engine) UpdateAssetAny(assets map[string]any) error {
+	if err := asset.ValidateAnyNames(assets); err != nil {
+		return err
+	}
+	e.mu.RLock()
+	cur := e.exp
+	e.mu.RUnlock()
+	return e.SetInstallation(cur.CloneWithAssetAny(assets))
 }
 
 // Installation returns the current definition.

@@ -67,11 +67,29 @@ func MergeAssets(b *installation.Builder, assets map[string]string) {
 	}
 }
 
+// ValidateName ensures name is a safe basename.
+func ValidateName(name string) error {
+	if name == "" || name != filepath.Base(name) {
+		return fmt.Errorf("portico: invalid asset name %q", name)
+	}
+	return nil
+}
+
 // ValidateNames ensures asset names are safe basenames.
 func ValidateNames(assets map[string]string) error {
 	for name := range assets {
-		if name == "" || name != filepath.Base(name) {
-			return fmt.Errorf("portico: invalid asset name %q", name)
+		if err := ValidateName(name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ValidateAnyNames ensures asset names are safe basenames.
+func ValidateAnyNames(assets map[string]any) error {
+	for name := range assets {
+		if err := ValidateName(name); err != nil {
+			return err
 		}
 	}
 	return nil

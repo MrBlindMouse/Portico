@@ -43,6 +43,10 @@ func (c sceneCtx) Asset(name string) (string, bool) {
 	return c.exp.Asset(name)
 }
 
+func (c sceneCtx) AssetAny(name string) (any, bool) {
+	return c.exp.AssetAny(name)
+}
+
 func (c sceneCtx) Assets() map[string]string {
 	return c.exp.Assets()
 }

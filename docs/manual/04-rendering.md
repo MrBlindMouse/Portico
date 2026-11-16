@@ -10,7 +10,7 @@ Each scene returns one **string**. After every applied action batch (and on term
 - When `Theme` is nil and `NO_COLOR` is non-empty, `render.Plain` is used.
 - Otherwise `render.Default` ANSI roles apply: bold, muted, error, accent, ok, warn, inverse.
 
-Use `ctx.Theme()` in `Render`; apply roles after fitting text (`render` does not strip ANSI for width). Theme output is for terminal strings. `Screen` grid cells must stay plain. `Screen.DrawList` marks the selected column. `Screen.MarkRole` marks bold, muted, error, accent, ok, warn, or inverse on plain cells. `Show` injects the theme. `Host.SubmitAll(nil)` repaints every live session. There is no `portico.Every` yet.
+Use `ctx.Theme()` in `Render`; apply roles after fitting text (`render` does not strip ANSI for width). Theme output is for terminal strings. `Screen` grid cells must stay plain. `Screen.DrawList` marks the selected column. `Screen.MarkRole` marks bold, muted, error, accent, ok, warn, or inverse on plain cells. `Show` injects the theme. `Host.SubmitAll(nil)` repaints every live session. For periodic repaints, use `portico.Every` from `Options.OnReady` (see [Running](06-running.md) and [Effects](reference/effects.md#submit-from-the-process)).
 
 ## Text helpers
 
@@ -41,12 +41,24 @@ Store selected index in session-local state:
 
 Bind `up`/`down` with `Scene.Keys: true`. Bind `enter` to confirm or open, `backspace` to go back, and `tab` to move to the next item. `home`, `end`, and `delete` are named keys too. Keys scenes use `WriteGrid` at paint time.
 
+## Markdown writeups
+
+`render.FormatWriteup(markdown, width, theme)` turns a **small markdown subset** into terminal text:
+
+- ATX headings `#` … `######` (bold; extra blank lines after larger headings)
+- Nested bullet and ordered lists (two leading spaces per nest level)
+- Fenced ``` code blocks (muted when the theme has Muted)
+- Inline `**bold**` and `` `code` ``
+
+Pass `width <= 0` to skip wrapping. The blog plan formats post assets this way.
+
 ## Forms
 
 Multi-step prompts (optional pattern in `installation` package):
 
 - `StartForm`, `AdvanceFormValue`, `CancelForm`
 - `FormText`, `RenderForm` for display
+- `SetFlash`, `ClearFlash`, `FlashPrefix` for one-line session feedback
 
 See the form plan (`go run …/cmd/portico generate form`) for an example graph.
 
@@ -66,6 +78,14 @@ return s.Show(ctx)
 - `MarkRole` stores a theme role on plain cells. `Show` wraps each contiguous run.
 - One `Input` per frame; second call replaces the first.
 - `Keys: true` + placed input → render error.
+
+## Installation assets
+
+- **`ctx.Asset(name)`** — text assets from `Builder.Asset` or from `Options.AssetDir`. Polling replaces the **string** map only.
+- **`ctx.AssetAny(name)`** — site-owned values from `Builder.AssetAny` (for example `[]byte` or a struct your scene type-asserts). They are **not** loaded from `AssetDir`. A poll of the asset directory does not remove them.
+- **`Asset(name)`** does not read the any-map. The same name may exist in both maps; look up each map explicitly.
+
+Register binaries or other typed values with `AssetAny` at build time, or call `Host.UpdateAssetAny` / `Engine.UpdateAssetAny` from your own poll loop. The directory loader stays text-only. Terminal graphics protocols are site or research concerns (see DESIGN §15), not part of this API.
 
 ## PlaceInput on RenderContext
 

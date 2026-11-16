@@ -2,6 +2,8 @@ package installation
 
 import (
 	"fmt"
+	"path/filepath"
+
 	"github.com/MrBlindMouse/Portico/components"
 	"sort"
 )
@@ -13,6 +15,7 @@ type Installation struct {
 	actions        map[components.ActionID]components.Action
 	spaces         map[components.SpaceID]components.Space
 	assets         map[string]string
+	assetsAny      map[string]any
 	onSessionStart []components.Effect
 	onSessionEnd   []components.Effect
 }
@@ -108,14 +111,41 @@ func (e *Installation) Assets() map[string]string {
 	return out
 }
 
-// CloneWithAssets returns a copy of e with assets replaced.
+// AssetAny returns a site-registered asset value. It does not read the string asset map.
+func (e *Installation) AssetAny(name string) (any, bool) {
+	if e == nil || e.assetsAny == nil {
+		return nil, false
+	}
+	v, ok := e.assetsAny[name]
+	return v, ok
+}
+
+// CloneWithAssets returns a copy of e with string assets replaced.
+// Site-registered AssetAny values are kept.
 func (e *Installation) CloneWithAssets(assets map[string]string) *Installation {
+	return e.cloneWithAssetMaps(assets, e.assetsAny)
+}
+
+// CloneWithAssetAny returns a copy of e with site-registered assets replaced.
+// String assets from the directory loader are kept.
+func (e *Installation) CloneWithAssetAny(assets map[string]any) *Installation {
+	return e.cloneWithAssetMaps(e.assets, assets)
+}
+
+func (e *Installation) cloneWithAssetMaps(assets map[string]string, assetsAny map[string]any) *Installation {
 	if e == nil {
 		return nil
 	}
 	cpAssets := make(map[string]string, len(assets))
 	for k, v := range assets {
 		cpAssets[k] = v
+	}
+	var cpAssetsAny map[string]any
+	if len(assetsAny) > 0 {
+		cpAssetsAny = make(map[string]any, len(assetsAny))
+		for k, v := range assetsAny {
+			cpAssetsAny[k] = v
+		}
 	}
 	cpScenes := make(map[components.SceneID]components.Scene, len(e.scenes))
 	for k, v := range e.scenes {
@@ -135,6 +165,7 @@ func (e *Installation) CloneWithAssets(assets map[string]string) *Installation {
 		actions:        cpActions,
 		spaces:         cpSpaces,
 		assets:         cpAssets,
+		assetsAny:      cpAssetsAny,
 		onSessionStart: append([]components.Effect(nil), e.onSessionStart...),
 		onSessionEnd:   append([]components.Effect(nil), e.onSessionEnd...),
 	}
@@ -147,6 +178,7 @@ type Builder struct {
 	actions        map[components.ActionID]components.Action
 	spaces         map[components.SpaceID]components.Space
 	assets         map[string]string
+	assetsAny      map[string]any
 	onSessionStart []components.Effect
 	onSessionEnd   []components.Effect
 	err            error
@@ -209,6 +241,22 @@ func (b *Builder) Asset(name, content string) *Builder {
 	return b
 }
 
+// AssetAny registers a site-owned value by name. Invalid names fail Build.
+// AssetAny does not participate in AssetDir polling; string assets and any assets are separate maps.
+func (b *Builder) AssetAny(name string, v any) *Builder {
+	if err := validateAssetName(name); err != nil {
+		if b.err == nil {
+			b.err = err
+		}
+		return b
+	}
+	if b.assetsAny == nil {
+		b.assetsAny = make(map[string]any)
+	}
+	b.assetsAny[name] = v
+	return b
+}
+
 // OnSessionStart registers effects applied when a session connects.
 func (b *Builder) OnSessionStart(effects ...components.Effect) *Builder {
 	b.onSessionStart = append(b.onSessionStart, effects...)
@@ -244,6 +292,12 @@ func (b *Builder) Merge(other *Builder) *Builder {
 	}
 	for name, c := range other.assets {
 		b.assets[name] = c
+	}
+	for name, v := range other.assetsAny {
+		if b.assetsAny == nil {
+			b.assetsAny = make(map[string]any)
+		}
+		b.assetsAny[name] = v
 	}
 	if len(other.onSessionStart) > 0 {
 		b.onSessionStart = append(append([]components.Effect(nil), b.onSessionStart...), other.onSessionStart...)
@@ -320,6 +374,16 @@ func (b *Builder) Build() (*Installation, error) {
 	if err := b.validateEffectSceneRefs(); err != nil {
 		return nil, err
 	}
+	for name := range b.assets {
+		if err := validateAssetName(name); err != nil {
+			return nil, err
+		}
+	}
+	for name := range b.assetsAny {
+		if err := validateAssetName(name); err != nil {
+			return nil, err
+		}
+	}
 	cpScenes := make(map[components.SceneID]components.Scene, len(b.scenes))
 	for k, v := range b.scenes {
 		cpScenes[k] = cloneScene(v)
@@ -336,12 +400,20 @@ func (b *Builder) Build() (*Installation, error) {
 	for k, v := range b.assets {
 		cpAssets[k] = v
 	}
+	var cpAssetsAny map[string]any
+	if len(b.assetsAny) > 0 {
+		cpAssetsAny = make(map[string]any, len(b.assetsAny))
+		for k, v := range b.assetsAny {
+			cpAssetsAny[k] = v
+		}
+	}
 	return &Installation{
 		root:           b.root,
 		scenes:         cpScenes,
 		actions:        cpActions,
 		spaces:         cpSpaces,
 		assets:         cpAssets,
+		assetsAny:      cpAssetsAny,
 		onSessionStart: append([]components.Effect(nil), b.onSessionStart...),
 		onSessionEnd:   append([]components.Effect(nil), b.onSessionEnd...),
 	}, nil
@@ -407,4 +479,11 @@ func cloneSpace(s components.Space) components.Space {
 	s.OnJoin = append([]components.Effect(nil), s.OnJoin...)
 	s.OnLeave = append([]components.Effect(nil), s.OnLeave...)
 	return s
+}
+
+func validateAssetName(name string) error {
+	if name == "" || name != filepath.Base(name) {
+		return fmt.Errorf("portico: invalid asset name %q", name)
+	}
+	return nil
 }

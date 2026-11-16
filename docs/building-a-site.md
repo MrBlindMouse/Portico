@@ -57,7 +57,7 @@ go run github.com/MrBlindMouse/Portico/cmd/portico generate guestbook
 go run github.com/MrBlindMouse/Portico/cmd/portico generate -list
 ```
 
-Each command copies starter Go into the site and prints a `Merge(…)` line. Edit the file; wire the merge in `main.go`. Plans are **not** a library—only the copies in your repo count. Names: `landing`, `guestbook`, `chat`, `register`, `form`, `blog`, `lobby`. Each builds on its own; later `Merge` wins when ids collide.
+Each command copies starter Go into the site and prints a `Merge(…)` line; stderr may print **options hints** (accounts, assets, landing merge order). Edit the file; wire the merge in `main.go`. Plans are **not** a library—only the copies in your repo count. Names: `landing`, `guestbook`, `chat`, `register`, `form`, `blog`, `lobby`. Each builds on its own; later `Merge` wins when ids collide.
 
 ## Options you will actually use
 
@@ -80,7 +80,13 @@ The caret is the row under the frame. `render.NewScreen` plus `Input` and `Show`
 
 ## Hot reload
 
-Advanced: `portico.NewHost(addr, inst, opts)`, then `host.HotReload(builder)` with a newly built installation. Invalid graphs or sessions stranded in removed scenes or spaces are rejected. Use `POST /inspect/reload-preview` before applying.
+**Restart** (`go run .`) is enough for most sites. Use **hot reload** when you already call `portico.NewHost` (or `Serve` with `OnReady` that keeps a `*Host`):
+
+1. Edit scenes/actions and `Build()` a new `*installation.Builder`.
+2. Optional dry-run: `GET /inspect/wire` for the live graph, edit JSON, or build wire from `exp.Wire()` in code; `POST /inspect/reload-preview` with the proposal.
+3. `host.HotReload(builder)` — rejected when `Build()` fails or live sessions would lose their scene or a joined space.
+
+`portico.Every` from `OnReady` can poll files or repaint; the framework does not ship a source file watcher (use your own or restart).
 
 ## Inspection
 

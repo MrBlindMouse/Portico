@@ -118,7 +118,11 @@ type FileAccountStore struct {
 }
 
 // OpenFileAccountStore opens or creates the accounts directory.
+// It uses the same store-version marker as OpenFileStore.
 func OpenFileAccountStore(dataDir string) (*FileAccountStore, error) {
+	if err := checkStoreVersion(dataDir); err != nil {
+		return nil, err
+	}
 	dir := filepath.Join(dataDir, "accounts")
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, err

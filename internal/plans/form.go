@@ -32,12 +32,7 @@ func Form() *installation.Builder {
 	b.Scene("form", components.Scene{
 		Render: func(ctx components.RenderContext) string {
 			var body strings.Builder
-			if flash, ok := ctx.Local("flash"); ok {
-				if s, ok := flash.(string); ok && s != "" {
-					body.WriteString(s)
-					body.WriteString("\n\n")
-				}
-			}
+			body.WriteString(installation.FlashPrefix(ctx))
 			if name, ok := ctx.Persisted("form_name"); ok {
 				body.WriteString("Saved name: ")
 				body.WriteString(fmt.Sprint(name))
@@ -70,7 +65,7 @@ func Form() *installation.Builder {
 			rest := strings.TrimSpace(strings.TrimPrefix(line, "next"))
 			if rest == "" {
 				return []components.Effect{
-					components.SetLocalEffect("flash", "usage: next <value>"),
+					installation.SetFlash("usage: next <value>"),
 				}
 			}
 			// "next hi there" keeps the rest of the line, including spaces.

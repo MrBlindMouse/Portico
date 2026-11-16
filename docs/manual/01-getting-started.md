@@ -44,10 +44,7 @@ ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null localhos
 
 ## Data directory
 
-`Options.DataDir` (default `.portico-data` in templates) stores:
-
-- SSH host key
-- Per-identity persisted KV (`identity` file store)
+`Options.DataDir` (default `.portico-data` in templates) stores the host key, identity KV, nicknames, and hashed accounts. The JSON shapes and `store-version` marker are in [Identity and accounts](05-identity-accounts.md#file-layout).
 
 Set `PORTICO_DATA` in templates that support it, or pass `DataDir` in code. Add `.portico-data/` to `.gitignore`.
 

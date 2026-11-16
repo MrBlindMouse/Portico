@@ -28,6 +28,22 @@ func TestPlanEmbedMatchesSource(t *testing.T) {
 	}
 }
 
+func TestGenerateLandingCallDocumentsSceneIDs(t *testing.T) {
+	if !strings.Contains(landingCall, `"blog-list"`) {
+		t.Fatalf("landing call missing blog-list:\n%s", landingCall)
+	}
+}
+
+func TestGenerateBlogWritesSamplePost(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := generatePlan(dir, "main", "blog", false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "posts", "post-1.md")); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestGenerateGuestbook(t *testing.T) {
 	dir := t.TempDir()
 	call, err := generatePlan(dir, "", "guestbook", false)

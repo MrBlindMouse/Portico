@@ -76,7 +76,7 @@ Bind to loopback in production unless you authenticate in front.
 
 ## Assets
 
-`Options.AssetDir` + `AssetPollEvery` load and poll files; updates call `Engine.UpdateAssets`. Blog plan expects assets like `post-<id>`.
+`Options.AssetDir` + `AssetPollEvery` load and poll files; updates call `Engine.UpdateAssets` and replace the **text** asset map. `AssetAny` values survive those updates. Site-owned maps can be swapped with `Host.UpdateAssetAny` or `Engine.UpdateAssetAny`. Blog plan expects text assets like `post-<id>`.
 
 ## Logging
 

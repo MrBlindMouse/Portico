@@ -22,10 +22,15 @@ import (
 // The visitor types the id shown under Posts—the part after "post-" in the
 // asset name ("open 1.md" loads "post-1.md"; "open 1" or "open post-1.md" miss).
 // A missing asset is a render string, not an error effect.
+// Post bodies run through render.FormatWriteup (headings, lists, **bold**, `code`).
 //
 // post_id is session-local so the post scene can read it after Transition.
 // blog_last is Persist of that same id, only when the identity has a
 // fingerprint, so the list can show "Last opened" on a later connection.
+//
+// In main: merge Blog(), then either .Asset("post-1.md", "...") on the builder or
+// opts.AssetDir = "posts" (filenames must be post-*). generate blog writes
+// posts/post-1.md when no post-* file exists yet.
 
 // Blog lists post assets and opens one.
 func Blog() *installation.Builder {
@@ -42,6 +47,11 @@ func Blog() *installation.Builder {
 		Render: func(ctx components.RenderContext) string {
 			id, _ := ctx.Local("post_id")
 			s, _ := id.(string)
+			w, _ := ctx.Size()
+			inner := w - 4
+			if inner < 20 {
+				inner = 20
+			}
 			if s == "" {
 				return render.Box("Post", blogPostBody("no post selected"), 48)
 			}
@@ -50,7 +60,8 @@ func Blog() *installation.Builder {
 				msg := fmt.Sprintf("no asset post-%s\n\nUse the id from Posts (e.g. open %s)", s, s)
 				return render.Box("Post", blogPostBody(msg), 48)
 			}
-			return render.Box("Post: "+s, blogPostBody(text), 64)
+			formatted := render.FormatWriteup(text, inner, ctx.Theme())
+			return render.Box("Post: "+s, blogPostBody(formatted), 64)
 		},
 		Inputs: map[string]components.ActionID{
 			"back": "blog-back",
@@ -63,11 +74,11 @@ func Blog() *installation.Builder {
 			id := strings.Fields(rest)
 			if len(id) == 0 {
 				return []components.Effect{
-					components.SetLocalEffect("flash", "usage: open <id from Posts list>"),
+					installation.SetFlash("usage: open <id from Posts list>"),
 				}
 			}
 			effects := []components.Effect{
-				components.SetLocalEffect("flash", ""),
+				installation.ClearFlash(),
 				components.SetLocalEffect("post_id", id[0]),
 				components.TransitionEffect("blog-post"),
 			}
@@ -89,12 +100,7 @@ func Blog() *installation.Builder {
 
 func blogListBody(ctx components.RenderContext) string {
 	var b strings.Builder
-	if flash, ok := ctx.Local("flash"); ok {
-		if s, ok := flash.(string); ok && s != "" {
-			b.WriteString(s)
-			b.WriteString("\n\n")
-		}
-	}
+	b.WriteString(installation.FlashPrefix(ctx))
 	if last, ok := ctx.Persisted("blog_last"); ok {
 		b.WriteString("Last opened: ")
 		b.WriteString(fmt.Sprint(last))

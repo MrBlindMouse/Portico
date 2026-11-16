@@ -51,7 +51,13 @@ func planCatalog() []planDef {
 }
 
 const landingCall = `portico.New().Merge(Landing(map[string]components.SceneID{
+    // Merge feature plans first, then landing last. Map value = target scene id.
     // "guestbook": "guestbook",
+    // "chat":      "chat",
+    // "register":  "register",
+    // "form":      "form",
+    // "blog":      "blog-list",
+    // "lobby":     "lobby",
 })).Build()`
 
 func planNames() []string {
@@ -84,6 +90,34 @@ func generateCmd(args []string) {
 		log.Fatal(err)
 	}
 	fmt.Println(call)
+	for _, line := range planHints(fs.Arg(0)) {
+		fmt.Fprintln(os.Stderr, line)
+	}
+}
+
+func planHints(name string) []string {
+	switch name {
+	case "register":
+		return []string{
+			"# options hint: enable accounts before Serve (pick one):",
+			"#   opts.HashedAccounts = true  // with opts.DataDir",
+			"#   opts.AccountStore = runtime.NewAccountStore(); opts.Accounts = &runtime.AccountConfig{Enabled: true, Accounts: opts.AccountStore}  // dev only",
+			"# Visitors reconnect with SSH after register succeeds.",
+		}
+	case "blog":
+		return []string{
+			"# options hint: load posts named post-* via builder.Asset in main, or:",
+			"#   opts.AssetDir = \"posts\"  // see posts/post-1.md written by generate when missing",
+			"# Open uses the id after post- in the asset name (e.g. open 1.md for post-1.md).",
+		}
+	case "landing":
+		return []string{
+			"# Merge other plans before Landing(). Merge landing last so it stays root.",
+			"# Uncomment destination entries only for scenes you merged (values are scene ids).",
+		}
+	default:
+		return nil
+	}
 }
 
 func generatePlan(dir, pkg, name string, force bool) (string, error) {
@@ -131,7 +165,42 @@ func generatePlan(dir, pkg, name string, force bool) (string, error) {
 			return "", err
 		}
 	}
+	if name == "blog" {
+		if err := writeBlogSamplePost(target); err != nil {
+			return "", err
+		}
+	}
 	return def.call, nil
+}
+
+func writeBlogSamplePost(dir string) error {
+	postsDir := filepath.Join(dir, "posts")
+	hasPost := false
+	if entries, err := os.ReadDir(postsDir); err == nil {
+		for _, e := range entries {
+			if e.IsDir() {
+				continue
+			}
+			if strings.HasPrefix(e.Name(), "post-") {
+				hasPost = true
+				break
+			}
+		}
+	}
+	for _, name := range []string{"post-1.md"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
+			hasPost = true
+			break
+		}
+	}
+	if hasPost {
+		return nil
+	}
+	if err := os.MkdirAll(postsDir, 0o755); err != nil {
+		return err
+	}
+	sample := "# Hello\n\nSample post for the blog plan.\n\n## Lists\n\n- one\n  - nested\n    - deeper\n- two\n\nUse **bold** and `code` inline.\n"
+	return os.WriteFile(filepath.Join(postsDir, "post-1.md"), []byte(sample), 0o644)
 }
 
 func renderPlan(src []byte, pkg, label string) ([]byte, error) {

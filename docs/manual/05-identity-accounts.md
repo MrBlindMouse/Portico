@@ -53,6 +53,21 @@ Use `HashedAccounts: true` with `DataDir`, or set `AccountBackend` to a file-bac
 
 A public key remains a key for persistence until linked to an account.
 
+## File layout
+
+`DataDir` holds the file store. The host key is `Options.HostKeyPath` and is not part of this layout.
+
+| Path | Contents |
+|------|----------|
+| `identities/<fingerprint>.json` | `{"values": { "<key>": <json> }}` |
+| `nicknames.json` | `{"by_nickname": { "<name>": "<fingerprint>" }}` |
+| `accounts/<username>.json` | Account record: username, bcrypt `password_hash`, optional email, linked fingerprints |
+| `store-version` | One integer and a newline, currently `1`. Absence means version 1 |
+
+`OpenFileStore` and `OpenFileAccountStore` read `store-version` and refuse a marker this binary does not support. They do not write the file. A later layout change replaces this directory; there is no in-place migration. Values inside `values` are site data.
+
+Another database implements `identity.Store` and `identity.AccountStore`. Those backends do not use `store-version`.
+
 ## CLI account tools
 
 With bcrypt files under `DataDir`:

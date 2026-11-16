@@ -40,8 +40,37 @@ Prefer second-IP layout over `setcap` when coexisting with sshd on :22.
 ## Accounts and data
 
 - `HashedAccounts` + `DataDir` or `AccountBackend` file store.
-- Persistent `.portico-data` on durable disk; backup identity KV and accounts.
-- Rotate host key only with a deliberate migration plan.
+- Persistent `.portico-data` on durable disk; see [backup and restore](#backup-and-restore) below.
+
+## Backup and restore
+
+Back up the whole data directory (or at minimum):
+
+| Path | Contents |
+|------|----------|
+| `identities/`, `nicknames.json` | Identity KV (see [file layout](05-identity-accounts.md#file-layout)) |
+| `accounts/` | Bcrypt account records when using hashed accounts |
+| `store-version` | Layout marker (absent = version 1) |
+| Host key file | `Options.HostKeyPath` or default under data dir |
+
+Export from a running layout:
+
+```bash
+portico identity-export -data .portico-data > identities.json
+portico account-export -data .portico-data > accounts.json
+```
+
+Restore: stop the site, restore files into a fresh `DataDir`, or use `account-import` for accounts. A newer `store-version` than the binary supports is refused — use the matching framework version or treat restore as a clean break (wipe and re-import JSON).
+
+## SSH host key rotation
+
+The host key is **not** inside the identity store layout. `Options.HostKeyPath` points at the key file (default under `DataDir`).
+
+Rotation is a **clean break**: generate a new key path, update `Options`, restart, and have clients accept the new fingerprint (`known_hosts` / `ssh-keygen -R`). Use distinct keys per environment (dev vs production).
+
+## Connection instructions
+
+When `StatusAddr` is set, `GET /` on the status mux prints a short summary and an **ssh** hint derived from the listen address (concrete bind address when not `0.0.0.0`). For public sites, also document DNS and port in the site README. Status remains unauthenticated — bind to loopback in production or disable it.
 
 ## Inspect and status
 

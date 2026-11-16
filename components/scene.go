@@ -39,6 +39,7 @@ type RenderContext interface {
 	Identity() identity.Identity
 	Local(key string) (any, bool)
 	Asset(name string) (string, bool)
+	AssetAny(name string) (any, bool)
 	Assets() map[string]string
 	Persisted(key string) (any, bool)
 	Members(space SpaceID) []identity.Identity

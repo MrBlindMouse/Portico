@@ -18,7 +18,13 @@ Same rules as `installation.PreviewReload`.
 
 ## Dry-run
 
-While the server runs:
+While the server runs, export the live wiring:
+
+```bash
+curl -s http://127.0.0.1:9922/inspect/wire | jq . > live.wire.json
+```
+
+Propose a change (edit JSON or build from Go with `exp.Wire()`), then preview:
 
 ```bash
 curl -s -X POST http://127.0.0.1:9922/inspect/reload-preview \
@@ -26,7 +32,11 @@ curl -s -X POST http://127.0.0.1:9922/inspect/reload-preview \
   -d @proposed.wire.json
 ```
 
-Check `ok` and `stranded_sessions` before calling `HotReload`.
+Check `ok` and `stranded_sessions` before calling `HotReload`. Applying wire JSON does not swap the installation — only `HotReload` with real `Render`/`Run` funcs does.
+
+## Development loop
+
+`Options.OnReady` can retain `*Host` and start `portico.Every` for timers. There is no built-in watch on plan `.go` files; restart or wire your own watcher.
 
 ## Assets
 

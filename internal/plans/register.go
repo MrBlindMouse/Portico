@@ -16,9 +16,10 @@ import (
 // file into the site. Edit the copy.
 //
 // Root scene is "register". The command is "register <username> <password>".
-// RegisterAccountEffect writes the account store configured in portico.Options
-// (dev AccountStore, or HashedAccounts + DataDir for bcrypt files). If no
-// store is set, apply returns an error and the flash in this slice may
+// RegisterAccountEffect writes the account store configured in portico.Options.
+// In main (pick one): opts.HashedAccounts = true with opts.DataDir, or dev
+// AccountStore + Accounts for local testing only. See manual Identity chapter.
+// If no store is set, apply returns an error and the flash in this slice may
 // already have been cleared: effects are not a transaction.
 // Creating an account does not sign this SSH session in. The visitor
 // reconnects with that username and password. Checking mail is not this plan.
@@ -44,19 +45,19 @@ func Registration() *installation.Builder {
 			user, pass := parseTwoFields(rest)
 			if user == "" || pass == "" {
 				return []components.Effect{
-					components.SetLocalEffect("flash", "usage: register <username> <password>"),
+					installation.SetFlash("usage: register <username> <password>"),
 				}
 			}
 			if err := identity.ValidateUsername(user); err != nil {
 				return []components.Effect{
-					components.SetLocalEffect("flash", "username: letters, digits, _ or -"),
+					installation.SetFlash("username: letters, digits, _ or -"),
 				}
 			}
 			return []components.Effect{
-				components.SetLocalEffect("flash", ""),
+				installation.ClearFlash(),
 				components.RegisterAccountEffect(user, pass),
 				// Replaces the empty flash when registration succeeds.
-				components.SetLocalEffect("flash", "account created — reconnect to sign in"),
+				installation.SetFlash("account created — reconnect to sign in"),
 			}
 		},
 	})
@@ -66,12 +67,7 @@ func Registration() *installation.Builder {
 
 func registerBody(ctx components.RenderContext, inputs map[string]components.ActionID) string {
 	var b strings.Builder
-	if flash, ok := ctx.Local("flash"); ok {
-		if s, ok := flash.(string); ok && s != "" {
-			b.WriteString(s)
-			b.WriteString("\n\n")
-		}
-	}
+	b.WriteString(installation.FlashPrefix(ctx))
 	cmds := make([]string, 0, len(inputs))
 	for c := range inputs {
 		cmds = append(cmds, c)

@@ -67,12 +67,23 @@ func (h *Host) notDraining() error {
 	return nil
 }
 
+// UpdateAssetAny replaces site-registered assets on the live installation.
+func (h *Host) UpdateAssetAny(assets map[string]any) error {
+	if h == nil || h.engine == nil {
+		return fmt.Errorf("portico: host is not ready")
+	}
+	return h.engine.UpdateAssetAny(assets)
+}
+
 // NewHost prepares a site without listening. Starts inspect/status HTTP and asset polling.
 func NewHost(addr string, exp *installation.Installation, opts Options) (*Host, error) {
 	if exp == nil {
 		return nil, fmt.Errorf("portico: installation is required")
 	}
 	opts = opts.withDefaults()
+	for _, msg := range ServeWarnings(exp, opts) {
+		opts.Logger.Warn(msg)
+	}
 
 	store, err := openStore(opts)
 	if err != nil {

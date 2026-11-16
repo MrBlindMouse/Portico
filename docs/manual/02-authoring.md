@@ -18,7 +18,8 @@ portico.New().
     Scene("home", components.Scene{...}).
     Action("greet", components.Action{...}).
     Space("lobby", components.Space{...}). // optional
-    Asset("welcome", "Hello\n").     // optional inline assets
+    Asset("welcome", "Hello\n").     // optional text assets
+    AssetAny("logo", blob).        // optional site-owned values (not from AssetDir)
     BindInput("home", "help", "show-help"). // optional sugar
     OnSessionStart(components.SetLocalEffect("k", "v")...).
     OnSessionEnd(...).

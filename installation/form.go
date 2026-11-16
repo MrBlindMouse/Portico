@@ -19,7 +19,7 @@ const (
 // StartForm returns effects that begin a multi-step form in session-local state.
 func StartForm(fields []string) []components.Effect {
 	return []components.Effect{
-		components.SetLocalEffect("flash", ""),
+		ClearFlash(),
 		components.SetLocalEffect(LocalFormStep, 0),
 		components.SetLocalEffect(LocalFormFields, fields),
 		components.SetLocalEffect(LocalFormValues, map[string]string{}),
@@ -35,7 +35,7 @@ func AdvanceFormValue(ctx components.ActionContext, value string) []components.E
 	i, _ := step.(int)
 	names := stringFields(fields)
 	if len(names) == 0 || i < 0 {
-		return []components.Effect{components.SetLocalEffect("flash", "start the form first")}
+		return []components.Effect{SetFlash("start the form first")}
 	}
 	vals := map[string]string{}
 	if m, ok := values.(map[string]string); ok {
@@ -49,14 +49,14 @@ func AdvanceFormValue(ctx components.ActionContext, value string) []components.E
 	next := i + 1
 	if next >= len(names) {
 		return []components.Effect{
-			components.SetLocalEffect("flash", ""),
+			ClearFlash(),
 			components.SetLocalEffect(LocalFormValues, vals),
 			components.SetLocalEffect(LocalFormPrompt, ""),
 			components.SetLocalEffect(LocalFormStep, -1),
 		}
 	}
 	return []components.Effect{
-		components.SetLocalEffect("flash", ""),
+		ClearFlash(),
 		components.SetLocalEffect(LocalFormValues, vals),
 		components.SetLocalEffect(LocalFormStep, next),
 		components.SetLocalEffect(LocalFormPrompt, promptFor(names, next)),
@@ -66,7 +66,7 @@ func AdvanceFormValue(ctx components.ActionContext, value string) []components.E
 // CancelForm clears form local state.
 func CancelForm() []components.Effect {
 	return []components.Effect{
-		components.SetLocalEffect("flash", ""),
+		ClearFlash(),
 		components.SetLocalEffect(LocalFormStep, nil),
 		components.SetLocalEffect(LocalFormFields, nil),
 		components.SetLocalEffect(LocalFormValues, nil),

@@ -11,7 +11,8 @@ Used in `Scene.Render` — **read only** (except `PlaceInput`, which records car
 | `Identity()` | Current identity |
 | `Local(key)` | Session-local value |
 | `Persisted(key)` | Identity KV |
-| `Asset(name)`, `Assets()` | Installation assets |
+| `Asset(name)`, `Assets()` | Text installation assets |
+| `AssetAny(name)` | Site-registered asset values (not from `AssetDir`) |
 | `Members(space)`, `SpaceLocal`, `SpaceList` | Space read API |
 | `Size()` | Terminal columns, rows |
 | `Theme()` | `render.Theme` |

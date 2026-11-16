@@ -141,7 +141,7 @@ func serveCmd(args []string) {
 func inspectCmd(args []string) {
 	fs := flag.NewFlagSet("inspect", flag.ExitOnError)
 	base := fs.String("url", "http://127.0.0.1:9922", "inspect base URL")
-	resource := fs.String("resource", "snapshot", "snapshot|sessions|reload-preview|validate")
+	resource := fs.String("resource", "snapshot", "snapshot|sessions|wire|reload-preview|validate")
 	method := fs.String("method", "", "HTTP method (default GET; POST for reload-preview|validate)")
 	file := fs.String("file", "", "JSON body file for POST")
 	_ = fs.Parse(args)

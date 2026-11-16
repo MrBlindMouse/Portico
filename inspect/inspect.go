@@ -65,9 +65,15 @@ func NewHandler(eng *runtime.Engine) http.Handler {
 	mux.HandleFunc("GET /inspect/session/{id}", h.session)
 	mux.HandleFunc("POST /inspect/validate", h.validate)
 	mux.HandleFunc("POST /inspect/reload-preview", h.reloadPreview)
+	mux.HandleFunc("GET /inspect/wire", h.wire)
 	mux.HandleFunc("GET /inspect/identity/{fingerprint}", h.identity)
 	mux.HandleFunc("GET /inspect/spaces", h.spaces)
 	return mux
+}
+
+func (h *Handler) wire(w http.ResponseWriter, _ *http.Request) {
+	exp := h.Engine.Installation()
+	writeJSON(w, exp.Wire())
 }
 
 func (h *Handler) snapshot(w http.ResponseWriter, r *http.Request) {
