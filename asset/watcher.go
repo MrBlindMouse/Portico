@@ -33,10 +33,15 @@ func (p *Poll) Run(done <-chan struct{}, onChange func(map[string]string) error)
 		}
 		cur, err := p.Loader.fingerprint()
 		if err == nil && cur != last {
-			last = cur
-			assets, err := p.Loader.Reload()
-			if err == nil {
-				_ = onChange(assets)
+			// In-place writes truncate before new bytes land; wait for a stable hash.
+			time.Sleep(p.Interval)
+			stable, serr := p.Loader.fingerprint()
+			if serr == nil && stable == cur && stable != last {
+				last = stable
+				assets, err := p.Loader.Reload()
+				if err == nil {
+					_ = onChange(assets)
+				}
 			}
 		}
 		time.Sleep(p.Interval)

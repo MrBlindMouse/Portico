@@ -29,7 +29,11 @@ func TestPollSeesInPlaceEdit(t *testing.T) {
 	default:
 	}
 
-	if err := os.WriteFile(path, []byte("two"), 0o644); err != nil {
+	tmp := filepath.Join(dir, "a.txt.tmp")
+	if err := os.WriteFile(tmp, []byte("two"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(tmp, path); err != nil {
 		t.Fatal(err)
 	}
 	select {
