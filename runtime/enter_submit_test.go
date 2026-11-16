@@ -140,6 +140,81 @@ func TestReadKeyBlocksEnterDuringKittyBootstrap(t *testing.T) {
 	}
 }
 
+func TestReadKeyAbsorbsConnectEnterOnce(t *testing.T) {
+	ir := newInputReader(bufio.NewReader(strings.NewReader("\r\r")))
+	ir.setKeys([]string{"enter"})
+	got, err := ir.readKey()
+	if got != "enter" || err != nil {
+		t.Fatalf("got %q err %v, want enter after connect noise", got, err)
+	}
+}
+
+func TestRunLoopKeySceneConnectSpuriousEnter(t *testing.T) {
+	exp, err := installation.NewBuilder().
+		Root("home").
+		Scene("home", components.Scene{
+			Render: func(ctx components.RenderContext) string { return "home" },
+			Keys:   true,
+			Inputs: map[string]components.ActionID{"enter": "go"},
+		}).
+		Scene("other", components.Scene{
+			Render: func(ctx components.RenderContext) string { return "other" },
+		}).
+		Action("go", components.Action{
+			Run: func(ctx components.ActionContext) []components.Effect {
+				return []components.Effect{components.TransitionEffect("other")}
+			},
+		}).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, stream := range []string{"\r", "\x1b[13u"} {
+		t.Run(stream, func(t *testing.T) {
+			eng := NewEngine(exp, NewApplier(nil, identity.NewMemoryStore()))
+			sess := NewSessionForTest("t", identity.Anonymous(), "home")
+			term := newScriptTerminal(strings.NewReader(stream))
+			if err := eng.RunLoop(sess, term, nil); err != nil && err != io.EOF {
+				t.Fatal(err)
+			}
+			if sess.CurrentScene() != "home" {
+				t.Fatalf("scene=%s, want home after connect noise only", sess.CurrentScene())
+			}
+		})
+	}
+}
+
+func TestRunLoopKeySceneConnectNoiseThenRealKey(t *testing.T) {
+	exp, err := installation.NewBuilder().
+		Root("home").
+		Scene("home", components.Scene{
+			Render: func(ctx components.RenderContext) string { return "home" },
+			Keys:   true,
+			Inputs: map[string]components.ActionID{"enter": "go", "l": "go"},
+		}).
+		Scene("other", components.Scene{
+			Render: func(ctx components.RenderContext) string { return "other" },
+		}).
+		Action("go", components.Action{
+			Run: func(ctx components.ActionContext) []components.Effect {
+				return []components.Effect{components.TransitionEffect("other")}
+			},
+		}).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	eng := NewEngine(exp, NewApplier(nil, identity.NewMemoryStore()))
+	sess := NewSessionForTest("t", identity.Anonymous(), "home")
+	term := newScriptTerminal(strings.NewReader("\rl"))
+	if err := eng.RunLoop(sess, term, nil); err != nil && err != io.EOF {
+		t.Fatal(err)
+	}
+	if sess.CurrentScene() != "other" {
+		t.Fatalf("scene=%s, want other only after l", sess.CurrentScene())
+	}
+}
+
 func TestRunLoopKeySceneEnter(t *testing.T) {
 	exp, err := installation.NewBuilder().
 		Root("home").
@@ -160,7 +235,8 @@ func TestRunLoopKeySceneEnter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, in := range []string{"\r", "\x1b[13~", "\x1bOM"} {
+	// First enter-like event is absorbed after Keys mode arms; second dispatches.
+	for _, in := range []string{"\r\r", "\x1b[13~\x1b[13~", "\x1bOM\x1bOM"} {
 		t.Run(in, func(t *testing.T) {
 			eng := NewEngine(exp, NewApplier(nil, identity.NewMemoryStore()))
 			sess := NewSessionForTest("t", identity.Anonymous(), "home")

@@ -788,7 +788,7 @@ func (ir *inputReader) noteWireWindow(line string) {
 	case "KITTY_DATA_END":
 		ir.kittyBootstrap = false
 		if len(ir.keys) > 0 {
-			ir.keySuppressEnter = 3
+			ir.bumpKeySuppressEnter(3)
 		}
 	case itermConductorBegin:
 		ir.conductor = true
@@ -831,11 +831,21 @@ func (ir *inputReader) setKeys(keys []string) {
 		ir.keys = nil
 		return
 	}
+	wasKeys := len(ir.keys) > 0
 	m := make(map[string]struct{}, len(keys))
 	for _, k := range keys {
 		m[k] = struct{}{}
 	}
 	ir.keys = m
+	if !wasKeys {
+		ir.bumpKeySuppressEnter(1) // post-PTY connect enter noise (plain OpenSSH)
+	}
+}
+
+func (ir *inputReader) bumpKeySuppressEnter(n int) {
+	if n > ir.keySuppressEnter {
+		ir.keySuppressEnter = n
+	}
 }
 
 func (ir *inputReader) hasKey(s string) bool {

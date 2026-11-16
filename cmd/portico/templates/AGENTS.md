@@ -87,6 +87,10 @@ portico.Serve(*addr, inst, opts)
 5. **Imports for site code:** `portico`, `components`, `installation`, `render`, `asset`, `identity`, `testkit` (tests). Do not import framework `runtime` or `inspect` packages.
 6. Generated plan Go stays in **this repo** — merge it; do not import plan sources from the framework module.
 
+## Framework issues
+
+Problems in the Portico **framework** (SSH runtime, input dispatch, `portico.Serve`, effects/apply behavior, CLI, or APIs you use from the module) are not fixed in this site repo. Report them on GitHub: [github.com/MrBlindMouse/Portico/issues/new](https://github.com/MrBlindMouse/Portico/issues/new). Include repro steps, the `require github.com/MrBlindMouse/Portico` version from **go.mod**, and expected vs actual behavior. Site-only bugs (your scenes, actions, wiring) stay here.
+
 ## Input and effects (essentials)
 
 - Scene `Inputs`: exact line or **first word** (`register alice pass` → key `register`). Multi-word payloads: `ctx.InputLine()` in the action.
